@@ -1,0 +1,15 @@
+# build artifacts
+build/
+*.o
+*.a
+*.out
+
+# personal / pre-project material (delete when reviewed)
+_archive/
+
+# tool/session noise
+.playwright-mcp/
+.DS_Store
+
+# demo outputs
+telemetry*.csv
