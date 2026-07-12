@@ -9,13 +9,19 @@ Platform where every robot and each of its modules is a **node** you can see, co
 | [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) | Product requirements: vision, personas, domain model, FR-1…FR-10 with priorities, NFRs, MVP cut, risks |
 | [docs/SPEC.md](docs/SPEC.md) | System spec: three-plane architecture, node/capability model, motion core, algorithm tiers A/B/C, data plane, safety, milestones M0–M4 |
 | [docs/TECH-LANDSCAPE.md](docs/TECH-LANDSCAPE.md) | Researched survey of usable systems (Viam, ROS 2, Zenoh, Ruckig, EtherCAT, WASM, Gazebo, Mender, …) + recommended stack |
+| [docs/DECISIONS.md](docs/DECISIONS.md) | ADR-1…4: x86+PREEMPT_RT reference hardware, Zenoh-native data plane, dual Tier B sandbox, MVP safety posture |
 | [docs/research/](docs/research/) | Competitive intel on Vention (API surface + verified gaps, product specs, customers, company) — the seams RoboNode targets |
 
-Read order: REQUIREMENTS → SPEC → TECH-LANDSCAPE.
+Read order: REQUIREMENTS → SPEC → TECH-LANDSCAPE → DECISIONS.
 
-## Code assets (seeds for the platform)
+## Components (M0 in progress)
 
-- **[trajectory-lab/](trajectory-lab/)** — C++20 motion profiles (trapezoid, S-curve), blending, lock-free SPSC streaming + tests. Seeds the motion core's blend/profile layer (SPEC §3). Rebuild: `cmake -B build && cmake --build build && ctest --test-dir build`.
+- **[robonode-idl/](robonode-idl/)** — contract source of truth: capability protos (`MotionAxis@1`, descriptors, `CellClient` Tier B surface), topic scheme, canonical descriptor examples.
+- **[motion-core/](motion-core/)** — RT-domain skeleton: 1 kHz executive with absolute deadlines, governor (limits-as-data), sim axis adapter, trajlib-backed motion plans. `cmake -B build && cmake --build build && ./build/robonode_dev`.
+
+## Code seeds
+
+- **[trajectory-lab/](trajectory-lab/)** — C++20 motion profiles (trapezoid, S-curve), blending, lock-free SPSC streaming + tests. Feeds motion-core's profile layer (SPEC §3). Rebuild: `cmake -B build && cmake --build build && ctest --test-dir build`.
 - **[ur-stream-playground/](ur-stream-playground/)** — URSim + ur_client_library scaffold. Seeds the UR adapter (SPEC §3.1, milestone M1).
 
 ## Archive
