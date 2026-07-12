@@ -10,8 +10,11 @@
 
 #include "robonode/executive.hpp"
 #include "robonode/governor.hpp"
+#include "robonode/mcap_recorder.hpp"
 #include "robonode/motion_plan.hpp"
 #include "robonode/sim_axis.hpp"
+#include "robonode/sync_blend.hpp"
+#include "robonode/sync_executive.hpp"
 
 namespace {
 
@@ -95,6 +98,51 @@ int main() {
         report("demo 2: governor envelope (target 1600 mm)", stats, rows, governor);
     }
 
-    std::printf("\ntelemetry: telemetry-move.csv, telemetry-governed.csv\n");
+    // Demo 3: two axes, blended waypoints, one clock — the coordinated-motion
+    // shape (FR-2.3/2.4). Interior waypoints are passed through at speed.
+    {
+        robonode::SimAxis turret{"turret-a", 0.0, 0.005};
+        constexpr robonode::AxisLimits kTurret{
+            .position_min_mm = -10.0,
+            .position_max_mm = 100.0,
+            .velocity_max_mm_s = 300.0,
+            .acceleration_max_mm_s2 = 2000.0,
+            .jerk_max_mm_s3 = 0.0,
+        };
+        robonode::SimAxis rail2{"rail-x", 0.0, 0.005};
+        robonode::Governor g0{kRailX}, g1{kTurret};
+        robonode::SyncExecutive sync{{&rail2, &turret}, {&g0, &g1}, kRateHz};
+
+        const auto plan = robonode::SyncBlendPlan::plan(
+            {{0.0, 500.0, 300.0}, {0.0, 90.0, 45.0}}, {kRailX, kTurret});
+        std::printf("\nsync move: rail 0->500->300 mm + turret 0->90->45, duration %.3f s\n",
+                    plan.duration());
+        std::vector<std::vector<robonode::TelemetryRow>> rows;
+        const auto stats = sync.execute(plan, rows);
+        std::printf("\n== demo 3: synchronized blended 2-axis sequence ==\n");
+        std::printf("both axes on one clock: rail end %.3f mm, turret end %.3f mm (same %llu cycles)\n",
+                    rows[0].back().actual_position_mm, rows[1].back().actual_position_mm,
+                    static_cast<unsigned long long>(stats.cycles));
+        std::printf("governor clamps : rail pos=%llu vel=%llu | turret pos=%llu vel=%llu\n",
+                    static_cast<unsigned long long>(g0.position_clamps()),
+                    static_cast<unsigned long long>(g0.velocity_clamps()),
+                    static_cast<unsigned long long>(g1.position_clamps()),
+                    static_cast<unsigned long long>(g1.velocity_clamps()));
+        std::printf("host jitter     : mean %.1f us | p99 %.1f us | max %.1f us\n",
+                    stats.mean_jitter_us, stats.p99_jitter_us, stats.max_jitter_us);
+        write_csv("telemetry-sync-rail.csv", rows[0]);
+        write_csv("telemetry-sync-turret.csv", rows[1]);
+
+        // Flight-recorder v0: same run as MCAP — open robonode-dev.mcap in
+        // Foxglove (FR-6.3).
+        const bool rec = robonode::McapRecorder::write(
+            "robonode-dev.mcap",
+            {"rn/dev-cell/rail-x/MotionAxis/telemetry",
+             "rn/dev-cell/turret-a/MotionAxis/telemetry"},
+            rows, kRateHz);
+        std::printf("mcap recording  : %s\n", rec ? "robonode-dev.mcap" : "FAILED");
+    }
+
+    std::printf("\ntelemetry: telemetry-*.csv + robonode-dev.mcap (Foxglove-openable)\n");
     return 0;
 }

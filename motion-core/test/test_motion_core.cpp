@@ -19,8 +19,11 @@
 
 #include "robonode/executive.hpp"
 #include "robonode/governor.hpp"
+#include "robonode/mcap_recorder.hpp"
 #include "robonode/motion_plan.hpp"
 #include "robonode/sim_axis.hpp"
+#include "robonode/sync_blend.hpp"
+#include "robonode/sync_executive.hpp"
 
 namespace {
 
@@ -140,6 +143,103 @@ void test_executive_completes_scurve_move() {
     }
 }
 
+constexpr robonode::AxisLimits kAuxLimits{
+    .position_min_mm = -10.0,
+    .position_max_mm = 100.0,
+    .velocity_max_mm_s = 300.0,
+    .acceleration_max_mm_s2 = 2000.0,
+    .jerk_max_mm_s3 = 0.0,
+};
+
+// Monotonic waypoints: the true pass-through case — small corner cut,
+// nonzero velocity at the via (the Vention gap: no stop-and-go).
+void test_sync_plan_passes_through_monotonic_via() {
+    const std::vector<std::vector<double>> wp = {{0.0, 500.0, 800.0}, {0.0, 45.0, 90.0}};
+    const auto plan = robonode::SyncBlendPlan::plan(wp, {kLimits, kAuxLimits});
+
+    const double T = plan.duration();
+    const robonode::AxisLimits lims[2] = {kLimits, kAuxLimits};
+    double best_d[2] = {1e9, 1e9};
+    double v_at_best[2] = {0.0, 0.0};
+    for (double t = 0.0; t <= T; t += 1e-4) {
+        for (std::size_t i = 0; i < 2; ++i) {
+            const auto s = plan.sample(i, t);
+            CHECK(std::abs(s.velocity) <= lims[i].velocity_max_mm_s * 1.001);
+            CHECK(std::abs(s.acceleration) <= lims[i].acceleration_max_mm_s2 * 1.001);
+            const double d = std::abs(s.position - wp[i][1]);
+            if (d < best_d[i]) {
+                best_d[i] = d;
+                v_at_best[i] = s.velocity;
+            }
+        }
+    }
+    for (std::size_t i = 0; i < 2; ++i) {
+        const auto end = plan.sample(i, T);
+        CHECK(std::abs(end.position - wp[i][2]) < 1e-6);      // exact arrival
+        CHECK(std::abs(end.velocity) < 1e-9);                 // at rest
+        CHECK(best_d[i] < 0.05 * std::abs(wp[i][1] - wp[i][0]));  // tight corner
+        CHECK(std::abs(v_at_best[i]) > 0.1 * lims[i].velocity_max_mm_s);  // moving
+    }
+}
+
+// Direction-reversal corner: deviation is inherently |Δv|·t_b/8 (large) and
+// velocity crosses zero at closest approach — assert limits + endpoints
+// only; the corner-cut is the physics, not a bug.
+void test_sync_plan_reversal_corner_respects_limits() {
+    const std::vector<std::vector<double>> wp = {{0.0, 500.0, 300.0}, {0.0, 90.0, 45.0}};
+    const auto plan = robonode::SyncBlendPlan::plan(wp, {kLimits, kAuxLimits});
+    const double T = plan.duration();
+    const robonode::AxisLimits lims[2] = {kLimits, kAuxLimits};
+    for (double t = 0.0; t <= T; t += 1e-4) {
+        for (std::size_t i = 0; i < 2; ++i) {
+            const auto s = plan.sample(i, t);
+            CHECK(std::abs(s.velocity) <= lims[i].velocity_max_mm_s * 1.001);
+            CHECK(std::abs(s.acceleration) <= lims[i].acceleration_max_mm_s2 * 1.001);
+        }
+    }
+    for (std::size_t i = 0; i < 2; ++i) {
+        const auto end = plan.sample(i, T);
+        CHECK(std::abs(end.position - wp[i][2]) < 1e-6);
+        CHECK(std::abs(end.velocity) < 1e-9);
+    }
+}
+
+void test_mcap_recorder_writes_valid_file() {
+    std::vector<std::vector<robonode::TelemetryRow>> rows{
+        {{0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0}, {0.001, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1}}};
+    CHECK(robonode::McapRecorder::write("test-recorder.mcap",
+                                        {"rn/test/axis/MotionAxis/telemetry"}, rows, 1000.0));
+    std::FILE* f = std::fopen("test-recorder.mcap", "rb");
+    CHECK(f != nullptr);
+    char magic[8]{};
+    CHECK(std::fread(magic, 1, 8, f) == 8);
+    std::fclose(f);
+    std::remove("test-recorder.mcap");
+    // MCAP magic: \x89 M C A P 0 \r \n
+    CHECK(magic[1] == 'M' && magic[2] == 'C' && magic[3] == 'A' && magic[4] == 'P');
+}
+
+void test_sync_executive_two_axes_settle_together() {
+    robonode::SimAxis rail{"rail-x", 0.0, 0.005};
+    robonode::SimAxis aux{"turret-a", 0.0, 0.005};
+    robonode::Governor g0{kLimits}, g1{kAuxLimits};
+    robonode::SyncExecutive exec{{&rail, &aux}, {&g0, &g1}, 1000.0};
+
+    const auto plan = robonode::SyncBlendPlan::plan({{0.0, 500.0, 300.0}, {0.0, 90.0, 45.0}},
+                                                    {kLimits, kAuxLimits});
+    std::vector<std::vector<robonode::TelemetryRow>> rows;
+    const auto stats = exec.execute(plan, rows, /*settle_s=*/0.1);
+
+    CHECK(rows.size() == 2);
+    CHECK(rows[0].size() == stats.cycles);
+    CHECK(stats.safety_hold_cycles == 0);
+    // In-envelope plan: governors silent.
+    CHECK(g0.position_clamps() == 0 && g0.velocity_clamps() == 0);
+    CHECK(g1.position_clamps() == 0 && g1.velocity_clamps() == 0);
+    CHECK(std::abs(rows[0].back().actual_position_mm - 300.0) < 0.5);
+    CHECK(std::abs(rows[1].back().actual_position_mm - 45.0) < 0.5);
+}
+
 }  // namespace
 
 int main() {
@@ -148,6 +248,10 @@ int main() {
     test_governor_rejects_nonfinite_and_bad_dt();
     test_executive_completes_scurve_move();
     test_executive_holds_on_protective_stop_and_recovers();
+    test_sync_plan_passes_through_monotonic_via();
+    test_sync_plan_reversal_corner_respects_limits();
+    test_sync_executive_two_axes_settle_together();
+    test_mcap_recorder_writes_valid_file();
     std::puts("motion-core: all tests passed");
     return 0;
 }

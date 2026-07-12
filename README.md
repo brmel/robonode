@@ -15,10 +15,11 @@ Platform where every robot and each of its modules is a **node** you can see, co
 
 Read order: REQUIREMENTS → SPEC → TECH-LANDSCAPE → DECISIONS.
 
-## Components (M0 in progress)
+## Components (M1 in progress)
 
 - **[robonode-idl/](robonode-idl/)** — contract source of truth: capability protos (`MotionAxis@1`, descriptors, `CellClient` Tier B surface), topic scheme, canonical descriptor examples.
-- **[motion-core/](motion-core/)** — RT-domain skeleton: 1 kHz executive with absolute deadlines, governor (limits-as-data), sim axis adapter, trajlib-backed motion plans. `cmake -B build && cmake --build build && ./build/robonode_dev`.
+- **[motion-core/](motion-core/)** — RT domain: 1 kHz executive (absolute deadlines, per-cycle safety gate), governor (limits-as-data, NaN-proof), **SyncBlendPlan + SyncExecutive** (multi-axis waypoints, pass-through parabolic blends, one clock — FR-2.3/2.4), **MCAP flight recorder** (Foxglove-openable). `cmake -B build && cmake --build build && ./build/robonode_dev`.
+- **[adapters/ur/](adapters/ur/)** — first vendor adapter behind the `AxisAdapter` seam: UR wrist joint in SERVOJ @500 Hz through the same executive/governor that drives the sim axis. `./build/ur_governed_move` against URSim ([scripts/ursim.sh](scripts/ursim.sh) `up`).
 
 ## Code seeds
 

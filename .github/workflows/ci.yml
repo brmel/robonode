@@ -4,10 +4,6 @@ on:
   push:
   pull_request:
 
-# ur-stream-playground is excluded: it needs URSim + ur_client_library and
-# is compile-checked manually until the M1 UR adapter lands with a mockable
-# seam.
-
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -51,3 +47,17 @@ jobs:
         run: cmake --build trajectory-lab/build -j
       - name: Test
         run: ctest --test-dir trajectory-lab/build --output-on-failure
+
+  # Compile-only: needs URSim at runtime. Covers the UR adapter and the
+  # ur-stream-playground scaffolds against pinned urcl 2.13.0.
+  ur-compile:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        component: [adapters/ur, ur-stream-playground]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S ${{ matrix.component }} -B ${{ matrix.component }}/build -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build ${{ matrix.component }}/build -j
