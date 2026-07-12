@@ -28,8 +28,8 @@ Read order: REQUIREMENTS → SPEC → TECH-LANDSCAPE → DECISIONS.
 
 `_archive/` holds the June 2026 interview-prep material this workspace grew from (guides, study notes, drafts, CV). Safe to delete once you've confirmed you need none of it.
 
-## Next actions
+## Status & next
 
-1. Resolve OQ-1…OQ-5 (REQUIREMENTS §9) — hardware target and middleware bet first.
-2. `git init` + first commit (workspace is not yet a repo).
-3. Start M0: `robonode-idl` capability schemas + motion-core skeleton against the sim adapter.
+M0 done: IDL v0 + motion-core skeleton verified (see [docs/audit/2026-07-12-journey-audit.md](docs/audit/2026-07-12-journey-audit.md) for the full entry-point audit). OQ-1/2/4/5 decided ([DECISIONS](docs/DECISIONS.md)); OQ-3 (license) open.
+
+Next — **M1** (SPEC §12): UR adapter against URSim, EtherCAT bench axis, blended arm+axis sequences, flight recorder + Foxglove live.

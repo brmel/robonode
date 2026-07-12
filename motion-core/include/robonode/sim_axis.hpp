@@ -23,6 +23,10 @@ public:
 
     [[nodiscard]] AxisState read() const noexcept override { return state_; }
 
+    // Fault injection for sim-gate scenarios (FR-3.3): drives the safety
+    // state a real adapter would observe from the certified chain.
+    void set_safety(SafetyState s) noexcept { state_.safety = s; }
+
     void step(double dt_s) noexcept override {
         const double alpha = 1.0 - std::exp(-dt_s / tau_s_);
         const double prev = state_.position_mm;

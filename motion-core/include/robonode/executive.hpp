@@ -24,7 +24,8 @@ struct TelemetryRow {
 
 struct CycleStats {
     std::uint64_t cycles{};
-    std::uint64_t overruns{};       // wake-ups later than one full period
+    std::uint64_t overruns{};            // wake-ups later than one full period
+    std::uint64_t safety_hold_cycles{};  // cycles spent holding on non-NORMAL safety
     double max_jitter_us{};
     double p99_jitter_us{};
     double mean_jitter_us{};
@@ -50,7 +51,8 @@ public:
         using clock = std::chrono::steady_clock;
         const auto period = std::chrono::nanoseconds{period_ns_};
         const double dt_s = static_cast<double>(period_ns_) * 1e-9;
-        const double t_end = plan.duration_s() + settle_s;
+        const double plan_duration_s = plan.duration_s();  // hoisted: variant visit per call
+        const double t_end = plan_duration_s + settle_s;
         const auto n_cycles = static_cast<std::uint64_t>(t_end / dt_s) + 1;
 
         rows.reserve(rows.size() + n_cycles);
@@ -72,16 +74,31 @@ public:
             if (late_ns > period_ns_) ++stats.overruns;
 
             const double t = static_cast<double>(n) * dt_s;
-            const auto target = plan.sample(std::min(t, plan.duration_s()));
-            const auto governed = governor_.apply(target.position, dt_s);
 
-            adapter_.write_setpoint(governed.position_mm);
+            // FR-8.2: safety state observed every cycle BEFORE commanding.
+            // Non-NORMAL ⇒ hold the last governed setpoint. (M0 simplification:
+            // instant hold; the real stack decelerates on-path via the OTG —
+            // stop category 2. On return to NORMAL the plan clock has kept
+            // running, so catch-up is bounded by the governor's rate limit.)
+            const AxisState pre = adapter_.read();
+            double command_mm;
+            trajlib::State target{};
+            if (pre.safety != SafetyState::kNormal) {
+                command_mm = governor_.held_position();
+                target.position = command_mm;
+                ++stats.safety_hold_cycles;
+            } else {
+                target = plan.sample(std::min(t, plan_duration_s));
+                command_mm = governor_.apply(target.position, dt_s).position_mm;
+            }
+
+            adapter_.write_setpoint(command_mm);
             adapter_.step(dt_s);
             const AxisState state = adapter_.read();
 
-            rows.push_back({t, target.position, target.velocity, governed.position_mm,
+            rows.push_back({t, target.position, target.velocity, command_mm,
                             state.position_mm, state.velocity_mm_s,
-                            governed.position_mm - state.position_mm});
+                            command_mm - state.position_mm});
         }
 
         stats.cycles = n_cycles;

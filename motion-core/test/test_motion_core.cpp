@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <limits>
 #include <vector>
 
 // assert() vanishes under NDEBUG (Release); tests must fail in every build type.
@@ -55,6 +56,68 @@ void test_governor_rate_limits_jumps() {
     CHECK(gov.velocity_clamps() == 1);
 }
 
+void test_governor_rejects_nonfinite_and_bad_dt() {
+    robonode::Governor gov{kLimits};
+    gov.reset(100.0);
+    const auto nan = gov.apply(std::nan(""), 1e-3);
+    CHECK(nan.clamped);
+    CHECK(nan.position_mm == 100.0);  // holds previous, never propagates NaN
+    const auto inf = gov.apply(std::numeric_limits<double>::infinity(), 1e-3);
+    CHECK(inf.position_mm == 100.0);
+    const auto bad_dt = gov.apply(200.0, 0.0);
+    CHECK(bad_dt.position_mm == 100.0);
+    CHECK(gov.rejected_setpoints() == 3);
+    // Recovers: next finite setpoint governed normally.
+    const auto ok = gov.apply(100.5, 1e-3);
+    CHECK(std::abs(ok.position_mm - 100.5) < 1e-9);
+}
+
+// Wraps SimAxis and trips PROTECTIVE_STOP for executive cycles
+// [trip_at, clear_at) — the fault-injection shape sim-gate suites use.
+class FaultTimedAxis final : public robonode::AxisAdapter {
+public:
+    FaultTimedAxis(std::uint64_t trip_at, std::uint64_t clear_at)
+        : trip_{trip_at}, clear_{clear_at} {}
+
+    void write_setpoint(double p) noexcept override { inner_.write_setpoint(p); }
+    [[nodiscard]] robonode::AxisState read() const noexcept override { return inner_.read(); }
+    void step(double dt) noexcept override {
+        ++cycle_;
+        inner_.set_safety(cycle_ >= trip_ && cycle_ < clear_
+                              ? robonode::SafetyState::kProtectiveStop
+                              : robonode::SafetyState::kNormal);
+        inner_.step(dt);
+    }
+    [[nodiscard]] std::string name() const override { return "fault-timed"; }
+
+private:
+    robonode::SimAxis inner_{"inner", 0.0, 0.005};
+    std::uint64_t cycle_{}, trip_, clear_;
+};
+
+void test_executive_holds_on_protective_stop_and_recovers() {
+    FaultTimedAxis axis{100, 300};  // stop trips at cycle 100, clears at 300
+    robonode::Governor gov{kLimits};
+    robonode::Executive exec{axis, gov, 1000.0};
+    std::vector<robonode::TelemetryRow> rows;
+    const auto plan = robonode::MotionPlan::scurve(
+        0.0, 500.0, {kLimits.velocity_max_mm_s, kLimits.acceleration_max_mm_s2, kLimits.jerk_max_mm_s3});
+    const auto stats = exec.execute(plan, rows, /*settle_s=*/0.5);
+
+    CHECK(stats.safety_hold_cycles == 200);
+    // Command frozen across the whole hold window.
+    for (std::size_t i = 101; i < 300; ++i) {
+        CHECK(rows[i].governed_position_mm == rows[100].governed_position_mm);
+    }
+    // Catch-up after recovery stays inside the velocity envelope...
+    for (std::size_t i = 300; i < rows.size(); ++i) {
+        const double dp = rows[i].governed_position_mm - rows[i - 1].governed_position_mm;
+        CHECK(std::abs(dp) <= kLimits.velocity_max_mm_s * 1e-3 + 1e-6);
+    }
+    // ...and the move still completes.
+    CHECK(std::abs(rows.back().actual_position_mm - 500.0) < 0.5);
+}
+
 void test_executive_completes_scurve_move() {
     robonode::SimAxis axis{"t", 0.0, 0.005};
     robonode::Governor gov{kLimits};
@@ -82,7 +145,9 @@ void test_executive_completes_scurve_move() {
 int main() {
     test_governor_holds_position_envelope();
     test_governor_rate_limits_jumps();
+    test_governor_rejects_nonfinite_and_bad_dt();
     test_executive_completes_scurve_move();
+    test_executive_holds_on_protective_stop_and_recovers();
     std::puts("motion-core: all tests passed");
     return 0;
 }

@@ -9,6 +9,7 @@
 #include <ur_client_library/rtde/rtde_client.h>
 #include <ur_client_library/log.h>
 
+#include <cstdint>
 #include <cstdio>
 #include <memory>
 #include <vector>
@@ -31,12 +32,26 @@ int main(int argc, char** argv) {
     client.start();
     std::printf("connected to %s, RTDE @ %.0f Hz\n", robot_ip.c_str(), client.getMaxFrequency());
 
+    // Pre-allocated from the negotiated recipe; reused every cycle (the
+    // unique_ptr-returning getDataPackage allocates per call and is
+    // deprecated).
+    urcl::rtde_interface::DataPackage pkg{client.getOutputRecipe()};
+
+    std::int32_t last_safety = -1;
     for (int i = 0; i < 2500; ++i) {  // ~5 s at 500 Hz
-        const auto pkg = client.getDataPackage(std::chrono::milliseconds{100});
-        if (!pkg) continue;
+        if (!client.getDataPackage(pkg, std::chrono::milliseconds{100})) continue;
 
         urcl::vector6d_t q{};
-        pkg->getData("actual_q", q);
+        if (!pkg.getData("actual_q", q)) {
+            std::fprintf(stderr, "actual_q missing from negotiated recipe\n");
+            return 1;
+        }
+        // Surface safety transitions — the reason the field is in the recipe.
+        std::int32_t safety_mode = 0;
+        if (pkg.getData("safety_mode", safety_mode) && safety_mode != last_safety) {
+            std::printf("safety_mode -> %d (1=NORMAL 2=REDUCED 3+=stopped/fault)\n", safety_mode);
+            last_safety = safety_mode;
+        }
         if (i % 250 == 0) {  // print twice a second
             std::printf("q = [%7.4f %7.4f %7.4f %7.4f %7.4f %7.4f]\n",
                         q[0], q[1], q[2], q[3], q[4], q[5]);

@@ -35,7 +35,15 @@ public:
     // Position: hard clamp to [min, max]. Velocity: rate-limit |Δp|/dt.
     // (Acceleration/jerk envelopes join when the OTG slot lands — the OTG
     // already enforces them upstream for planned motion.)
+    //
+    // Non-finite setpoints and non-positive dt are rejected by holding the
+    // previous governed position — FR-3.1: NaN from any upstream (plan bug,
+    // Tier C plugin) must never reach a drive.
     Result apply(double setpoint_mm, double dt_s) noexcept {
+        if (!std::isfinite(setpoint_mm) || !(dt_s > 0.0)) {
+            ++rejected_setpoints_;
+            return {prev_mm_, true};
+        }
         double p = std::clamp(setpoint_mm, limits_.position_min_mm, limits_.position_max_mm);
         bool clamped = p != setpoint_mm;
         if (clamped) ++position_clamps_;
@@ -60,10 +68,15 @@ public:
         prev_mm_ = position_mm;
         position_clamps_ = 0;
         velocity_clamps_ = 0;
+        rejected_setpoints_ = 0;
     }
+
+    // Last governed setpoint — the hold value during safety stops.
+    [[nodiscard]] double held_position() const noexcept { return prev_mm_; }
 
     [[nodiscard]] std::uint64_t position_clamps() const noexcept { return position_clamps_; }
     [[nodiscard]] std::uint64_t velocity_clamps() const noexcept { return velocity_clamps_; }
+    [[nodiscard]] std::uint64_t rejected_setpoints() const noexcept { return rejected_setpoints_; }
     [[nodiscard]] const AxisLimits& limits() const noexcept { return limits_; }
 
 private:
@@ -71,6 +84,7 @@ private:
     double prev_mm_{};
     std::uint64_t position_clamps_{};
     std::uint64_t velocity_clamps_{};
+    std::uint64_t rejected_setpoints_{};
 };
 
 }  // namespace robonode

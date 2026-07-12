@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+# ur-stream-playground is excluded: it needs URSim + ur_client_library and
+# is compile-checked manually until the M1 UR adapter lands with a mockable
+# seam.
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        component: [trajectory-lab, motion-core]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S ${{ matrix.component }} -B ${{ matrix.component }}/build -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build ${{ matrix.component }}/build -j
+      - name: Test
+        run: ctest --test-dir ${{ matrix.component }}/build --output-on-failure
+
+  sanitizers:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        component: [trajectory-lab, motion-core]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure with ASan/UBSan
+        run: >
+          cmake -S ${{ matrix.component }} -B ${{ matrix.component }}/build -DCMAKE_BUILD_TYPE=Debug
+          -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer"
+      - name: Build
+        run: cmake --build ${{ matrix.component }}/build -j
+      - name: Test
+        run: ctest --test-dir ${{ matrix.component }}/build --output-on-failure
+
+  tsan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure with TSan (ring buffer threading)
+        run: >
+          cmake -S trajectory-lab -B trajectory-lab/build -DCMAKE_BUILD_TYPE=Debug
+          -DCMAKE_CXX_FLAGS="-fsanitize=thread"
+      - name: Build
+        run: cmake --build trajectory-lab/build -j
+      - name: Test
+        run: ctest --test-dir trajectory-lab/build --output-on-failure

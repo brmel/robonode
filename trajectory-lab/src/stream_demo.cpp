@@ -19,6 +19,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <cstdint>
 #include <cstdio>
 #include <thread>
 #include <vector>
@@ -53,7 +54,8 @@ int main() {
     SpscRing<Setpoint, 256> ring;
     std::atomic<bool> done{false};
     std::atomic<int> overruns{0};
-    std::atomic<long> max_jitter_us{0};
+    // int64: duration_cast<microseconds>::count() is int64; long is 32-bit on LLP64.
+    std::atomic<std::int64_t> max_jitter_us{0};
 
     std::thread producer{[&] {
         const bool rt = try_elevate_priority();
@@ -95,8 +97,12 @@ int main() {
 
     std::printf("streamed %zu setpoints @ 500 Hz over %.3f s\n", received.size(),
                 profile.duration());
-    std::printf("max tick jitter: %ld us, overruns(>500us or full ring): %d\n",
-                max_jitter_us.load(), overruns.load());
+    std::printf("max tick jitter: %lld us, overruns(>500us or full ring): %d\n",
+                static_cast<long long>(max_jitter_us.load()), overruns.load());
+    if (received.empty()) {
+        std::fprintf(stderr, "error: no setpoints received\n");
+        return 1;
+    }
     std::printf("final setpoint: p=%.6f v=%.6f (target 0.5, 0)\n",
                 received.back().state.position, received.back().state.velocity);
     return 0;

@@ -28,7 +28,10 @@ constexpr double kRateHz = 1000.0;
 
 void write_csv(const char* path, const std::vector<robonode::TelemetryRow>& rows) {
     std::FILE* f = std::fopen(path, "w");
-    if (f == nullptr) return;
+    if (f == nullptr) {
+        std::fprintf(stderr, "warning: could not open %s — telemetry not saved\n", path);
+        return;
+    }
     std::fputs("t_s,target_pos_mm,target_vel_mm_s,governed_pos_mm,actual_pos_mm,actual_vel_mm_s,following_err_mm\n", f);
     for (const auto& r : rows) {
         std::fprintf(f, "%.4f,%.3f,%.3f,%.3f,%.3f,%.3f,%.4f\n", r.t_s, r.target_position_mm,
@@ -46,9 +49,12 @@ void report(const char* title, const robonode::CycleStats& s,
     std::printf("final target    : %.3f mm\n", last.governed_position_mm);
     std::printf("final actual    : %.3f mm (err %.4f mm)\n", last.actual_position_mm,
                 last.governed_position_mm - last.actual_position_mm);
-    std::printf("governor clamps : pos=%llu vel=%llu\n",
+    std::printf("governor        : pos clamps=%llu vel clamps=%llu rejected=%llu\n",
                 static_cast<unsigned long long>(gov.position_clamps()),
-                static_cast<unsigned long long>(gov.velocity_clamps()));
+                static_cast<unsigned long long>(gov.velocity_clamps()),
+                static_cast<unsigned long long>(gov.rejected_setpoints()));
+    std::printf("safety holds    : %llu cycles\n",
+                static_cast<unsigned long long>(s.safety_hold_cycles));
     std::printf("host jitter     : mean %.1f us | p99 %.1f us | max %.1f us | overruns %llu\n",
                 s.mean_jitter_us, s.p99_jitter_us, s.max_jitter_us,
                 static_cast<unsigned long long>(s.overruns));
