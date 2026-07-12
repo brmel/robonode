@@ -1,6 +1,6 @@
 # Tech Landscape & System Survey
 
-> Research snapshot 2026-07-11 (web + prior Vention intel in [research/](research/)). Feeds the choices in [SPEC.md §11](SPEC.md). Each section: what it is → what we learned → verdict for RoboNode.
+> Research snapshot 2026-07-11, re-verified 2026-07-12. Category survey + verdicts; **exact pinned repos/versions with build verification live in [STACK.md](STACK.md)**. Feeds the choices in [SPEC.md §11](SPEC.md). Each section: what it is → what we learned → verdict for RoboNode.
 
 ---
 
@@ -33,6 +33,7 @@ Intrinsic (Google) Flowstate — upstream platform play, opaque GA status; Stand
 - **NVIDIA cuMotion / Isaac ROS**: GPU collision-free optimal-time planning, MoveIt 2 integration, ROS 2 actions/services; needs CUDA (Jetson/x86+GPU). Sources: [isaac_ros_cumotion docs](https://nvidia-isaac-ros.github.io/repositories_and_packages/isaac_ros_cumotion/isaac_ros_cumotion/index.html), [repo](https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_cumotion).
 - **MoveIt 2 / TOPP-RA**: planning + retiming references; heavier stack.
 - **Verdict:** Ruckig behind the Tier C slot as default OTG; our value-add = blending/retiming across the mixed node chain + governor layer (Vention's exact gaps). cuMotion later as optional planner on GPU hardware. `trajectory-lab` (in-repo) seeds the blend/profile layer and tests.
+- **2026-07-12 sharpening:** community Ruckig = single-target-state only — [intermediate waypoints are Pro or a non-RT cloud API](https://docs.ruckig.com/md_pages_2__intermediate__waypoints.html). Confirms waypoint blending/retiming must stay in-house (it was the plan; now it's also the only option short of paying). Pin verified by build: see STACK.md.
 
 ## 4. Fieldbus & vendor protocols
 
@@ -52,11 +53,13 @@ Intrinsic (Google) Flowstate — upstream platform play, opaque GA status; Stand
 - **Isaac Sim**: photoreal + synthetic data + RL standard in 2026, but heavyweight (Omniverse + big GPU) — wrong default for a per-cell twin, right later for perception data.
 - Sources: [2026 perspective](https://www.blackcoffeerobotics.com/blog/which-robot-simulation-software-to-use), [MuJoCo/Isaac/Gazebo comparisons](https://www.trossenrobotics.com/post/robot-arm-simulation-mujoco-isaac-sim-gazebo), [VnRobo overview](https://vnrobo.com/en/blog/sim-series-1-overview).
 - **Verdict:** Gazebo-class twin as the sim-gate workhorse (headless, deterministic-enough, CI-friendly); Isaac connector deferred [C].
+- **2026-07-12 update:** pin **Jetty (gz-sim 11**, supported → 2030); Ionic EOLs 2026-09 — the "latest stable tag" trap ([releases](https://gazebosim.org/docs/latest/releases/)).
 
 ## 7. Observability / fleet tooling
 
 - **Foxglove**: de-facto robotics visualization + MCAP ecosystem; remote viz/teleop in private beta 2026 → they own the *screen*, not the platform. **Formant**: SaaS fleet ops + teleop, enterprise on-prem only by contract. **Open-RMF + Foxglove ≈ 60 % of Formant** per comparisons. **Transitive**: thin public footprint. Sources: [Formant alternatives 2026](https://vnrobo.com/en/blog/formant-alternatives), [RViz/Foxglove/Rerun](https://www.reduct.store/blog/comparison-rviz-foxglove-rerun), [Foxglove teleop beta](https://foxglove.dev/blog/announcing-remote-visualization-teleoperation-private-beta), [fleet tools top-10](https://www.scmgalaxy.com/tutorials/top-10-robotics-fleet-management-tools-features-pros-cons-comparison/).
 - **Verdict:** don't compete with Foxglove — emit MCAP + Foxglove-compatible streams natively (D4); build our own thin fleet/ops UI (it's our product surface), no Formant dependency.
+- **2026-07-12 update:** Foxglove now ships an official **[SDK](https://foxglove.dev/blog/announcing-the-foxglove-sdk)** (C++/Python over a Rust core) that does MCAP recording *and* live WebSocket streaming through one API — adopted for the recorder instead of hand-rolling mcap + ws-protocol; raw mcap writer stays as the verified fallback (STACK.md).
 
 ## 8. OS / OTA / device fleet
 

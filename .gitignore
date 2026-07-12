@@ -13,3 +13,6 @@ _archive/
 
 # demo outputs
 telemetry*.csv
+
+# pin-verify smoke outputs
+*.mcap
