@@ -4,8 +4,11 @@ project(robonode CXX)
 # One package, MIL-style modules. Consumers link components:
 #   robonode::core      — types every module speaks (State, Limits, Status,
 #                         Lifecycle, Telemetry); depends on nothing
-#   robonode::motion    — governor, plans, executives, AxisAdapter seam
+#   robonode::motion    — governor, plans, executives, OTG slot (ruckig),
+#                         AxisAdapter seam
 #   robonode::recorder  — telemetry → MCAP (owns the mcap dependency)
+#   robonode::celld     — descriptors → node tree → lifecycle → coherent
+#                         execution (owns the JSON dependency; vendor-blind)
 #   robonode::adapter_ur — UR vendor adapter (owns the urcl dependency)
 # Module boundaries are enforced structurally: scripts/check-boundaries.sh
 # runs in CI and locally.
@@ -21,7 +24,9 @@ enable_testing()
 add_subdirectory(core)
 add_subdirectory(motion)
 add_subdirectory(recorder)
+add_subdirectory(celld)
 add_subdirectory(apps/robonode_dev)
+add_subdirectory(apps/celld_dev)
 add_subdirectory(tests)
 if(ROBONODE_BUILD_UR_ADAPTER)
   add_subdirectory(adapters/ur)

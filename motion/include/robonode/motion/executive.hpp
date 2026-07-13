@@ -11,12 +11,16 @@
 #include "robonode/motion/axis_adapter.hpp"
 #include "robonode/motion/governor.hpp"
 #include "robonode/motion/motion_plan.hpp"
+#include "robonode/motion/setpoint_source.hpp"
 
 namespace robonode {
 
-// Fixed-rate executive: one cycle = sample plan → govern → write adapter →
+// Fixed-rate executive: one cycle = source → govern → write adapter →
 // step device → read state → record. Absolute deadlines (t0 + n·period) so
 // timing never drifts (SPEC §3.1).
+//
+// The executive speaks only the SetpointSource slot — precomputed plans,
+// the Ruckig OTG, and (later) Tier C plugins are interchangeable behind it.
 //
 // Runs on the host scheduler via sleep_until — jitter in the report is the
 // host's, honestly measured. The production target is SCHED_FIFO + pinned
@@ -27,16 +31,14 @@ public:
     Executive(AxisAdapter& adapter, Governor& governor, double rate_hz)
         : adapter_{adapter}, governor_{governor}, period_ns_{static_cast<std::int64_t>(1e9 / rate_hz)} {}
 
-    // Executes the plan to completion plus a short settle window; returns
-    // timing stats, appends full-rate telemetry to `rows`.
-    CycleStats execute(const MotionPlan& plan, std::vector<TelemetryRow>& rows,
-                       double settle_s = 0.05) {
+    // Runs the source for `run_for_s`; returns timing stats, appends
+    // full-rate telemetry to `rows`.
+    CycleStats execute(SetpointSource& source, std::vector<TelemetryRow>& rows,
+                       double run_for_s) {
         using clock = std::chrono::steady_clock;
         const auto period = std::chrono::nanoseconds{period_ns_};
         const double dt_s = static_cast<double>(period_ns_) * 1e-9;
-        const double plan_duration_s = plan.duration_s();  // hoisted: variant visit per call
-        const double t_end = plan_duration_s + settle_s;
-        const auto n_cycles = static_cast<std::uint64_t>(t_end / dt_s) + 1;
+        const auto n_cycles = static_cast<std::uint64_t>(run_for_s / dt_s) + 1;
 
         rows.reserve(rows.size() + n_cycles);
         jitter_us_.clear();
@@ -61,8 +63,8 @@ public:
             // FR-8.2: safety state observed every cycle BEFORE commanding.
             // Non-NORMAL ⇒ hold the last governed setpoint. (Simplification:
             // instant hold; the real stack decelerates on-path via the OTG —
-            // stop category 2. On return to NORMAL the plan clock has kept
-            // running, so catch-up is bounded by the governor's rate limit.)
+            // stop category 2. On return to NORMAL, catch-up is bounded by
+            // the governor's rate limit.)
             const AxisState pre = adapter_.read();
             double command_mm;
             State target{};
@@ -71,7 +73,7 @@ public:
                 target.position = command_mm;
                 ++stats.safety_hold_cycles;
             } else {
-                target = plan.sample(std::min(t, plan_duration_s));
+                target = source.next(t, dt_s);
                 command_mm = governor_.apply(target.position, dt_s).position_mm;
             }
 
@@ -87,6 +89,13 @@ public:
         stats.cycles = n_cycles;
         finalize_jitter(stats);
         return stats;
+    }
+
+    // Convenience: run a precomputed plan to completion plus a settle window.
+    CycleStats execute(const MotionPlan& plan, std::vector<TelemetryRow>& rows,
+                       double settle_s = 0.05) {
+        PlanSource src{plan};
+        return execute(src, rows, plan.duration_s() + settle_s);
     }
 
 private:

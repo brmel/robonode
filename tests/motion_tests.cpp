@@ -9,6 +9,7 @@
 #include "robonode/motion/executive.hpp"
 #include "robonode/motion/governor.hpp"
 #include "robonode/motion/motion_plan.hpp"
+#include "robonode/motion/otg.hpp"
 #include "robonode/motion/sim_axis.hpp"
 #include "robonode/motion/sync_blend.hpp"
 #include "robonode/motion/sync_executive.hpp"
@@ -207,6 +208,90 @@ void test_sync_plan_reversal_corner_respects_limits() {
     }
 }
 
+void test_otg_reaches_target_jerk_limited() {
+    const double dt = 1e-3;
+    robonode::Otg otg{1000.0, kLimits, 0.0};
+    otg.retarget(500.0);
+    double prev_a = 0.0;
+    double t = 0.0;
+    int guard = 0;
+    while (!otg.done() && guard++ < 5000) {
+        const auto s = otg.next(t, dt);
+        CHECK(std::abs(s.velocity) <= kLimits.velocity_max_mm_s * 1.001);
+        CHECK(std::abs(s.acceleration) <= kLimits.acceleration_max_mm_s2 * 1.001);
+        // Jerk-limited: acceleration changes at most jerk·dt per cycle.
+        CHECK(std::abs(s.acceleration - prev_a) <= kLimits.jerk_max_mm_s3 * dt * 1.01);
+        prev_a = s.acceleration;
+        t += dt;
+    }
+    const auto end = otg.next(t, dt);
+    CHECK(std::abs(end.position - 500.0) < 1e-3);
+    CHECK(std::abs(end.velocity) < 1e-6);
+}
+
+void test_otg_retargets_mid_flight_smoothly() {
+    const double dt = 1e-3;
+    robonode::Otg otg{1000.0, kLimits, 0.0};
+    otg.retarget(500.0);
+    double t = 0.0;
+    robonode::State before{};
+    for (int i = 0; i < 200; ++i) {  // 0.2 s toward 500
+        before = otg.next(t, dt);
+        t += dt;
+    }
+    CHECK(std::abs(before.velocity) > 100.0);  // genuinely mid-flight
+    otg.retarget(200.0);                       // reverse!
+    const auto after = otg.next(t, dt);
+    // Continuity across the retarget: velocity cannot jump more than a·dt.
+    CHECK(std::abs(after.velocity - before.velocity) <=
+          kLimits.acceleration_max_mm_s2 * dt * 1.05);
+    int guard = 0;
+    while (!otg.done() && guard++ < 10000) {
+        otg.next(t, dt);
+        t += dt;
+    }
+    const auto end = otg.next(t, dt);
+    CHECK(std::abs(end.position - 200.0) < 1e-3);
+}
+
+// Test utility: applies scheduled retargets on the shared clock — the shape
+// a jog session or Tier B stream takes through the same slot.
+class ScheduledRetargets final : public robonode::SetpointSource {
+public:
+    ScheduledRetargets(robonode::Otg& otg, std::vector<std::pair<double, double>> schedule)
+        : otg_{otg}, schedule_{std::move(schedule)} {}
+
+    robonode::State next(double t, double dt) noexcept override {
+        while (i_ < schedule_.size() && t >= schedule_[i_].first) {
+            otg_.retarget(schedule_[i_++].second);
+        }
+        return otg_.next(t, dt);
+    }
+    [[nodiscard]] double duration_s() const noexcept override { return otg_.duration_s(); }
+
+private:
+    robonode::Otg& otg_;
+    std::vector<std::pair<double, double>> schedule_;
+    std::size_t i_{};
+};
+
+void test_executive_streams_retargeted_otg_through_governor() {
+    robonode::SimAxis axis{"t", 0.0, 0.005};
+    robonode::Governor gov{kLimits};
+    robonode::Executive exec{axis, gov, 1000.0};
+    robonode::Otg otg{1000.0, kLimits, 0.0};
+    ScheduledRetargets stream{otg, {{0.0, 500.0}, {0.2, 200.0}, {0.4, 800.0}}};
+
+    std::vector<robonode::TelemetryRow> rows;
+    const auto stats = exec.execute(stream, rows, /*run_for_s=*/1.6);
+
+    CHECK(stats.safety_hold_cycles == 0);
+    // OTG output respects the same limits the governor enforces → silent.
+    CHECK(gov.position_clamps() == 0);
+    CHECK(gov.velocity_clamps() == 0);
+    CHECK(std::abs(rows.back().actual_position_mm - 800.0) < 0.5);
+}
+
 void test_sync_executive_two_axes_settle_together() {
     robonode::SimAxis rail{"rail-x", 0.0, 0.005};
     robonode::SimAxis aux{"turret-a", 0.0, 0.005};
@@ -237,6 +322,9 @@ int main() {
     test_adapter_lifecycle_defaults();
     test_executive_completes_scurve_move();
     test_executive_holds_on_protective_stop_and_recovers();
+    test_otg_reaches_target_jerk_limited();
+    test_otg_retargets_mid_flight_smoothly();
+    test_executive_streams_retargeted_otg_through_governor();
     test_sync_plan_passes_through_monotonic_via();
     test_sync_plan_reversal_corner_respects_limits();
     test_sync_executive_two_axes_settle_together();

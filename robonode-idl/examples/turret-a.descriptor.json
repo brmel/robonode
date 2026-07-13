@@ -1,0 +1,29 @@
+{
+  "id": "turret-a",
+  "cell": "dev-cell",
+  "driver": { "name": "robonode.sim-axis", "version": "0.1.0" },
+  "device": { "vendor": "sim", "model": "indexer-90", "serial": "SIM-0002" },
+  "parent_node": "rail-x",
+  "parent_transform": { "xyz_mm": [0, 0, 120], "rpy_rad": [0, 0, 0] },
+  "capabilities": [
+    {
+      "type": "MotionAxis@1",
+      "units": "deg",
+      "limits": {
+        "position_min_mm": -10,
+        "position_max_mm": 100,
+        "velocity_max_mm_s": 300,
+        "acceleration_max_mm_s2": 2000,
+        "jerk_max_mm_s3": 0,
+        "force_max_n": 0
+      },
+      "command_rate_hz": 1000,
+      "modes": ["position", "velocity"],
+      "blending": true,
+      "streaming": true
+    }
+  ],
+  "state": "NODE_LIFECYCLE_ACTIVE",
+  "safety": "SAFETY_STATE_NORMAL",
+  "simulated": true
+}

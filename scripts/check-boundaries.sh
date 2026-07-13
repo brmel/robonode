@@ -24,26 +24,30 @@ check() { # check <dir> <forbidden-include-regex> <label>
 }
 
 # core: nothing but core
-check core 'robonode/(motion|recorder|adapter)|trajlib/|mcap/|ur_client_library/' \
+check core 'robonode/(motion|recorder|adapter)|trajlib/|ruckig/|mcap/|ur_client_library/' \
   "core must depend on nothing"
 
-# motion: no recorder, no adapters, no vendor, no mcap
+# motion: no recorder, no adapters, no vendor comms, no mcap
 check motion 'robonode/(recorder|adapter)|mcap/|ur_client_library/' \
-  "motion may include core (+ trajlib internally) only"
+  "motion may include core (+ trajlib/ruckig internally) only"
 
 # recorder: core + mcap only
-check recorder 'robonode/(motion|adapter)|trajlib/|ur_client_library/' \
+check recorder 'robonode/(motion|adapter)|trajlib/|ruckig/|ur_client_library/' \
   "recorder may include core + mcap only"
 
 # adapters: no recorder in headers/impl of the adapter itself; demo apps may
 # use recorder, so restrict the rule to include/ (the reusable surface)
-check adapters/ur/include 'robonode/recorder|trajlib/|mcap/' \
+check adapters/ur/include 'robonode/recorder|trajlib/|ruckig/|mcap/' \
   "adapter headers may include core + motion + vendor only"
 
-# trajlib is motion-private
-hits=$(grep -rnE '^#include ["<]trajlib/' apps tests adapters core recorder 2>/dev/null || true)
+# celld: vendor-blind coordination plane — core + motion + json only
+check celld 'robonode/(recorder|adapter)|trajlib/|ruckig/|mcap/|ur_client_library/' \
+  "celld may include core + motion + json only"
+
+# trajlib and ruckig are motion-private
+hits=$(grep -rnE '^#include ["<](trajlib|ruckig)/' apps tests adapters core recorder celld 2>/dev/null || true)
 if [ -n "$hits" ]; then
-  violation "trajlib is private to motion/"
+  violation "trajlib/ruckig are private to motion/"
   echo "$hits" | sed 's/^/    /'
 fi
 

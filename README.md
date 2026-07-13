@@ -26,8 +26,9 @@ bash scripts/check-boundaries.sh                # module-boundary lint (also in 
 | Component | What it is |
 |---|---|
 | [core/](core/) → `robonode::core` | Type vocabulary every module speaks: `State`, `AxisLimits`/`MotionProfile`, `Status` (one error model), `Lifecycle` verbs, `TelemetryRow`. Depends on nothing |
-| [motion/](motion/) → `robonode::motion` | Governor (NaN-proof, limits-as-data), plans (S-curve/trapezoid; **SyncBlendPlan** multi-axis pass-through blends), executives with per-cycle safety gate, `AxisAdapter` seam. trajlib = private impl detail |
+| [motion/](motion/) → `robonode::motion` | Governor (NaN-proof, limits-as-data), plans (S-curve/trapezoid; **SyncBlendPlan** multi-axis pass-through blends), **OTG slot** (`SetpointSource`: Ruckig `Otg` retargetable mid-flight = FR-2.6, plans, later Tier C plugins — executive can't tell them apart), executives with per-cycle safety gate, `AxisAdapter` seam. trajlib + ruckig = private impl details |
 | [recorder/](recorder/) → `robonode::recorder` | Telemetry → MCAP (Foxglove-openable); owns the mcap dependency; knows only core |
+| [celld/](celld/) → `robonode::celld` | Coordination plane v0: descriptor JSON → node tree → lifecycle orchestration → cell-coherent runs. Vendor-blind (lint-enforced); owns the JSON dependency. `./build/apps/celld_dev/celld_dev` boots a cell purely from [robonode-idl/examples](robonode-idl/examples/) |
 | [adapters/ur/](adapters/ur/) → `robonode::adapter_ur` | UR wrist SERVOJ @500 Hz behind the seam; owns the urcl dependency; lifecycle-verified via `configure()` |
 | [robonode-idl/](robonode-idl/) | Wire contracts: capability protos, topics, descriptor examples — C++ core types mirror these |
 | [tests/](tests/) | Per-module test binaries — each one's include set doubles as a dependency statement |
