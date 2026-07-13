@@ -24,15 +24,15 @@ check() { # check <dir> <forbidden-include-regex> <label>
 }
 
 # core: nothing but core
-check core 'robonode/(motion|recorder|adapter)|trajlib/|ruckig/|mcap/|ur_client_library/' \
+check core 'robonode/(motion|recorder|adapter|sim_mujoco)|trajlib/|ruckig/|mcap/|mujoco/|ur_client_library/' \
   "core must depend on nothing"
 
-# motion: no recorder, no adapters, no vendor comms, no mcap
-check motion 'robonode/(recorder|adapter)|mcap/|ur_client_library/' \
+# motion: no recorder, no adapters, no sim, no vendor comms, no mcap
+check motion 'robonode/(recorder|adapter|sim_mujoco)|mcap/|mujoco/|ur_client_library/' \
   "motion may include core (+ trajlib/ruckig internally) only"
 
 # recorder: core + mcap only
-check recorder 'robonode/(motion|adapter)|trajlib/|ruckig/|ur_client_library/' \
+check recorder 'robonode/(motion|adapter|sim_mujoco)|trajlib/|ruckig/|mujoco/|ur_client_library/' \
   "recorder may include core + mcap only"
 
 # adapters: no recorder in headers/impl of the adapter itself; demo apps may
@@ -41,13 +41,20 @@ check adapters/ur/include 'robonode/recorder|trajlib/|ruckig/|mcap/' \
   "adapter headers may include core + motion + vendor only"
 
 # celld: vendor-blind coordination plane — core + motion + json only
-check celld 'robonode/(recorder|adapter)|trajlib/|ruckig/|mcap/|ur_client_library/' \
+check celld 'robonode/(recorder|adapter|sim_mujoco)|trajlib/|ruckig/|mcap/|mujoco/|ur_client_library/' \
   "celld may include core + motion + json only"
 
 # trajlib and ruckig are motion-private
-hits=$(grep -rnE '^#include ["<](trajlib|ruckig)/' apps tests adapters core recorder celld 2>/dev/null || true)
+hits=$(grep -rnE '^#include ["<](trajlib|ruckig)/' apps tests adapters core recorder celld sim-mujoco 2>/dev/null || true)
 if [ -n "$hits" ]; then
   violation "trajlib/ruckig are private to motion/"
+  echo "$hits" | sed 's/^/    /'
+fi
+
+# mujoco is sim-mujoco-private: no direct include anywhere else
+hits=$(grep -rnE '^#include [<"]mujoco/' apps tests adapters core motion recorder celld 2>/dev/null || true)
+if [ -n "$hits" ]; then
+  violation "mujoco is private to sim-mujoco/"
   echo "$hits" | sed 's/^/    /'
 fi
 

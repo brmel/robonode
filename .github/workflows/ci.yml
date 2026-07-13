@@ -12,12 +12,14 @@ jobs:
       - name: Module boundary lint
         run: bash scripts/check-boundaries.sh
 
+  # Main package: motion/celld/recorder/UR adapter. MuJoCo off here (its
+  # source build is heavy) — it has its own job below.
   robonode:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Configure (full package incl. UR adapter)
-        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Configure (incl. UR adapter, MuJoCo off)
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DROBONODE_BUILD_MUJOCO=OFF
       - name: Build
         run: cmake --build build -j
       - name: Test
@@ -27,14 +29,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Configure with ASan/UBSan (UR adapter off — sanitizing urcl is not our job)
+      - name: Configure with ASan/UBSan (UR + MuJoCo off — sanitizing vendored libs is not our job)
         run: >
           cmake -B build -DCMAKE_BUILD_TYPE=Debug -DROBONODE_BUILD_UR_ADAPTER=OFF
+          -DROBONODE_BUILD_MUJOCO=OFF
           -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer"
       - name: Build
         run: cmake --build build -j
       - name: Test
         run: ctest --test-dir build --output-on-failure
+
+  # Physics twin: source-builds MuJoCo (heavy) so it stands alone. UR off.
+  mujoco:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure (MuJoCo on, UR off)
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DROBONODE_BUILD_UR_ADAPTER=OFF
+      - name: Build
+        run: cmake --build build -j
+      - name: Test (physics twin)
+        run: ctest --test-dir build -R mujoco_tests --output-on-failure
 
   trajectory-lab:
     runs-on: ubuntu-latest

@@ -18,9 +18,18 @@ namespace robonode {
 // N-axis executive: one clock, one cycle, all axes commanded together —
 // the motion-tree "one clock master per cell" rule (FR-2.4) in miniature.
 //
-// Safety is cell-coherent: ANY axis reporting non-NORMAL holds EVERY axis
-// at its last governed setpoint (a group that keeps moving while one member
-// is in protective stop is how gantries rack themselves).
+// Each cycle runs in three phases across all adapters:
+//   1. write — compute + govern each setpoint, write it to its adapter
+//   2. step  — advance every adapter's device
+//   3. read  — sample state, record telemetry
+// Phasing matters when adapters share state (a MuJoCo world stepped once per
+// cycle): all setpoints are in place before physics advances, so no joint
+// lags a cycle behind its neighbours. For independent adapters (SimAxis) the
+// result is identical to interleaving.
+//
+// Safety is cell-coherent: ANY axis reporting non-NORMAL holds EVERY axis at
+// its last governed setpoint (a group that keeps moving while one member is
+// in protective stop is how gantries rack themselves).
 class SyncExecutive {
 public:
     // adapters.size() must equal governors.size() and plan.axes().
@@ -49,6 +58,8 @@ public:
         for (auto& r : rows) r.reserve(n_cycles);
         jitter_us_.clear();
         jitter_us_.reserve(n_cycles);
+        cmd_.resize(n);  // per-cycle scratch, allocated once
+        tgt_.resize(n);
         for (std::size_t i = 0; i < n; ++i) {
             governors_[i]->reset(adapters_[i]->read().position_mm);
         }
@@ -76,22 +87,24 @@ public:
             }
             if (hold) ++stats.safety_hold_cycles;
 
+            // Phase 1: compute, govern, write every setpoint.
             for (std::size_t i = 0; i < n; ++i) {
-                State target{};
-                double command_mm;
                 if (hold) {
-                    command_mm = governors_[i]->held_position();
-                    target.position = command_mm;
+                    cmd_[i] = governors_[i]->held_position();
+                    tgt_[i] = State{cmd_[i], 0.0, 0.0};
                 } else {
-                    target = plan.sample(i, std::min(t, plan_duration_s));
-                    command_mm = governors_[i]->apply(target.position, dt_s).position_mm;
+                    tgt_[i] = plan.sample(i, std::min(t, plan_duration_s));
+                    cmd_[i] = governors_[i]->apply(tgt_[i].position, dt_s).position_mm;
                 }
-                adapters_[i]->write_setpoint(command_mm);
-                adapters_[i]->step(dt_s);
+                adapters_[i]->write_setpoint(cmd_[i]);
+            }
+            // Phase 2: advance every device (shared worlds step once here).
+            for (std::size_t i = 0; i < n; ++i) adapters_[i]->step(dt_s);
+            // Phase 3: read state, record telemetry.
+            for (std::size_t i = 0; i < n; ++i) {
                 const AxisState st = adapters_[i]->read();
-                rows[i].push_back({t, target.position, target.velocity, command_mm,
-                                   st.position_mm, st.velocity_mm_s,
-                                   command_mm - st.position_mm});
+                rows[i].push_back({t, tgt_[i].position, tgt_[i].velocity, cmd_[i], st.position_mm,
+                                   st.velocity_mm_s, cmd_[i] - st.position_mm});
             }
         }
 
@@ -113,6 +126,8 @@ private:
     std::vector<Governor*> governors_;
     std::int64_t period_ns_;
     std::vector<double> jitter_us_;
+    std::vector<double> cmd_;
+    std::vector<State> tgt_;
 };
 
 }  // namespace robonode

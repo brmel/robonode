@@ -20,6 +20,6 @@ target_include_directories(robonode_adapter_ur INTERFACE ${CMAKE_CURRENT_SOURCE_
 target_link_libraries(robonode_adapter_ur INTERFACE robonode::motion ur_client_library::urcl)
 
 add_executable(ur_governed_move src/ur_governed_move.cpp)
-target_link_libraries(ur_governed_move PRIVATE robonode::adapter_ur robonode::recorder)
+target_link_libraries(ur_governed_move PRIVATE robonode::adapter_ur robonode::recorder robonode::warnings)
 target_compile_definitions(ur_governed_move PRIVATE
     URCL_RESOURCES="${ur_client_library_SOURCE_DIR}")
