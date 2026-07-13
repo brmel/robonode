@@ -10,6 +10,11 @@ FetchContent_Declare(ruckig
   GIT_TAG v0.17.3)
 set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(BUILD_PYTHON_MODULE OFF CACHE BOOL "" FORCE)
+# Upstream's own test binary trips ASan in CI (their code, their tests);
+# our sanitizer job covers OUR use of ruckig through motion_tests.
+set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
+# Cloud client = Ruckig Pro remote waypoints — never wanted on a controller.
+set(BUILD_CLOUD_CLIENT OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(ruckig)
 
 add_library(robonode_motion INTERFACE)
