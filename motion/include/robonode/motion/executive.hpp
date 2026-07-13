@@ -6,39 +6,22 @@
 #include <thread>
 #include <vector>
 
-#include "robonode/axis_adapter.hpp"
-#include "robonode/governor.hpp"
-#include "robonode/motion_plan.hpp"
+#include "robonode/core/state.hpp"
+#include "robonode/core/telemetry.hpp"
+#include "robonode/motion/axis_adapter.hpp"
+#include "robonode/motion/governor.hpp"
+#include "robonode/motion/motion_plan.hpp"
 
 namespace robonode {
-
-struct TelemetryRow {
-    double t_s;
-    double target_position_mm;
-    double target_velocity_mm_s;
-    double governed_position_mm;
-    double actual_position_mm;
-    double actual_velocity_mm_s;
-    double following_error_mm;
-};
-
-struct CycleStats {
-    std::uint64_t cycles{};
-    std::uint64_t overruns{};            // wake-ups later than one full period
-    std::uint64_t safety_hold_cycles{};  // cycles spent holding on non-NORMAL safety
-    double max_jitter_us{};
-    double p99_jitter_us{};
-    double mean_jitter_us{};
-};
 
 // Fixed-rate executive: one cycle = sample plan → govern → write adapter →
 // step device → read state → record. Absolute deadlines (t0 + n·period) so
 // timing never drifts (SPEC §3.1).
 //
-// M0 runs on the host scheduler via sleep_until — jitter in the report is
-// the host's, honestly measured. The production target is SCHED_FIFO +
-// pinned core + PREEMPT_RT per NFR-1; the loop body is already RT-clean
-// (no allocation after reserve, no locks, no I/O).
+// Runs on the host scheduler via sleep_until — jitter in the report is the
+// host's, honestly measured. The production target is SCHED_FIFO + pinned
+// core + PREEMPT_RT per NFR-1; the loop body is already RT-clean (no
+// allocation after reserve, no locks, no I/O).
 class Executive {
 public:
     Executive(AxisAdapter& adapter, Governor& governor, double rate_hz)
@@ -76,13 +59,13 @@ public:
             const double t = static_cast<double>(n) * dt_s;
 
             // FR-8.2: safety state observed every cycle BEFORE commanding.
-            // Non-NORMAL ⇒ hold the last governed setpoint. (M0 simplification:
+            // Non-NORMAL ⇒ hold the last governed setpoint. (Simplification:
             // instant hold; the real stack decelerates on-path via the OTG —
             // stop category 2. On return to NORMAL the plan clock has kept
             // running, so catch-up is bounded by the governor's rate limit.)
             const AxisState pre = adapter_.read();
             double command_mm;
-            trajlib::State target{};
+            State target{};
             if (pre.safety != SafetyState::kNormal) {
                 command_mm = governor_.held_position();
                 target.position = command_mm;

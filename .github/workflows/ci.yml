@@ -5,59 +5,59 @@ on:
   pull_request:
 
 jobs:
-  test:
+  boundaries:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Module boundary lint
+        run: bash scripts/check-boundaries.sh
+
+  robonode:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure (full package incl. UR adapter)
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build -j
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+  robonode-sanitizers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure with ASan/UBSan (UR adapter off — sanitizing urcl is not our job)
+        run: >
+          cmake -B build -DCMAKE_BUILD_TYPE=Debug -DROBONODE_BUILD_UR_ADAPTER=OFF
+          -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer"
+      - name: Build
+        run: cmake --build build -j
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+  trajectory-lab:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        component: [trajectory-lab, motion-core]
+        flags:
+          - ""
+          - "-DCMAKE_CXX_FLAGS=-fsanitize=thread"
     steps:
       - uses: actions/checkout@v4
       - name: Configure
-        run: cmake -S ${{ matrix.component }} -B ${{ matrix.component }}/build -DCMAKE_BUILD_TYPE=Release
-      - name: Build
-        run: cmake --build ${{ matrix.component }}/build -j
-      - name: Test
-        run: ctest --test-dir ${{ matrix.component }}/build --output-on-failure
-
-  sanitizers:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        component: [trajectory-lab, motion-core]
-    steps:
-      - uses: actions/checkout@v4
-      - name: Configure with ASan/UBSan
-        run: >
-          cmake -S ${{ matrix.component }} -B ${{ matrix.component }}/build -DCMAKE_BUILD_TYPE=Debug
-          -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer"
-      - name: Build
-        run: cmake --build ${{ matrix.component }}/build -j
-      - name: Test
-        run: ctest --test-dir ${{ matrix.component }}/build --output-on-failure
-
-  tsan:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Configure with TSan (ring buffer threading)
-        run: >
-          cmake -S trajectory-lab -B trajectory-lab/build -DCMAKE_BUILD_TYPE=Debug
-          -DCMAKE_CXX_FLAGS="-fsanitize=thread"
+        run: cmake -S trajectory-lab -B trajectory-lab/build -DCMAKE_BUILD_TYPE=Release ${{ matrix.flags }}
       - name: Build
         run: cmake --build trajectory-lab/build -j
       - name: Test
         run: ctest --test-dir trajectory-lab/build --output-on-failure
 
-  # Compile-only: needs URSim at runtime. Covers the UR adapter and the
-  # ur-stream-playground scaffolds against pinned urcl 2.13.0.
-  ur-compile:
+  # Compile-only: needs URSim at runtime.
+  ur-playground-compile:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        component: [adapters/ur, ur-stream-playground]
     steps:
       - uses: actions/checkout@v4
       - name: Configure
-        run: cmake -S ${{ matrix.component }} -B ${{ matrix.component }}/build -DCMAKE_BUILD_TYPE=Release
+        run: cmake -S ur-stream-playground -B ur-stream-playground/build -DCMAKE_BUILD_TYPE=Release
       - name: Build
-        run: cmake --build ${{ matrix.component }}/build -j
+        run: cmake --build ur-stream-playground/build -j

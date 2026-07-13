@@ -7,10 +7,11 @@
 #include <thread>
 #include <vector>
 
-#include "robonode/axis_adapter.hpp"
-#include "robonode/executive.hpp"  // TelemetryRow, CycleStats
-#include "robonode/governor.hpp"
-#include "robonode/sync_blend.hpp"
+#include "robonode/core/state.hpp"
+#include "robonode/core/telemetry.hpp"
+#include "robonode/motion/axis_adapter.hpp"
+#include "robonode/motion/governor.hpp"
+#include "robonode/motion/sync_blend.hpp"
 
 namespace robonode {
 
@@ -76,7 +77,7 @@ public:
             if (hold) ++stats.safety_hold_cycles;
 
             for (std::size_t i = 0; i < n; ++i) {
-                trajlib::State target{};
+                State target{};
                 double command_mm;
                 if (hold) {
                     command_mm = governors_[i]->held_position();

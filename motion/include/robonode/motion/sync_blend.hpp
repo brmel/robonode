@@ -1,12 +1,13 @@
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <stdexcept>
 #include <vector>
 
-#include "robonode/governor.hpp"
-#include "trajlib/trapezoidal.hpp"  // trajlib::State
+#include "robonode/core/limits.hpp"
+#include "robonode/core/state.hpp"
 
 namespace robonode {
 
@@ -70,8 +71,7 @@ public:
                 }
             }
             for (std::size_t k = 0; k < m; ++k) {
-                const double v_prev_max = 1e-9;  // avoid zero-duration blends
-                double t = v_prev_max;
+                double t = 1e-9;  // avoid zero-duration blends
                 for (std::size_t i = 0; i < n_axes; ++i) {
                     const double v_in = k == 0 ? 0.0 : v[i][k - 1];
                     const double v_out = k == n_seg ? 0.0 : v[i][k];
@@ -93,9 +93,6 @@ public:
 
         // Build each axis's timeline by integration: constant-accel blend
         // pieces around waypoint times, constant-velocity cruises between.
-        // Waypoint k's nominal time on the shared clock:
-        //   tau_0 = tb_0 / 2   (start blend ramps 0 → v_0 around tau_0... by
-        //   construction motion begins at t = 0 with the first blend)
         std::vector<double> tau(m);
         tau[0] = tb[0] / 2.0;
         for (std::size_t k = 1; k < m; ++k) tau[k] = tau[k - 1] + T[k - 1];
@@ -131,7 +128,7 @@ public:
     [[nodiscard]] double duration() const { return duration_; }
     [[nodiscard]] std::size_t axes() const { return n_axes_; }
 
-    [[nodiscard]] trajlib::State sample(std::size_t axis, double t) const {
+    [[nodiscard]] State sample(std::size_t axis, double t) const {
         const auto& pieces = pieces_[axis];
         if (t <= 0.0) return {pieces.front().p0, 0.0, 0.0};
         for (const auto& pc : pieces) {

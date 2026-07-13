@@ -1,0 +1,29 @@
+#pragma once
+
+#include <cstdint>
+
+namespace robonode {
+
+// One RT cycle's worth of axis telemetry — the cross-module currency:
+// produced by executives (motion), consumed by recorders and, later, the
+// data plane. Mirrors robonode.v0.AxisTelemetry field-for-field.
+struct TelemetryRow {
+    double t_s;
+    double target_position_mm;
+    double target_velocity_mm_s;
+    double governed_position_mm;
+    double actual_position_mm;
+    double actual_velocity_mm_s;
+    double following_error_mm;
+};
+
+struct CycleStats {
+    std::uint64_t cycles{};
+    std::uint64_t overruns{};            // wake-ups later than one full period
+    std::uint64_t safety_hold_cycles{};  // cycles spent holding on non-NORMAL safety
+    double max_jitter_us{};
+    double p99_jitter_us{};
+    double mean_jitter_us{};
+};
+
+}  // namespace robonode

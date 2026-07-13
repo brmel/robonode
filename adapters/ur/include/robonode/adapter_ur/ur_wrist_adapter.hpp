@@ -7,7 +7,7 @@
 
 #include <ur_client_library/ur/ur_driver.h>
 
-#include "robonode/axis_adapter.hpp"
+#include "robonode/motion/axis_adapter.hpp"
 
 namespace robonode {
 
@@ -21,14 +21,25 @@ namespace robonode {
 // ArmKinematics adapter generalizes this to 6-DOF + Cartesian.
 class UrWristAdapter final : public AxisAdapter {
 public:
-    // driver must outlive the adapter and already be initialized (external
-    // control script sent). Adapter never owns the connection: celld will.
+    // driver must outlive the adapter and already be connected (external
+    // control script sent). The adapter never owns the connection: celld
+    // will. configure() verifies the robot is actually readable.
     UrWristAdapter(urcl::UrDriver& driver, std::string name)
         : driver_{driver}, name_{std::move(name)},
-          pkg_{driver.getRTDEOutputRecipe()} {
-        refresh();
+          pkg_{driver.getRTDEOutputRecipe()} {}
+
+    // Lifecycle (FR-1.2): configure = first state read; robot must be
+    // streaming RTDE (powered, safety confirmed) to leave kUnconfigured.
+    Status configure() override {
+        if (!driver_.getDataPackage(pkg_)) {
+            set_lifecycle(Lifecycle::kFault);
+            return Status::failure(name_ + ": no RTDE data (robot powered? safety confirmed?)");
+        }
+        refresh_from_pkg();
         setpoint_rad_ = state_.position_mm;  // hold current pose until commanded
-        for (std::size_t i = 0; i < 6; ++i) target_q_[i] = q_[i];
+        target_q_ = q_;
+        set_lifecycle(Lifecycle::kInactive);
+        return Status::success();
     }
 
     void write_setpoint(double position_rad) noexcept override { setpoint_rad_ = position_rad; }
@@ -47,7 +58,7 @@ public:
                 state_.safety = SafetyState::kFault;
                 return;
             }
-            refresh();
+            if (driver_.getDataPackage(pkg_)) refresh_from_pkg();
         } catch (...) {
             state_.safety = SafetyState::kFault;
         }
@@ -58,8 +69,7 @@ public:
     [[nodiscard]] const urcl::vector6d_t& joints() const noexcept { return q_; }
 
 private:
-    void refresh() {
-        if (!driver_.getDataPackage(pkg_)) return;  // keep last known state
+    void refresh_from_pkg() {
         pkg_.getData("actual_q", q_);
         urcl::vector6d_t qd{};
         pkg_.getData("actual_qd", qd);

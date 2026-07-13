@@ -6,7 +6,7 @@
 
 | Seam (we own) | Defined in | What plugs in behind it | Swap proof |
 |---|---|---|---|
-| `AxisAdapter` / arm adapters | motion-core `axis_adapter.hpp`, SPEC §3.1 | EtherCAT drives, UR, Fanuc, ABB, **sim** | SimAxis + FaultTimedAxis already swap in tests |
+| `AxisAdapter` / arm adapters | `motion/include/robonode/motion/axis_adapter.hpp`, SPEC §3.1 | EtherCAT drives, UR, Fanuc, ABB, **sim** | SimAxis + FaultTimedAxis + UrWristAdapter swap under one executive |
 | OTG slot (Tier C `TrajectoryGenerator`) | SPEC §3.2 | Ruckig, in-house OTG, customer plugins | trajlib `MotionPlan` is the current occupant; Ruckig verified as replacement |
 | `MotionPlan` / blend+retime layer | motion-core | in-house profiles (trajlib) — **deliberately not outsourced** (differentiator D2) | — |
 | Topic transport | `robonode-idl` topics + capability protos | Zenoh today; DDS possible; payloads defined by our IDL either way | IDL has no Zenoh types in it |

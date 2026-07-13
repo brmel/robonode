@@ -1,29 +1,17 @@
-// M0 smoke tests — no framework dependency yet. Grows into Catch2 (same as
-// trajectory-lab) when the sim-gate suites land (FR-3.3).
+// robonode::motion module tests.
 
 #include <cmath>
 #include <cstdio>
-#include <cstdlib>
 #include <limits>
 #include <vector>
 
-// assert() vanishes under NDEBUG (Release); tests must fail in every build type.
-#define CHECK(cond)                                                              \
-    do {                                                                         \
-        if (!(cond)) {                                                           \
-            std::fprintf(stderr, "CHECK failed %s:%d: %s\n", __FILE__, __LINE__, \
-                         #cond);                                                 \
-            std::abort();                                                        \
-        }                                                                        \
-    } while (0)
-
-#include "robonode/executive.hpp"
-#include "robonode/governor.hpp"
-#include "robonode/mcap_recorder.hpp"
-#include "robonode/motion_plan.hpp"
-#include "robonode/sim_axis.hpp"
-#include "robonode/sync_blend.hpp"
-#include "robonode/sync_executive.hpp"
+#include "check.hpp"
+#include "robonode/motion/executive.hpp"
+#include "robonode/motion/governor.hpp"
+#include "robonode/motion/motion_plan.hpp"
+#include "robonode/motion/sim_axis.hpp"
+#include "robonode/motion/sync_blend.hpp"
+#include "robonode/motion/sync_executive.hpp"
 
 namespace {
 
@@ -33,6 +21,12 @@ constexpr robonode::AxisLimits kLimits{
     .velocity_max_mm_s = 1200.0,
     .acceleration_max_mm_s2 = 8000.0,
     .jerk_max_mm_s3 = 120000.0,
+};
+
+constexpr robonode::MotionProfile kScurveProfile{
+    .velocity = kLimits.velocity_max_mm_s,
+    .acceleration = kLimits.acceleration_max_mm_s2,
+    .jerk = kLimits.jerk_max_mm_s3,
 };
 
 void test_governor_holds_position_envelope() {
@@ -75,6 +69,38 @@ void test_governor_rejects_nonfinite_and_bad_dt() {
     CHECK(std::abs(ok.position_mm - 100.5) < 1e-9);
 }
 
+void test_adapter_lifecycle_defaults() {
+    robonode::SimAxis axis{"t", 0.0, 0.005};
+    CHECK(axis.lifecycle() == robonode::Lifecycle::kUnconfigured);
+    CHECK(axis.configure().ok());
+    CHECK(axis.lifecycle() == robonode::Lifecycle::kInactive);
+    CHECK(axis.activate().ok());
+    CHECK(axis.lifecycle() == robonode::Lifecycle::kActive);
+    CHECK(axis.deactivate().ok());
+    CHECK(axis.lifecycle() == robonode::Lifecycle::kInactive);
+}
+
+void test_executive_completes_scurve_move() {
+    robonode::SimAxis axis{"t", 0.0, 0.005};
+    robonode::Governor gov{kLimits};
+    robonode::Executive exec{axis, gov, 1000.0};
+    std::vector<robonode::TelemetryRow> rows;
+    const auto plan = robonode::MotionPlan::move(0.0, 500.0, kScurveProfile);
+    const auto stats = exec.execute(plan, rows, /*settle_s=*/0.1);
+
+    CHECK(stats.cycles == rows.size());
+    // In-envelope plan: governor must not have intervened.
+    CHECK(gov.position_clamps() == 0);
+    CHECK(gov.velocity_clamps() == 0);
+    // Axis settled on target within 0.5 mm.
+    CHECK(std::abs(rows.back().actual_position_mm - 500.0) < 0.5);
+    // Governed setpoints respect the velocity envelope cycle-to-cycle.
+    for (std::size_t i = 1; i < rows.size(); ++i) {
+        const double dp = rows[i].governed_position_mm - rows[i - 1].governed_position_mm;
+        CHECK(std::abs(dp) <= kLimits.velocity_max_mm_s * 1e-3 + 1e-6);
+    }
+}
+
 // Wraps SimAxis and trips PROTECTIVE_STOP for executive cycles
 // [trip_at, clear_at) — the fault-injection shape sim-gate suites use.
 class FaultTimedAxis final : public robonode::AxisAdapter {
@@ -103,8 +129,7 @@ void test_executive_holds_on_protective_stop_and_recovers() {
     robonode::Governor gov{kLimits};
     robonode::Executive exec{axis, gov, 1000.0};
     std::vector<robonode::TelemetryRow> rows;
-    const auto plan = robonode::MotionPlan::scurve(
-        0.0, 500.0, {kLimits.velocity_max_mm_s, kLimits.acceleration_max_mm_s2, kLimits.jerk_max_mm_s3});
+    const auto plan = robonode::MotionPlan::move(0.0, 500.0, kScurveProfile);
     const auto stats = exec.execute(plan, rows, /*settle_s=*/0.5);
 
     CHECK(stats.safety_hold_cycles == 200);
@@ -119,28 +144,6 @@ void test_executive_holds_on_protective_stop_and_recovers() {
     }
     // ...and the move still completes.
     CHECK(std::abs(rows.back().actual_position_mm - 500.0) < 0.5);
-}
-
-void test_executive_completes_scurve_move() {
-    robonode::SimAxis axis{"t", 0.0, 0.005};
-    robonode::Governor gov{kLimits};
-    robonode::Executive exec{axis, gov, 1000.0};
-    std::vector<robonode::TelemetryRow> rows;
-    const auto plan = robonode::MotionPlan::scurve(
-        0.0, 500.0, {kLimits.velocity_max_mm_s, kLimits.acceleration_max_mm_s2, kLimits.jerk_max_mm_s3});
-    const auto stats = exec.execute(plan, rows, /*settle_s=*/0.1);
-
-    CHECK(stats.cycles == rows.size());
-    // In-envelope plan: governor must not have intervened.
-    CHECK(gov.position_clamps() == 0);
-    CHECK(gov.velocity_clamps() == 0);
-    // Axis settled on target within 0.5 mm.
-    CHECK(std::abs(rows.back().actual_position_mm - 500.0) < 0.5);
-    // Governed setpoints respect the velocity envelope cycle-to-cycle.
-    for (std::size_t i = 1; i < rows.size(); ++i) {
-        const double dp = rows[i].governed_position_mm - rows[i - 1].governed_position_mm;
-        CHECK(std::abs(dp) <= kLimits.velocity_max_mm_s * 1e-3 + 1e-6);
-    }
 }
 
 constexpr robonode::AxisLimits kAuxLimits{
@@ -204,21 +207,6 @@ void test_sync_plan_reversal_corner_respects_limits() {
     }
 }
 
-void test_mcap_recorder_writes_valid_file() {
-    std::vector<std::vector<robonode::TelemetryRow>> rows{
-        {{0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0}, {0.001, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1}}};
-    CHECK(robonode::McapRecorder::write("test-recorder.mcap",
-                                        {"rn/test/axis/MotionAxis/telemetry"}, rows, 1000.0));
-    std::FILE* f = std::fopen("test-recorder.mcap", "rb");
-    CHECK(f != nullptr);
-    char magic[8]{};
-    CHECK(std::fread(magic, 1, 8, f) == 8);
-    std::fclose(f);
-    std::remove("test-recorder.mcap");
-    // MCAP magic: \x89 M C A P 0 \r \n
-    CHECK(magic[1] == 'M' && magic[2] == 'C' && magic[3] == 'A' && magic[4] == 'P');
-}
-
 void test_sync_executive_two_axes_settle_together() {
     robonode::SimAxis rail{"rail-x", 0.0, 0.005};
     robonode::SimAxis aux{"turret-a", 0.0, 0.005};
@@ -246,12 +234,12 @@ int main() {
     test_governor_holds_position_envelope();
     test_governor_rate_limits_jumps();
     test_governor_rejects_nonfinite_and_bad_dt();
+    test_adapter_lifecycle_defaults();
     test_executive_completes_scurve_move();
     test_executive_holds_on_protective_stop_and_recovers();
     test_sync_plan_passes_through_monotonic_via();
     test_sync_plan_reversal_corner_respects_limits();
     test_sync_executive_two_axes_settle_together();
-    test_mcap_recorder_writes_valid_file();
-    std::puts("motion-core: all tests passed");
+    std::puts("robonode motion: all tests passed");
     return 0;
 }

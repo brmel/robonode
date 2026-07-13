@@ -4,17 +4,9 @@
 #include <cmath>
 #include <cstdint>
 
-namespace robonode {
+#include "robonode/core/limits.hpp"
 
-// Mirrors robonode.v0.AxisLimits — populated from the node descriptor at
-// configure time, never compiled in (FR-1.3).
-struct AxisLimits {
-    double position_min_mm{};
-    double position_max_mm{};
-    double velocity_max_mm_s{};
-    double acceleration_max_mm_s2{};
-    double jerk_max_mm_s3{};
-};
+namespace robonode {
 
 // Platform-owned limit envelope BELOW the plugin boundary (SPEC invariant
 // I3, FR-8.4). Whatever a plan, stream, or Tier C plugin emits, the governor

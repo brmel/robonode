@@ -1,25 +1,28 @@
-// robonode_dev — M0 slice of the `robonode dev` experience (FR-3.4):
-// boot a simulated axis node from its descriptor, run a jerk-limited move
-// through governor + adapter at 1 kHz, drop telemetry, report timing.
+// robonode_dev — the `robonode dev` experience slice (FR-3.4): boot
+// simulated nodes from descriptor data, run governed moves at 1 kHz, drop
+// telemetry (CSV + MCAP), report timing.
 //
-// Demo 2 deliberately commands a target beyond the descriptor's position
-// limit to show the governor envelope holding (SPEC invariant I3).
+// Demo 1: jerk-limited S-curve inside the envelope.
+// Demo 2: target beyond the position limit — governor envelope holds
+//         (SPEC invariant I3).
+// Demo 3: two axes, blended waypoints, one clock (FR-2.3/2.4).
 
 #include <cstdio>
 #include <vector>
 
-#include "robonode/executive.hpp"
-#include "robonode/governor.hpp"
-#include "robonode/mcap_recorder.hpp"
-#include "robonode/motion_plan.hpp"
-#include "robonode/sim_axis.hpp"
-#include "robonode/sync_blend.hpp"
-#include "robonode/sync_executive.hpp"
+#include "robonode/motion/executive.hpp"
+#include "robonode/motion/governor.hpp"
+#include "robonode/motion/motion_plan.hpp"
+#include "robonode/motion/sim_axis.hpp"
+#include "robonode/motion/sync_blend.hpp"
+#include "robonode/motion/sync_executive.hpp"
+#include "robonode/recorder/mcap_recorder.hpp"
 
 namespace {
 
 // Mirrors robonode-idl/examples/rail-x.descriptor.json. Limits are data
-// (FR-1.3); a real celld parses the descriptor — M0 inlines the same values.
+// (FR-1.3); a real celld parses the descriptor — the dev app inlines the
+// same values.
 constexpr robonode::AxisLimits kRailX{
     .position_min_mm = 0.0,
     .position_max_mm = 1450.0,
@@ -66,7 +69,7 @@ void report(const char* title, const robonode::CycleStats& s,
 }  // namespace
 
 int main() {
-    std::printf("robonode dev — M0 twin cell: node rail-x [MotionAxis@1, sim]\n");
+    std::printf("robonode dev — twin cell: node rail-x [MotionAxis@1, sim]\n");
     std::printf("limits: pos [%.0f, %.0f] mm | vel %.0f mm/s | acc %.0f mm/s^2 | jerk %.0f mm/s^3\n",
                 kRailX.position_min_mm, kRailX.position_max_mm, kRailX.velocity_max_mm_s,
                 kRailX.acceleration_max_mm_s2, kRailX.jerk_max_mm_s3);
@@ -78,7 +81,7 @@ int main() {
     // Demo 1: jerk-limited move inside the envelope.
     {
         std::vector<robonode::TelemetryRow> rows;
-        const auto plan = robonode::MotionPlan::scurve(
+        const auto plan = robonode::MotionPlan::move(
             0.0, 500.0,
             {kRailX.velocity_max_mm_s, kRailX.acceleration_max_mm_s2, kRailX.jerk_max_mm_s3});
         std::printf("\nmove_to 500 mm, S-curve, planned duration %.3f s\n", plan.duration_s());
@@ -90,8 +93,8 @@ int main() {
     // Demo 2: target beyond position limit — governor must hold 1450 mm.
     {
         std::vector<robonode::TelemetryRow> rows;
-        const auto plan = robonode::MotionPlan::trapezoid(
-            500.0, 1600.0, {kRailX.velocity_max_mm_s, kRailX.acceleration_max_mm_s2});
+        const auto plan = robonode::MotionPlan::move(
+            500.0, 1600.0, {kRailX.velocity_max_mm_s, kRailX.acceleration_max_mm_s2, 0.0});
         std::printf("\nmove_to 1600 mm (beyond 1450 limit), trapezoid\n");
         const auto stats = exec.execute(plan, rows);
         write_csv("telemetry-governed.csv", rows);
@@ -135,12 +138,13 @@ int main() {
 
         // Flight-recorder v0: same run as MCAP — open robonode-dev.mcap in
         // Foxglove (FR-6.3).
-        const bool rec = robonode::McapRecorder::write(
+        const auto rec = robonode::McapRecorder::write(
             "robonode-dev.mcap",
             {"rn/dev-cell/rail-x/MotionAxis/telemetry",
              "rn/dev-cell/turret-a/MotionAxis/telemetry"},
             rows, kRateHz);
-        std::printf("mcap recording  : %s\n", rec ? "robonode-dev.mcap" : "FAILED");
+        std::printf("mcap recording  : %s\n",
+                    rec.ok() ? "robonode-dev.mcap" : rec.message().c_str());
     }
 
     std::printf("\ntelemetry: telemetry-*.csv + robonode-dev.mcap (Foxglove-openable)\n");

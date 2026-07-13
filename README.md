@@ -15,11 +15,24 @@ Platform where every robot and each of its modules is a **node** you can see, co
 
 Read order: REQUIREMENTS → SPEC → TECH-LANDSCAPE → DECISIONS.
 
-## Components (M1 in progress)
+## The package (one build, MIL-style modules)
 
-- **[robonode-idl/](robonode-idl/)** — contract source of truth: capability protos (`MotionAxis@1`, descriptors, `CellClient` Tier B surface), topic scheme, canonical descriptor examples.
-- **[motion-core/](motion-core/)** — RT domain: 1 kHz executive (absolute deadlines, per-cycle safety gate), governor (limits-as-data, NaN-proof), **SyncBlendPlan + SyncExecutive** (multi-axis waypoints, pass-through parabolic blends, one clock — FR-2.3/2.4), **MCAP flight recorder** (Foxglove-openable). `cmake -B build && cmake --build build && ./build/robonode_dev`.
-- **[adapters/ur/](adapters/ur/)** — first vendor adapter behind the `AxisAdapter` seam: UR wrist joint in SERVOJ @500 Hz through the same executive/governor that drives the sim axis. `./build/ur_governed_move` against URSim ([scripts/ursim.sh](scripts/ursim.sh) `up`).
+```sh
+cmake -B build && cmake --build build -j && ctest --test-dir build
+./build/apps/robonode_dev/robonode_dev          # sim demos + MCAP recording
+bash scripts/check-boundaries.sh                # module-boundary lint (also in CI)
+```
+
+| Component | What it is |
+|---|---|
+| [core/](core/) → `robonode::core` | Type vocabulary every module speaks: `State`, `AxisLimits`/`MotionProfile`, `Status` (one error model), `Lifecycle` verbs, `TelemetryRow`. Depends on nothing |
+| [motion/](motion/) → `robonode::motion` | Governor (NaN-proof, limits-as-data), plans (S-curve/trapezoid; **SyncBlendPlan** multi-axis pass-through blends), executives with per-cycle safety gate, `AxisAdapter` seam. trajlib = private impl detail |
+| [recorder/](recorder/) → `robonode::recorder` | Telemetry → MCAP (Foxglove-openable); owns the mcap dependency; knows only core |
+| [adapters/ur/](adapters/ur/) → `robonode::adapter_ur` | UR wrist SERVOJ @500 Hz behind the seam; owns the urcl dependency; lifecycle-verified via `configure()` |
+| [robonode-idl/](robonode-idl/) | Wire contracts: capability protos, topics, descriptor examples — C++ core types mirror these |
+| [tests/](tests/) | Per-module test binaries — each one's include set doubles as a dependency statement |
+
+Boundaries are structural: [scripts/check-boundaries.sh](scripts/check-boundaries.sh) fails CI on any cross-module include (core depends on nothing; recorder never sees motion; trajlib never escapes motion/).
 
 ## Code seeds
 
