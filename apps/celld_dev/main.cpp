@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "robonode/celld/cell.hpp"
+#include "robonode/motion/sim_driver.hpp"
 #include "robonode/recorder/mcap_recorder.hpp"
 
 namespace {
@@ -28,7 +29,13 @@ int main(int argc, char** argv) {
                  "robonode-idl/examples/turret-a.descriptor.json"};
     }
 
-    robonode::Cell cell;
+    // Apps own the driver registry — they register exactly the drivers they
+    // link. celld_dev links only sim; a hardware app would also
+    // register_ur_wrist(registry, ...). celld itself stays vendor-blind.
+    robonode::DriverRegistry registry;
+    robonode::register_sim_axis(registry);
+
+    robonode::Cell cell{registry};
     double rate_hz = 1000.0;
     for (const auto& p : paths) {
         robonode::Descriptor d;

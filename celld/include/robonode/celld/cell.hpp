@@ -10,8 +10,8 @@
 #include "robonode/core/status.hpp"
 #include "robonode/core/telemetry.hpp"
 #include "robonode/motion/axis_adapter.hpp"
+#include "robonode/motion/driver_registry.hpp"
 #include "robonode/motion/governor.hpp"
-#include "robonode/motion/sim_axis.hpp"
 #include "robonode/motion/sync_blend.hpp"
 #include "robonode/motion/sync_executive.hpp"
 
@@ -30,18 +30,19 @@ struct Node {
 
 class Cell {
 public:
-    // v0 driver registry: "robonode.sim-axis" only. Real drivers register
-    // through the adapter modules; celld must never know vendor headers
-    // (boundary lint) — it will take adapters through a factory seam.
+    // The registry supplies adapters by driver name; celld never names a
+    // concrete driver or includes a vendor header (boundary lint). Apps
+    // populate the registry with exactly the drivers they link.
+    explicit Cell(const DriverRegistry& registry) : registry_{registry} {}
+
     Status add_node(const Descriptor& d) {
-        if (d.driver != "robonode.sim-axis") {
-            return Status::failure(d.id + ": unknown driver '" + d.driver +
-                                   "' (v0 registry: robonode.sim-axis)");
-        }
         Node n;
         n.id = d.id;
         n.descriptor = d;
-        n.adapter = std::make_unique<SimAxis>(d.id, d.limits.position_min_mm, 0.005);
+        const DriverContext ctx{d.id, d.limits, d.config};
+        if (const auto st = registry_.make(d.driver, ctx, n.adapter); !st.ok()) {
+            return Status::failure(d.id + ": " + st.message());
+        }
         n.governor = std::make_unique<Governor>(d.limits);
         nodes_.push_back(std::move(n));
         return Status::success();
@@ -96,6 +97,7 @@ private:
         return Status::success();
     }
 
+    const DriverRegistry& registry_;
     std::vector<Node> nodes_;
 };
 

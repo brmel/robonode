@@ -1,9 +1,12 @@
-// M1 slice 2 — the platform stack against a real (simulated) robot:
+// M1 slice 2 — the platform stack against a real (simulated) robot, now
+// through the driver-factory seam:
 //
-//   MotionPlan (S-curve) → Executive @500 Hz → Governor → UrWristAdapter → URSim
+//   DriverRegistry("robonode.ur-wrist") → UrWristAdapter → URSim
+//   MotionPlan (S-curve) → Executive @500 Hz → Governor → adapter
 //
-// Identical motion code that drives SimAxis; only the adapter differs.
-// That is the AxisAdapter seam doing its job.
+// Identical motion code that drives SimAxis; only the registered driver
+// differs. The adapter owns its connection (opened in configure()), so this
+// app never constructs a UrDriver — exactly how celld builds a UR node.
 //
 //   ./ur_governed_move [robot_ip=127.0.0.1]
 //
@@ -15,9 +18,8 @@
 #include <string>
 #include <vector>
 
-#include <ur_client_library/ur/ur_driver.h>
-
 #include "robonode/adapter_ur/ur_wrist_adapter.hpp"
+#include "robonode/motion/driver_registry.hpp"
 #include "robonode/motion/executive.hpp"
 #include "robonode/motion/governor.hpp"
 #include "robonode/motion/motion_plan.hpp"
@@ -29,51 +31,46 @@
 
 int main(int argc, char** argv) {
     const std::string robot_ip = argc > 1 ? argv[1] : "127.0.0.1";
-    const std::string res = URCL_RESOURCES;
 
-    std::unique_ptr<urcl::UrDriver> driver;
-    try {
-        driver = std::make_unique<urcl::UrDriver>(
-            robot_ip, res + "/resources/external_control.urscript",
-            res + "/examples/resources/rtde_output_recipe.txt",
-            res + "/examples/resources/rtde_input_recipe.txt",
-            [](bool running) { std::printf("external-control program %s\n", running ? "running" : "stopped"); },
-            /*headless=*/true);
-    } catch (const std::exception& e) {
-        std::fprintf(stderr, "driver init failed: %s\n", e.what());
-        return 1;
-    }
-    driver->startRTDECommunication();
-
-    robonode::UrWristAdapter wrist{*driver, "ur10e-wrist3"};
-    if (const auto st = wrist.configure(); !st.ok()) {
-        std::fprintf(stderr, "configure failed: %s\n", st.message().c_str());
-        return 1;
-    }
-    if (const auto st = wrist.activate(); !st.ok()) {
-        std::fprintf(stderr, "activate failed: %s\n", st.message().c_str());
-        return 1;
-    }
-
-    const double q5 = wrist.read().position_mm;  // rad
-    std::printf("wrist3 at %.4f rad, safety %s\n", q5,
-                wrist.read().safety == robonode::SafetyState::kNormal ? "NORMAL" : "NOT-NORMAL");
-    if (wrist.read().safety != robonode::SafetyState::kNormal &&
-        wrist.read().safety != robonode::SafetyState::kReduced) {
-        std::fprintf(stderr, "robot not ready (power on + brake release first)\n");
-        return 1;
-    }
-
-    // Limits play the descriptor role (units: rad, rad/s, rad/s^2, rad/s^3).
+    // Descriptor-style limits (units: rad, rad/s, rad/s^2, rad/s^3) — data,
+    // not runtime-derived. Wrist range generous; the move stays well inside.
     const robonode::AxisLimits wrist_limits{
-        .position_min_mm = q5 - 0.6,
-        .position_max_mm = q5 + 0.6,
+        .position_min_mm = -6.283,
+        .position_max_mm = 6.283,
         .velocity_max_mm_s = 0.5,
         .acceleration_max_mm_s2 = 2.0,
         .jerk_max_mm_s3 = 20.0,
     };
+
+    robonode::DriverRegistry registry;
+    robonode::register_ur_wrist(registry, URCL_RESOURCES);
+
+    std::unique_ptr<robonode::AxisAdapter> wrist;
+    const robonode::DriverContext ctx{"ur10e-wrist3", wrist_limits, {{"robot_ip", robot_ip}}};
+    if (const auto st = registry.make("robonode.ur-wrist", ctx, wrist); !st.ok()) {
+        std::fprintf(stderr, "make failed: %s\n", st.message().c_str());
+        return 1;
+    }
+    if (const auto st = wrist->configure(); !st.ok()) {
+        std::fprintf(stderr, "configure failed: %s\n", st.message().c_str());
+        return 1;
+    }
+    if (const auto st = wrist->activate(); !st.ok()) {
+        std::fprintf(stderr, "activate failed: %s\n", st.message().c_str());
+        return 1;
+    }
+
+    const double q5 = wrist->read().position_mm;  // rad
+    std::printf("wrist3 at %.4f rad, safety %s\n", q5,
+                wrist->read().safety == robonode::SafetyState::kNormal ? "NORMAL" : "NOT-NORMAL");
+    if (wrist->read().safety != robonode::SafetyState::kNormal &&
+        wrist->read().safety != robonode::SafetyState::kReduced) {
+        std::fprintf(stderr, "robot not ready (power on + brake release first)\n");
+        return 1;
+    }
+
     robonode::Governor governor{wrist_limits};
-    robonode::Executive exec{wrist, governor, /*rate_hz=*/500.0};
+    robonode::Executive exec{*wrist, governor, /*rate_hz=*/500.0};
 
     const auto plan = robonode::MotionPlan::move(
         q5, q5 + 0.3,
@@ -84,8 +81,7 @@ int main(int argc, char** argv) {
 
     std::vector<robonode::TelemetryRow> rows;
     const auto stats = exec.execute(plan, rows, /*settle_s=*/0.3);
-    (void)wrist.deactivate();
-    driver->stopControl();
+    (void)wrist->deactivate();
 
     const auto& last = rows.back();
     std::printf("done: target %.4f, actual %.4f rad (err %.5f)\n", last.governed_position_mm,

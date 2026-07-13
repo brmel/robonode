@@ -1,6 +1,7 @@
 #pragma once
 
 #include <fstream>
+#include <map>
 #include <string>
 
 #include <nlohmann/json.hpp>
@@ -20,6 +21,10 @@ struct Descriptor {
     AxisLimits limits{};
     double command_rate_hz{};
     bool simulated{};
+    // Driver-specific config (e.g. robot_ip for a hardware adapter). Opaque
+    // to celld — passed straight through to the driver factory (FR-1.3: even
+    // connection details are data, not code).
+    std::map<std::string, std::string> config;
 };
 
 inline Status load_descriptor(const std::string& path, Descriptor& out) {
@@ -44,6 +49,12 @@ inline Status load_descriptor(const std::string& path, Descriptor& out) {
         out.limits.velocity_max_mm_s = lim.at("velocity_max_mm_s").get<double>();
         out.limits.acceleration_max_mm_s2 = lim.at("acceleration_max_mm_s2").get<double>();
         out.limits.jerk_max_mm_s3 = lim.value("jerk_max_mm_s3", 0.0);
+        // Optional driver config: string values as-is, others stringified.
+        if (auto it = j.find("config"); it != j.end() && it->is_object()) {
+            for (const auto& [k, v] : it->items()) {
+                out.config[k] = v.is_string() ? v.get<std::string>() : v.dump();
+            }
+        }
     } catch (const nlohmann::json::exception& e) {
         return Status::failure(path + ": " + e.what());
     }

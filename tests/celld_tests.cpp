@@ -6,8 +6,17 @@
 
 #include "check.hpp"
 #include "robonode/celld/cell.hpp"
+#include "robonode/motion/sim_axis.hpp"
+#include "robonode/motion/sim_driver.hpp"
 
 namespace {
+
+robonode::DriverRegistry sim_registry() {
+    robonode::DriverRegistry reg;
+    robonode::register_sim_axis(reg);
+    return reg;
+}
+
 
 void test_descriptor_load_matches_canonical_example() {
     robonode::Descriptor d;
@@ -35,7 +44,8 @@ void test_cell_lifecycle_and_coherent_run() {
     CHECK(robonode::load_descriptor(ROBONODE_IDL_EXAMPLES "/rail-x.descriptor.json", rail).ok());
     CHECK(robonode::load_descriptor(ROBONODE_IDL_EXAMPLES "/turret-a.descriptor.json", turret).ok());
 
-    robonode::Cell cell;
+    const auto reg = sim_registry();
+    robonode::Cell cell{reg};
     CHECK(cell.add_node(rail).ok());
     CHECK(cell.add_node(turret).ok());
 
@@ -67,11 +77,41 @@ void test_cell_lifecycle_and_coherent_run() {
 void test_cell_rejects_unknown_driver() {
     robonode::Descriptor d;
     d.id = "mystery";
-    d.driver = "robonode.ethercat-cia402";  // real driver, not in v0 registry
+    d.driver = "robonode.ethercat-cia402";  // real driver, not registered here
     d.limits = {0, 100, 10, 100, 0};
     d.command_rate_hz = 1000;
-    robonode::Cell cell;
+    const auto reg = sim_registry();  // sim only — ethercat unknown
+    robonode::Cell cell{reg};
     CHECK(!cell.add_node(d).ok());
+}
+
+// The seam is generic, not sim-hardcoded: any factory registered under any
+// name is dispatched by celld with the descriptor's id + limits + config.
+void test_registry_dispatches_custom_driver() {
+    robonode::DriverRegistry reg;
+    std::string seen_id;
+    std::string seen_ip;
+    reg.register_driver("test.fake", [&](const robonode::DriverContext& ctx) {
+        seen_id = ctx.id;
+        auto ip = ctx.config.find("robot_ip");
+        seen_ip = ip != ctx.config.end() ? ip->second : "";
+        return std::make_unique<robonode::SimAxis>(ctx.id, ctx.limits.position_min_mm, 0.005);
+    });
+
+    robonode::Descriptor d;
+    d.id = "widget-1";
+    d.driver = "test.fake";
+    d.limits = {0, 100, 10, 100, 0};
+    d.command_rate_hz = 1000;
+    d.config = {{"robot_ip", "10.0.0.7"}};
+
+    robonode::Cell cell{reg};
+    CHECK(cell.add_node(d).ok());
+    CHECK(seen_id == "widget-1");            // celld passed id through
+    CHECK(seen_ip == "10.0.0.7");            // ...and config through
+    CHECK(cell.nodes().size() == 1);
+    CHECK(cell.nodes()[0].adapter->name() == "widget-1");
+    CHECK(cell.configure_all().ok());        // built adapter is a real node
 }
 
 }  // namespace
@@ -81,6 +121,7 @@ int main() {
     test_descriptor_load_rejects_garbage();
     test_cell_lifecycle_and_coherent_run();
     test_cell_rejects_unknown_driver();
+    test_registry_dispatches_custom_driver();
     std::puts("robonode celld: all tests passed");
     return 0;
 }
