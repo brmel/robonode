@@ -16,3 +16,8 @@ telemetry*.csv
 
 # pin-verify smoke outputs
 *.mcap
+
+# python
+__pycache__/
+*.pyc
+.venv/

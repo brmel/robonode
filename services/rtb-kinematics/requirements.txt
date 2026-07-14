@@ -1,0 +1,4 @@
+# Real robot kinematics — mature library, not reimplemented.
+roboticstoolbox-python>=1.1
+numpy
+spatialmath-python

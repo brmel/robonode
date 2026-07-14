@@ -66,6 +66,14 @@ if [ -n "$hits" ]; then
   echo "$hits" | sed 's/^/    /'
 fi
 
+# rtb bridge headers are bridge/app/test-private — the core modules never
+# depend on the kinematics bridge (it depends on them).
+hits=$(grep -rnE '^#include [<"]robonode/rtb/' core motion recorder celld sim-mujoco adapters gateway 2>/dev/null || true)
+if [ -n "$hits" ]; then
+  violation "robonode/rtb is private to bridges/rtb + apps/tests"
+  echo "$hits" | sed 's/^/    /'
+fi
+
 if [ "$fail" -eq 0 ]; then
   echo "module boundaries: OK"
 fi

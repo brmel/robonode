@@ -76,3 +76,18 @@ jobs:
         run: cmake -S ur-stream-playground -B ur-stream-playground/build -DCMAKE_BUILD_TYPE=Release
       - name: Build
         run: cmake --build ur-stream-playground/build -j
+
+  # Real robot kinematics (Robotics Toolbox) — the Python service self-checks
+  # the mature library's FK/IK/moveL. The C++ bridge is compile-checked by the
+  # main `robonode` job (ROBONODE_BUILD_RTB defaults on, no MuJoCo needed).
+  rtb-service:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Robotics Toolbox
+        run: pip install -r services/rtb-kinematics/requirements.txt
+      - name: Service self-test (real UR10 FK/IK/moveL)
+        run: cd services/rtb-kinematics && python test_service.py

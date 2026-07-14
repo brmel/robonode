@@ -15,6 +15,10 @@ Platform where every robot and each of its modules is a **node** you can see, co
 
 Read order: REQUIREMENTS → SPEC → TECH-LANDSCAPE → DECISIONS.
 
+## Real robots (branch `UsingRealRobot`)
+
+Real robot kinematics from a mature library, behind our seams — no hand-rolled math. [petercorke/robotics-toolbox-python](https://github.com/petercorke/robotics-toolbox-python) (real models: UR3/5/10, Panda, …; validated FK/IK/Jacobian) runs as a small Python service ([services/rtb-kinematics/](services/rtb-kinematics/)); the C++ [bridges/rtb/](bridges/rtb/) implements the motion `Kinematics`/`Planner` seams against it. celld, the executive, and the adapters are unchanged. `scripts/rtb-verify.sh` plans a real UR10 Cartesian moveL end-to-end. Details + the real-physics-model plan: [docs/REAL-ROBOTS.md](docs/REAL-ROBOTS.md).
+
 ## Live web app (see it, drive it)
 
 ```sh

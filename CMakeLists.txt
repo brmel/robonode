@@ -27,6 +27,7 @@ target_compile_options(robonode_warnings INTERFACE -Wall -Wextra)
 
 option(ROBONODE_BUILD_UR_ADAPTER "Build the UR vendor adapter (fetches ur_client_library)" ON)
 option(ROBONODE_BUILD_MUJOCO "Build the MuJoCo physics twin (fetches + builds MuJoCo, heavy)" ON)
+option(ROBONODE_BUILD_RTB "Build the Robotics Toolbox bridge (real robot kinematics via a Python service)" ON)
 
 enable_testing()
 
@@ -45,6 +46,10 @@ if(ROBONODE_BUILD_MUJOCO)
   add_subdirectory(apps/arm_dev)
   add_subdirectory(gateway)
   add_subdirectory(apps/cell_server)
+endif()
+if(ROBONODE_BUILD_RTB)
+  add_subdirectory(bridges/rtb)
+  add_subdirectory(apps/rtb_dev)
 endif()
 add_subdirectory(tests)
 if(ROBONODE_BUILD_UR_ADAPTER)
