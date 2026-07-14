@@ -5,6 +5,11 @@ add_executable(motion_tests motion_tests.cpp)
 target_link_libraries(motion_tests PRIVATE robonode::motion robonode::warnings)
 add_test(NAME motion_tests COMMAND motion_tests)
 
+# Profile math (trapezoid/S-curve) through motion's public MotionPlan surface.
+add_executable(profile_tests profile_tests.cpp)
+target_link_libraries(profile_tests PRIVATE robonode::motion robonode::warnings)
+add_test(NAME profile_tests COMMAND profile_tests)
+
 add_executable(recorder_tests recorder_tests.cpp)
 target_link_libraries(recorder_tests PRIVATE robonode::recorder robonode::warnings)
 add_test(NAME recorder_tests COMMAND recorder_tests)

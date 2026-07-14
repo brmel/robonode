@@ -51,32 +51,6 @@ jobs:
       - name: Test (physics twin)
         run: ctest --test-dir build -R mujoco_tests --output-on-failure
 
-  trajectory-lab:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        flags:
-          - ""
-          - "-DCMAKE_CXX_FLAGS=-fsanitize=thread"
-    steps:
-      - uses: actions/checkout@v4
-      - name: Configure
-        run: cmake -S trajectory-lab -B trajectory-lab/build -DCMAKE_BUILD_TYPE=Release ${{ matrix.flags }}
-      - name: Build
-        run: cmake --build trajectory-lab/build -j
-      - name: Test
-        run: ctest --test-dir trajectory-lab/build --output-on-failure
-
-  # Compile-only: needs URSim at runtime.
-  ur-playground-compile:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Configure
-        run: cmake -S ur-stream-playground -B ur-stream-playground/build -DCMAKE_BUILD_TYPE=Release
-      - name: Build
-        run: cmake --build ur-stream-playground/build -j
-
   # Real robot kinematics (Robotics Toolbox) — the Python service self-checks
   # the mature library's FK/IK/moveL. The C++ bridge is compile-checked by the
   # main `robonode` job (ROBONODE_BUILD_RTB defaults on, no MuJoCo needed).

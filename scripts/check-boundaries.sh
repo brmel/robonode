@@ -46,7 +46,7 @@ check celld 'robonode/(recorder|adapter|sim_mujoco|gateway)|trajlib/|ruckig/|mca
 
 # gateway: the web-facing bridge — celld + sim_mujoco + httplib (its own dep).
 # httplib is gateway/app-private.
-hits=$(grep -rnE '^#include [<"]httplib' core motion recorder celld sim-mujoco adapters trajectory-lab 2>/dev/null || true)
+hits=$(grep -rnE '^#include [<"]httplib' core motion recorder celld sim-mujoco adapters 2>/dev/null || true)
 if [ -n "$hits" ]; then
   violation "httplib is private to gateway/ + its server app"
   echo "$hits" | sed 's/^/    /'

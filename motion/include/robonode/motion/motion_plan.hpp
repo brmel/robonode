@@ -13,8 +13,8 @@
 namespace robonode {
 
 // Planned rest-to-rest motion for one axis, sampled per RT cycle. Profile
-// math comes from trajlib (trajectory-lab); the public surface speaks only
-// core types. profile.jerk == 0 selects trapezoidal explicitly
+// math comes from trajlib (motion-private, include/trajlib/); the public
+// surface speaks only core types. profile.jerk == 0 selects trapezoidal explicitly
 // (robonode-idl/common.proto semantics: jerk honored, not decorative).
 //
 // This is the M0/M1 stand-in for the OTG slot (SPEC §3.1): sampling a

@@ -4,8 +4,8 @@
 #include <cstdlib>
 
 // assert() vanishes under NDEBUG (Release); tests must fail in every build
-// type. Shared by all module test binaries; grows into Catch2 (same as
-// trajectory-lab) when the sim-gate suites land (FR-3.3).
+// type. Shared by all module test binaries; grows into Catch2 when the
+// sim-gate suites land (FR-3.3).
 #define CHECK(cond)                                                              \
     do {                                                                         \
         if (!(cond)) {                                                           \

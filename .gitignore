@@ -21,3 +21,4 @@ telemetry*.csv
 __pycache__/
 *.pyc
 .venv/
+.mypy_cache/

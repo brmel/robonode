@@ -54,11 +54,6 @@ bash scripts/check-boundaries.sh                # module-boundary lint (also in 
 
 Boundaries are structural: [scripts/check-boundaries.sh](scripts/check-boundaries.sh) fails CI on any cross-module include (core depends on nothing; recorder never sees motion; trajlib never escapes motion/).
 
-## Code seeds
-
-- **[trajectory-lab/](trajectory-lab/)** — C++20 motion profiles (trapezoid, S-curve), blending, lock-free SPSC streaming + tests. Feeds motion-core's profile layer (SPEC §3). Rebuild: `cmake -B build && cmake --build build && ctest --test-dir build`.
-- **[ur-stream-playground/](ur-stream-playground/)** — URSim + ur_client_library scaffold. Seeds the UR adapter (SPEC §3.1, milestone M1).
-
 ## Archive
 
 `_archive/` holds the June 2026 interview-prep material this workspace grew from (guides, study notes, drafts, CV). Safe to delete once you've confirmed you need none of it.

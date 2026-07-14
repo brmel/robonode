@@ -240,7 +240,7 @@ OCI containers against the telemetry lake + fleet API (read) and registry (write
 
 ## 12. Milestones
 
-- **M0 (weeks 1–4)** — `robonode-idl` v0 (capabilities, descriptors, topics), motion core skeleton @1 kHz with sim adapter, `robonode dev` boots a twin axis; trajectory-lab code folded in as OTG/blend seed.
+- **M0 (weeks 1–4)** — `robonode-idl` v0 (capabilities, descriptors, topics), motion core skeleton @1 kHz with sim adapter, `robonode dev` boots a twin axis; profile math (trapezoid/S-curve) folded into motion as the OTG-slot seed.
 - **M1 (weeks 5–10)** — UR adapter (URSim), MotionAxis via EtherCAT on bench, blended arm+axis sequences (D2 demo), flight recorder + Foxglove live.
 - **M2 (weeks 11–16)** — Tier B runtime (wasmtime + CellClient gRPC), registry v0 + sim gate, Python SDK, jog UI + cell page.
 - **M3 (weeks 17–22)** — MVP scenario end-to-end (REQUIREMENTS §6), OTA A/B, incident bundles, RBAC v0. Pilot-ready.
