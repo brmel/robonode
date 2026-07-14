@@ -12,8 +12,10 @@
 
 ```mermaid
 flowchart TB
-  subgraph FE["Frontend · web (apps/cell_server/web)"]
-    UI["3D viewer (three.js) ✅ · node table + per-node version dropdowns ✅<br/>clean I/O (setpoint→actual→Δfollow) ✅ · Cartesian goal input ▶#22 · node inspector ▶#24 · algo editor ▶#26"]
+  subgraph FE["Clients — one contract, zero divergence (#43): every surface is a thin client of the facade, no surface owns logic the others lack"]
+    UI["web UI (three.js) ✅ · node table · clean I/O ✅ · goals ▶#22 · inspector ▶#24 · algo editor ▶#26"]
+    CLI["robonode CLI (CLI11) ▶#43 — **agent-complete**: run · swap · monitor · logs -f · trace · telemetry · lifecycle · --json machine output"]
+    SDK["Python / other SDK ▶#8 (same contract)"]
   end
   subgraph APP["App · servers (apps/*)"]
     SRV["cell_server (HTTP+SSE) ✅ · robonode_dev / arm_dev / mujoco_dev / rtb_dev ✅"]
@@ -41,10 +43,13 @@ flowchart TB
   end
 
   UI <-->|JSON/SSE| SRV
+  CLI <-->|same commands + streams · --json ▶#43| SRV
+  SDK <-->|same contract| SRV
   SRV --> GW
   GW -->|lock-free SPSC ▶#35 · non-RT→RT boundary| FACADE
   FACADE --> CELLD --> MOTION --> REG
   CELLD --> REC
+  REC -->|logs · traces · telemetry, one stream ▶#44| SRV
   MOTION -->|Kinematics seam · in-process, no IPC| PINO
   PINO -.->|offline model import (URDF)| RTB
   REG -.->|loads user modules| SAND
@@ -127,6 +132,8 @@ sequenceDiagram
 - **Bring your own, safely** — every capability has a user-version slot; Tier-B runs user code sandboxed (#26); the governor is always the last safety net.
 - **Structural modularity** — module boundaries enforced by `scripts/check-boundaries.sh` in CI; each module owns its dependency; **no dependency without a seam we own** (any Part-2 row is swappable without touching product logic).
 - **Real-time correctness (external review, 2026-07)** — the 1 kHz path carries no Python, no heap allocation, no locks, no blocking I/O: kinematics run **in-process** (Pinocchio #34, not the Python RTB hop), the non-RT↔RT hand-off is a **lock-free SPSC** queue (#35), seams return **`std::expected`** not exceptions (#36), user modules are **AOT-compiled + WASI-off** (#37), and perception is **async-decoupled** off the loop (#38).
+- **One contract, many surfaces — CLI is first-class (#43).** The Platform facade (#33) is the single definition of *what the system can do*; the **web UI, the `robonode` CLI, and the SDK are all thin clients of it — sharing the exact same code path, never a parallel implementation.** The CLI is **agent-complete**: everything a human does in the UI, an agent does headless via the CLI — execute actions, swap modules, run programs, monitor state, tail logs/traces/telemetry, drive lifecycle — with `--json` machine output. A capability that exists in one surface but not the other is a bug. Built on a mature CLI library (CLI11), not hand-rolled arg parsing.
+- **Observability is a shared stream (#44).** Logs, traces, and telemetry are one queryable, followable surface emitted through the recorder seam and consumed identically by CLI (`logs -f`, `trace`, `telemetry`) and UI. Logging uses a **mature, professional stack — spdlog + fmt**, structured (JSON sink), levelled, per-module, **async/lock-free so it never blocks the loop (#42)**. No `printf`/`iostream` in product code.
 
 ---
 
@@ -195,7 +202,7 @@ Perception runs in its own thread pool; poses cross to the loop via SPSC and a s
 | [boostorg/lockfree](https://github.com/boostorg/lockfree) | Lock-free SPSC queue — non-RT↔RT command/telemetry hand-off | ▶ **#35** (review: no mutex/alloc/blocking in the loop; don't hand-roll) |
 | [TartanLlama/expected](https://github.com/TartanLlama/expected) | `std::expected` shim (pre-C++23) for seam error returns | ▶ #36 (review: expected over exceptions across seams — RT/ABI safety) |
 | [google/flatbuffers](https://github.com/google/flatbuffers) | Zero-copy descriptor reads inside the RT loop | ▶ #40 (JSON stays for authoring; FlatBuffers for in-loop config) |
-| [gabime/spdlog](https://github.com/gabime/spdlog) · [fmtlib/fmt](https://github.com/fmtlib/fmt) | Async, lock-free logging | ▶ #42 (no blocking I/O in the celld/motion loop) |
+| [gabime/spdlog](https://github.com/gabime/spdlog) · [fmtlib/fmt](https://github.com/fmtlib/fmt) | **Logging backbone** — structured (JSON sink), levelled, per-module, async/lock-free | ▶ #42 (RT-loop no-block) + **#44** (structured logs + one CLI/UI observability surface) |
 
 ### Telemetry / visualization
 | Repo | Role | Status / pin |
@@ -204,6 +211,14 @@ Perception runs in its own thread pool; poses cross to the loop via SPSC and a s
 | [foxglove/foxglove-sdk](https://github.com/foxglove/foxglove-sdk) | Live viz + MCAP (one API) | ▶ #11 (`sdk/v0.25.3`) |
 | [mrdoob/three.js](https://github.com/mrdoob/three.js) · [gkjohnson/urdf-loaders](https://github.com/gkjohnson/urdf-loaders) | Web 3D twin | ✅ `r185` (vendored, no CDN) / ▶ real meshes |
 | [rerun-io/rerun](https://github.com/rerun-io/rerun) | Multimodal viz | ⏸ alt |
+
+### Client / CLI — agent-complete, same contract as the UI (#43)
+The `robonode` CLI and the web UI are both thin clients of the Platform facade (#33): identical command + telemetry contract, no divergent logic. The CLI exists so an **agent can drive the whole system headless** — execute, monitor, tail logs/traces/telemetry, manage lifecycle — with machine-readable output.
+| Repo | Role | Status / pin |
+|---|---|---|
+| [CLIUtils/CLI11](https://github.com/CLIUtils/CLI11) | C++ command/subcommand parsing for `robonode` | ▶ #43 (mature, header-only; subcommands, validators, config) |
+| [nlohmann/json](https://github.com/nlohmann/json) | `--json` machine output (same schema the UI/SSE speak) | ✅ reused |
+| SSE / Zenoh stream | `logs -f` · `trace` · `telemetry` follow — same stream the UI subscribes to | ▶ #43/#44 |
 
 ### User-module sandbox (bring your own, safely) · fleet
 | Repo | Role | Status |

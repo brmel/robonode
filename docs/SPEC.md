@@ -236,6 +236,8 @@ OCI containers against the telemetry lake + fleet API (read) and registry (write
 | ROS 2 stance | Bridge, not foundation (review-confirmed) | full ROS 2 core |
 | Tier B sandbox | wasmtime (AOT/Cranelift, WASI-off) + OCI; Tier-A native C-ABI `.so` | gVisor-only containers |
 | Recording | MCAP + Foxglove compat | rosbag2 |
+| CLI surface | **CLI11 — agent-complete, same facade as UI** (ADR-8) | hand-rolled argv (rejected) |
+| Logging | **spdlog + fmt — structured, async/lock-free** (ADR-9) | glog / iostream |
 | Sim | **MuJoCo (local twin, in-process)** | Gazebo (Linux/CI) / Isaac (synthetic data) |
 | Orchestration | BehaviorTree.CPP engine under flow UI | Node-RED embed |
 | OTA | Mender-style A/B + container updates | balena |

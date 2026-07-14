@@ -58,6 +58,22 @@ Format: one entry per decision; status Accepted unless noted. Context/options li
 
 **Consequences:** `core::Status` converges with `std::expected` (issue #36); configuration verbs return `expected`; the boundary lint gains an exceptions-across-seams check. Small mechanical refactor across the existing factories.
 
+## ADR-8 — CLI is a first-class, agent-complete surface; CLI and UI share one contract
+
+**Decision (2026-07-14):** the `robonode` CLI is a primary surface, not an afterthought. It and the web UI are **both thin clients of the Platform facade (#33)** — the same command + telemetry contract, the same code path, no logic living in one surface and missing from the other. The CLI is **agent-complete**: every action a human performs in the UI (execute programs, swap/replace modules, drive lifecycle, monitor state, tail logs/traces/telemetry, fetch feedback) is doable headless from the CLI, with `--json` machine-readable output for agents. Command parsing uses a mature library (**CLI11**), never hand-rolled `argv` walking.
+
+**Why:** the platform is meant to be driven by agents as much as humans; a headless, scriptable, machine-parseable surface is the substrate for that. Forcing CLI and UI through the *same* facade guarantees they never diverge — a demo that works in the UI works identically from the CLI because it is literally the same call. This is the "one clean interface" (MIL) principle applied to the client edge: the facade defines *what the system can do* once, and every surface projects it.
+
+**Consequences:** the facade (#33) becomes the hard contract both surfaces bind to; a "UI-only" or "CLI-only" capability is treated as a bug; issue #43 builds the CLI over the facade with CLI11 + JSON output + stream-follow (`logs -f`, `trace`, `telemetry`); the SDK (#8) is a third client of the same contract. A parity check (every facade verb reachable from CLI) guards against drift.
+
+## ADR-9 — Logging = spdlog + fmt, structured/async; logs, traces, telemetry are one shared, followable surface
+
+**Decision (2026-07-14):** logging uses **spdlog + fmt** (mature, professional) — structured (JSON sink), levelled, per-module, **async/lock-free** so it never blocks the control loop (the RT-safety mechanic is #42). No `printf`/`iostream` in product code. Logs, traces, and telemetry are exposed as **one queryable/followable observability surface** through the recorder seam, consumed identically by CLI (`logs -f`, `trace`, `telemetry`) and UI (issue #44).
+
+**Why:** ad-hoc logging is unusable for agents and unsafe in a 1 kHz loop. A mature async logger gives structured, machine-parseable records without I/O on the hot path; unifying logs/traces/telemetry behind one seam means every surface (and every agent) observes the system the same way, and the flight recorder (MCAP) and live stream are the same data at rest vs in motion.
+
+**Consequences:** `spdlog`/`fmt` vendored behind a thin logging seam (module-private, boundary-lint clean); the recorder seam gains a log/trace channel alongside telemetry; CLI + UI subscribe to the same stream; #42 is the RT-no-block piece, #44 is the structured-logging + shared-surface piece.
+
 ## Open
 
 - **OQ-3 — open-core license boundary** (REQUIREMENTS NFR-12): needs counsel + business input before anything is published publicly. Interim rule: nothing leaves the private repo, so no boundary is being created implicitly.

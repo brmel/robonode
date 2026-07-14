@@ -34,6 +34,10 @@ cmake -B build && cmake --build build -j --target cell_server
 
 A 3D UR10e-on-a-rail you watch move in real time: the node table lists all 7 nodes with their live driver + position; **Run** streams a coordinated blended move from MuJoCo physics; the **Physics / Sim** toggle rebuilds every node through the `DriverRegistry` under a different driver — both satisfy `AxisAdapter`, so a node's implementation swaps live while the UI and motion code stay untouched (the forced interface). Transport is a thin HTTP+SSE gateway ([gateway/](gateway/), [apps/cell_server/](apps/cell_server/)); the roadmap Zenoh/gRPC surface swaps in behind the same `CellGateway` seam.
 
+## CLI at the heart (agent-complete, same code as the UI)
+
+The `robonode` CLI ([#43](https://github.com/brmel/robonode/issues/43), [ADR-8](docs/DECISIONS.md)) is a **first-class surface, not an afterthought** — an agent drives the whole system headless: execute programs, swap modules, drive lifecycle, monitor state, tail logs/traces/telemetry, get feedback, all with `--json` machine output. The CLI and the web UI are **both thin clients of the one Platform facade** — the same contract, the same code path, no divergence; a capability in one surface but not the other is a bug. Built on [CLI11](https://github.com/CLIUtils/CLI11); logging is [spdlog](https://github.com/gabime/spdlog)/fmt structured + async ([#44](https://github.com/brmel/robonode/issues/44), [ADR-9](docs/DECISIONS.md)), with logs/traces/telemetry exposed as one followable stream both surfaces read.
+
 ## The package (one build, MIL-style modules)
 
 ```sh
