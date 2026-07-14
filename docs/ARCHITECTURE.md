@@ -111,6 +111,6 @@ sequenceDiagram
 
 - **One clean interface** hiding complexity — the Module/Capability seam (#30) + Platform facade (#33). MIL-style single ontology.
 - **No hardcoded values / no duplication** — everything (tree, nodes, stations, limits, programs, ports, robot) is descriptor data (#28/#29), guarded by anti-hardcoding lint (#32).
-- **Don't reinvent** — physics (MuJoCo), kinematics/models (Robotics Toolbox), OTG (Ruckig), vision (OpenCV/DL), telemetry (MCAP/Foxglove).
+- **Don't reinvent** — physics (MuJoCo), kinematics/models (Robotics Toolbox), OTG (Ruckig), vision (OpenCV/DL), telemetry (MCAP/Foxglove). Full catalog of reused/candidate open-source repos (incl. ROS 2, MoveIt, ros2_control, OpenCV, ONNX, vendor drivers): **[OSS-STACK.md](OSS-STACK.md)**.
 - **Bring your own, safely** — any capability has a user-version slot; Tier-B runs user code sandboxed (#26); the governor is always the last safety net.
 - **Structural modularity** — module boundaries enforced by `scripts/check-boundaries.sh` in CI; each module owns its dependency.
