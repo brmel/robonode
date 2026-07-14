@@ -6,6 +6,7 @@
 
 #include <mujoco/mujoco.h>
 
+#include "robonode/core/geometry.hpp"
 #include "robonode/core/status.hpp"
 
 namespace robonode {
@@ -65,6 +66,22 @@ public:
     }
 
     [[nodiscard]] double timestep() const noexcept { return model_->opt.timestep; }
+
+    // --- kinematics accessors (used by MujocoKinematics on a scratch world) ---
+    [[nodiscard]] int nv() const noexcept { return model_->nv; }
+    [[nodiscard]] int site_id(const std::string& name) const {
+        return mj_name2id(model_, mjOBJ_SITE, name.c_str());
+    }
+    void set_qpos(int adr, double v) noexcept { data_->qpos[adr] = v; }
+    void forward() noexcept { mj_forward(model_, data_); }  // FK + Jacobians, no integration
+    [[nodiscard]] Vec3 site_xpos(int site) const noexcept {
+        return {data_->site_xpos[3 * site], data_->site_xpos[3 * site + 1],
+                data_->site_xpos[3 * site + 2]};
+    }
+    // Position Jacobian of a site: jacp is 3×nv, row-major (caller-sized).
+    void jac_site(int site, double* jacp) noexcept {
+        mj_jacSite(model_, data_, jacp, nullptr, site);
+    }
 
 private:
     explicit MujocoWorld(mjModel* m) : model_{m}, data_{mj_makeData(m)} {}

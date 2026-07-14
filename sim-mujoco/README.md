@@ -36,6 +36,10 @@ ctest --test-dir build -R mujoco_tests
 
 `MujocoWorldPool` shares one `MujocoWorld` across every adapter that names the same MJCF path, so the arm's 7 descriptors (one `world`) drive a single physics body; the first node is the clock owner (steps physics). celld keeps its per-node model and stays vendor-blind. `apps/arm_dev` runs the 7-DOF coordinated blended program; `tests/arm_tests` proves one-clock + governed-exact + a protective stop on one joint holding all 7 (cell-coherent safety).
 
+## Kinematics (#4)
+
+`MujocoKinematics` implements the motion `Kinematics` seam (`fk`, `position_jacobian`) on a private scratch world, so FK/IK queries never disturb the live sim. The Cartesian layer (`motion/cartesian.hpp`: DLS `ik_position`, `plan_move_l`, `cartesian_jog_velocity`) speaks only that interface — no MuJoCo — and emits joint waypoints that feed the existing SyncBlendPlan → governor pipeline. Cross-checks are kinematic (servo-independent): the Jacobian matches finite-difference to 1e-4, IK converges on reachable targets, moveL traces a straight TCP line within 2 mm.
+
 ## Boundary
 
 `mujoco.h` is private to this module (lint: no `#include <mujoco/...>` anywhere else). Everything above sees only `AxisAdapter` + core types.

@@ -26,4 +26,10 @@ if(ROBONODE_BUILD_MUJOCO)
   target_link_libraries(arm_tests PRIVATE robonode::celld robonode::sim_mujoco robonode::warnings)
   target_compile_definitions(arm_tests PRIVATE ROBONODE_WORLDS="${ROBONODE_WORLDS}")
   add_test(NAME arm_tests COMMAND arm_tests)
+
+  # Cartesian layer: FK/IK/moveL on the MuJoCo model (kinematic, servo-free).
+  add_executable(kinematics_tests kinematics_tests.cpp)
+  target_link_libraries(kinematics_tests PRIVATE robonode::sim_mujoco robonode::warnings)
+  target_compile_definitions(kinematics_tests PRIVATE ROBONODE_WORLDS="${ROBONODE_WORLDS}")
+  add_test(NAME kinematics_tests COMMAND kinematics_tests)
 endif()
