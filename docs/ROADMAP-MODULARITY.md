@@ -21,4 +21,7 @@ The contract already exists and is enforced structurally: a node is an **`AxisAd
 - `bash scripts/check-boundaries.sh` + tests + a browser screenshot each iteration.
 - Commit per iteration on `UsingRealRobot`; keep CI green.
 
-Current: iteration 1.
+Progress:
+- ✅ **Iteration 1** — per-node driver versions (dropdown per node, live swap, `Cell::replace_node`).
+- ✅ **Clean I/O visible** (roadmap #5, pulled forward — it's the heart of "clean input/output"): the node table shows each node's driver version + actual output + Δfollowing-error live. Physics joints show a real gap; the sim filter shows none.
+- ▶ Next: **iteration 2** (real physics model, menagerie UR10e) or **iteration 4** (bring-your-own node template) — user's call.

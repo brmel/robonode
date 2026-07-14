@@ -128,6 +128,7 @@ const famBadge = document.getElementById('fambadge');
 let nodeMeta = [];
 let available = [];
 let posCells = [];
+let errVals = [];
 
 // Rebuilt on a 'nodes' event (initial + after any swap): each node gets a
 // dropdown of the driver versions it can be swapped to. Only the position
@@ -165,14 +166,23 @@ function renderNodes(tree) {
 function updatePositions() {
   nodeMeta.forEach((n, i) => {
     if (!posCells[i]) return;
-    const p = target[i] ?? 0;
-    posCells[i].textContent = n.unit === 'mm' ? p.toFixed(0) + ' mm' : p.toFixed(3) + ' rad';
+    const p = target[i] ?? 0;                       // actual (out)
+    const e = Math.abs(errVals[i] ?? 0);            // |following error|
+    const mm = n.unit === 'mm';
+    const val = mm ? p.toFixed(0) + ' mm' : p.toFixed(3) + ' rad';
+    // clean I/O made visible: actual + the gap to the commanded setpoint.
+    const gap = e > (mm ? 0.5 : 0.002)
+      ? `<span class="gap">Δ${mm ? e.toFixed(0) : e.toFixed(3)}</span>` : '';
+    posCells[i].innerHTML = `${val} ${gap}`;
   });
 }
 
 const es = new EventSource('/events');
 es.addEventListener('nodes', e => { statusEl.textContent = 'live'; renderNodes(JSON.parse(e.data)); });
-es.onmessage = e => { const f = JSON.parse(e.data); if (f.pos) { target = f.pos; updatePositions(); } };
+es.onmessage = e => {
+  const f = JSON.parse(e.data);
+  if (f.pos) { target = f.pos; errVals = f.err || []; updatePositions(); }
+};
 es.onerror = () => { statusEl.textContent = 'reconnecting…'; };
 
 async function cmd(body) {

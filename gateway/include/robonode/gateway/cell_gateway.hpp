@@ -195,8 +195,9 @@ private:
         CycleStats stats{};
         std::uint64_t k = 0;
         // Stream ~50 Hz: publish every 20th cycle of the 1 kHz loop.
-        const CycleHook hook = [this, &k](double t, const std::vector<AxisAdapter*>& ad) {
-            if (k++ % 20 == 0) publish_telemetry_from(t, ad);
+        const CycleHook hook = [this, &k](double t,
+                                          const std::vector<std::vector<TelemetryRow>>& rws) {
+            if (k++ % 20 == 0) publish_io(t, rws);
         };
         cell_->run_waypoints(waypoints, 1000.0, rows, stats, /*settle_s=*/1.5, hook);
     }
@@ -223,21 +224,42 @@ private:
         nodes_snap_ = j.dump();
     }
 
-    void publish_telemetry_from(double t, const std::vector<AxisAdapter*>& ad) {
+    // Live per-node I/O during a run: actual (out), target (governed in), and
+    // following error — the clean input/output the UI inspector shows.
+    void publish_io(double t, const std::vector<std::vector<TelemetryRow>>& rws) {
         nlohmann::json j;
         j["t"] = t;
         j["family"] = family_;
         auto& pos = j["pos"] = nlohmann::json::array();
-        for (auto* a : ad) pos.push_back(a->read().position_mm);
+        auto& tgt = j["target"] = nlohmann::json::array();
+        auto& err = j["err"] = nlohmann::json::array();
+        for (const auto& r : rws) {
+            const auto& row = r.back();
+            pos.push_back(row.actual_position_mm);
+            tgt.push_back(row.governed_position_mm);
+            err.push_back(row.following_error_mm);
+        }
         std::lock_guard<std::mutex> lk{snap_mtx_};
         telem_snap_ = j.dump();
     }
 
-    // Home-pose telemetry (no run in progress).
+    // Home-pose telemetry (no run in progress): actual only, target = actual,
+    // error = 0.
     void publish_telemetry(double t) {
-        std::vector<AxisAdapter*> ad;
-        for (auto& n : cell_->nodes()) ad.push_back(n.adapter.get());
-        publish_telemetry_from(t, ad);
+        nlohmann::json j;
+        j["t"] = t;
+        j["family"] = family_;
+        auto& pos = j["pos"] = nlohmann::json::array();
+        auto& tgt = j["target"] = nlohmann::json::array();
+        auto& err = j["err"] = nlohmann::json::array();
+        for (auto& n : cell_->nodes()) {
+            const double p = n.adapter->read().position_mm;
+            pos.push_back(p);
+            tgt.push_back(p);
+            err.push_back(0.0);
+        }
+        std::lock_guard<std::mutex> lk{snap_mtx_};
+        telem_snap_ = j.dump();
     }
 
     std::string world_;
@@ -254,7 +276,9 @@ private:
 
     std::mutex snap_mtx_;
     std::string nodes_snap_{R"({"family":"physics","nodes":[]})"};
-    std::string telem_snap_{R"({"t":0,"family":"physics","pos":[0,0,0,0,0,0,0]})"};
+    std::string telem_snap_{
+        R"({"t":0,"family":"physics","pos":[0,0,0,0,0,0,0],)"
+        R"("target":[0,0,0,0,0,0,0],"err":[0,0,0,0,0,0,0]})"};
 
     std::thread worker_;
 };

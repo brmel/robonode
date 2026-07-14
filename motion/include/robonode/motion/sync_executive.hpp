@@ -17,10 +17,13 @@
 namespace robonode {
 
 // Optional per-cycle observer (telemetry streaming, live viz). Called after
-// each cycle's read phase with the cell clock and the adapters. Empty by
-// default (one branch/cycle when unused); when set it must be cheap and is
-// NOT part of the hard-RT contract — for the demo gateway, not the drive path.
-using CycleHook = std::function<void(double t, const std::vector<AxisAdapter*>&)>;
+// each cycle's read phase with the cell clock and the per-axis telemetry so
+// far — so an observer sees each node's full I/O (target/governed/actual/
+// following-error), not just the adapters. Empty by default (one branch/
+// cycle when unused); when set it must be cheap and is NOT part of the
+// hard-RT contract — for the demo gateway, not the drive path.
+using CycleHook =
+    std::function<void(double t, const std::vector<std::vector<TelemetryRow>>&)>;
 
 // N-axis executive: one clock, one cycle, all axes commanded together —
 // the motion-tree "one clock master per cell" rule (FR-2.4) in miniature.
@@ -114,7 +117,7 @@ public:
                 rows[i].push_back({t, tgt_[i].position, tgt_[i].velocity, cmd_[i], st.position_mm,
                                    st.velocity_mm_s, cmd_[i] - st.position_mm});
             }
-            if (hook) hook(t, adapters_);
+            if (hook) hook(t, rows);
         }
 
         stats.cycles = n_cycles;
