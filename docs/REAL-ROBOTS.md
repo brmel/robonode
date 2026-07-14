@@ -1,8 +1,10 @@
 # Real robots — using mature libraries, not reinventing
 
 > Branch `UsingRealRobot`. Two aspects of "real", both behind existing seams so the node design is untouched:
-> 1. **Real kinematics & planning** — from a mature library instead of hand-rolled math. ✅ **Implemented** (Robotics Toolbox behind the `Kinematics`/`Planner` seams).
+> 1. **Real kinematics & planning** — from a mature library instead of hand-rolled math. ✅ **Implemented** (Robotics Toolbox behind the `Kinematics`/`Planner` seams). *RT path → Pinocchio, see the update below.*
 > 2. **Real physics model** — a real robot MJCF/URDF instead of the primitive arm. ▶ Next (menagerie MJCF / URDF import).
+>
+> **Update (external review — [ADR-5](DECISIONS.md), [#34](https://github.com/brmel/robonode/issues/34)):** the seam design proved its worth. Querying the Python RTB service from the 1 kHz loop (diagram below) was the reviewers' #1 flaw — IPC + GIL break the deadline. So the **RT** kinematics impl moves to **Pinocchio (C++, in-process)** behind the *same* `Kinematics` seam; **RTB stays as the offline model/URDF source and Tier-C planner**. Everything below (RTB verified, FANUC via URDF, real physics model) still holds — only which implementation the loop calls changed, and it changed **without touching product code**. That is the seam paying rent.
 
 ## ✅ Implemented — real kinematics via Robotics Toolbox
 

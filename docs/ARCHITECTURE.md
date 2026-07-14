@@ -23,13 +23,14 @@ flowchart TB
     FACADE["platform facade (one MIL-style entry) ▶#33"]
     CELLD["celld · Cell: node tree, lifecycle, coherent run ✅ · stations ▶#31"]
     MOTION["motion · governor ✅ · OTG/Ruckig ✅ · blend/SyncBlendPlan ✅<br/>executives ✅ · Kinematics/Planner seams ✅ · Module/Capability ontology ▶#30"]
+    PINO["kinematics · Pinocchio (C++, in-process FK/IK/Jac) ▶#34<br/>RT path — replaces the Python hop"]
     REG["DriverRegistry (version list + live swap) ✅ → ModuleRegistry ▶#30"]
     REC["recorder · MCAP/Foxglove ✅"]
   end
-  subgraph SVC["Services / sidecars"]
-    RTB["rtb-kinematics (Python · Robotics Toolbox) ✅ real models FK/IK/plan"]
-    SAND["Tier-B sandbox (wasmtime / py) ▶#26"]
-    VIS["vision service (OpenCV / DL) ▶#32"]
+  subgraph SVC["Services / sidecars — OFF the 1 kHz loop"]
+    RTB["rtb-kinematics (Python · Robotics Toolbox) ✅<br/>offline model source + Tier-C planning — never in the RT loop"]
+    SAND["Tier-B sandbox (wasmtime AOT/Cranelift, WASI-off) ▶#26/#37"]
+    VIS["vision (OpenCV / ONNX-DL) — async-decoupled ▶#6/#38"]
   end
   subgraph DEP["Vendored (not reinvented) — see Part 2"]
     MJ["MuJoCo physics ✅"] ; RUCK["Ruckig OTG ✅"] ; MCAP["MCAP/Foxglove ✅"] ; URCL["ur_client_library ✅"]
@@ -40,12 +41,14 @@ flowchart TB
   end
 
   UI <-->|JSON/SSE| SRV
-  SRV --> GW --> FACADE --> CELLD
-  CELLD --> MOTION --> REG
+  SRV --> GW
+  GW -->|lock-free SPSC ▶#35 · non-RT→RT boundary| FACADE
+  FACADE --> CELLD --> MOTION --> REG
   CELLD --> REC
-  MOTION -->|Kinematics/Planner seam| RTB
+  MOTION -->|Kinematics seam · in-process, no IPC| PINO
+  PINO -.->|offline model import (URDF)| RTB
   REG -.->|loads user modules| SAND
-  CELLD -.-> VIS
+  CELLD -.->|async, SPSC — never blocks the loop| VIS
   MOTION --> MJ ; MOTION --> RUCK ; REC --> MCAP
   DESC --> CELLD ; IDL --> DESC
 ```
@@ -64,16 +67,18 @@ flowchart LR
     A5["your driver ▶#23 (BYO template)"]
   end
   subgraph Arm["Capability: ArmKinematics@1 ✅"]
+    K0["Pinocchio (C++ in-process, RT FK/IK/Jac) ▶#34"]
     K1["MujocoKinematics (FK/Jac) ✅"]
-    K2["RtbKinematics (real robot models) ✅"]
+    K2["RtbKinematics (offline model source) ✅"]
     K3["URDF/DH your model ▶#25 (FANUC, …)"]
   end
   subgraph Plan["Capability: Planner ✅"]
     P1["JointPlanner ✅"]
     P2["CartesianLinePlanner (moveL) ✅"]
-    P3["RtbPlanner (real IK) ✅"]
-    P4["OMPL / collision-aware ▶"]
-    P5["your planner ▶ (same seam)"]
+    P3["RtbPlanner (offline IK) ✅"]
+    P4["cuRobo (GPU, collision-aware) ▶#39 · OMPL CPU fallback"]
+    P5["Crocoddyl DynamicPlanner (DDP/MPC) ▶#41"]
+    P6["your planner ▶ (same seam)"]
   end
   subgraph Vision["Capability: Vision ▶#6/#32"]
     V1["MuJoCo camera → frames ▶"]
@@ -104,13 +109,14 @@ sequenceDiagram
   participant M as motion (governor+OTG+exec) ✅
   participant P as MuJoCo physics ✅
   U->>G: POST /command (run · set_driver · move_l ▶#22)
-  G->>C: replace_node / run program
+  G->>C: enqueue on lock-free SPSC ▶#35 (non-RT→RT, no mutex)
   C->>M: SyncBlendPlan → executive (1 kHz)
+  M->>M: Pinocchio FK/IK/Jac in-process ▶#34 (no Python hop)
   M->>P: setpoints (governed, safety-gated)
   P-->>M: joint state
-  M-->>G: CycleHook telemetry (target·actual·Δfollow) ✅
+  M-->>G: telemetry via SPSC → CycleHook (target·actual·Δfollow) ✅
   G-->>U: SSE (node tree + live I/O) ✅
-  Note over U,P: Cartesian goals via RtbPlanner (real IK) ▶#22 · algo in the loop ▶#26
+  Note over U,P: RTB serves models offline; cuRobo plans collision-free ▶#39 · Tier-B algo AOT-sandboxed ▶#26/#37
 ```
 
 ## Principles (enforced)
@@ -120,6 +126,7 @@ sequenceDiagram
 - **Don't reinvent** — reuse the engines in Part 2.
 - **Bring your own, safely** — every capability has a user-version slot; Tier-B runs user code sandboxed (#26); the governor is always the last safety net.
 - **Structural modularity** — module boundaries enforced by `scripts/check-boundaries.sh` in CI; each module owns its dependency; **no dependency without a seam we own** (any Part-2 row is swappable without touching product logic).
+- **Real-time correctness (external review, 2026-07)** — the 1 kHz path carries no Python, no heap allocation, no locks, no blocking I/O: kinematics run **in-process** (Pinocchio #34, not the Python RTB hop), the non-RT↔RT hand-off is a **lock-free SPSC** queue (#35), seams return **`std::expected`** not exceptions (#36), user modules are **AOT-compiled + WASI-off** (#37), and perception is **async-decoupled** off the loop (#38).
 
 ---
 
@@ -138,8 +145,8 @@ Mature open-source building blocks by concern. Status: ✅ used in the build now
 ### Kinematics / dynamics / robotics toolboxes
 | Repo | Role | Status / pin |
 |---|---|---|
-| [petercorke/robotics-toolbox-python](https://github.com/petercorke/robotics-toolbox-python) | Real robot models + FK/IK/Jacobian/trajectories | ✅ behind Kinematics/Planner seams (`rtb-kinematics` service) |
-| [stack-of-tasks/pinocchio](https://github.com/stack-of-tasks/pinocchio) | Fast rigid-body dynamics/kinematics (C++) | ▶ candidate C++-native Kinematics impl |
+| [stack-of-tasks/pinocchio](https://github.com/stack-of-tasks/pinocchio) | **RT** FK/IK/Jacobian in-process (C++, Eigen, analytic derivatives, µs) | ▶ **#34 P0 — the RT Kinematics impl** (review: kill the Python-in-loop hop) |
+| [petercorke/robotics-toolbox-python](https://github.com/petercorke/robotics-toolbox-python) | Robot models + offline FK/IK/trajectories | ✅ behind the Kinematics seam, **offline / Tier-C only — not in the 1 kHz loop** (`rtb-kinematics` service) |
 | [robot-descriptions/robot_descriptions.py](https://github.com/robot-descriptions/robot_descriptions.py) | Fetch 185+ robot models (URDF/MJCF) ready | ▶ #21/#25 |
 | [google-deepmind/dm_control](https://github.com/google-deepmind/dm_control) | MuJoCo Python control / PyMJCF | ⏸ reference |
 
@@ -147,8 +154,10 @@ Mature open-source building blocks by concern. Status: ✅ used in the build now
 | Repo | Role | Status / pin |
 |---|---|---|
 | [pantor/ruckig](https://github.com/pantor/ruckig) | Online jerk-limited trajectory (OTG) | ✅ `v0.17.3`, `motion` (community; waypoints are Pro/cloud — blending stays in-house) |
-| [ompl/ompl](https://github.com/ompl/ompl) | Sampling-based motion planning (RRT/PRM) | ▶ collision-aware Planner impl |
-| [moveit/moveit2](https://github.com/moveit/moveit2) | Full manipulation planning (ROS 2) | ⏸ **feedback-wanted** — heavy/ROS-coupled; we chose RTB + a Planner seam; OMPL is the lighter core |
+| [NVlabs/curobo](https://github.com/NVlabs/curobo) | GPU-parallel global planning + collision (CUDA) | ▶ **#39** — Planner impl; review benches ~45 ms vs OMPL ~1 s |
+| [ompl/ompl](https://github.com/ompl/ompl) | Sampling-based motion planning (RRT/PRM) | ▶ CPU-fallback Planner impl (#39) |
+| [loco-3d/crocoddyl](https://github.com/loco-3d/crocoddyl) | Optimal control / DDP (built on Pinocchio) | ▶ #41 — DynamicPlanner capability, contact-rich, later |
+| [moveit/moveit2](https://github.com/moveit/moveit2) | Full manipulation planning (ROS 2) | ⏸ **review confirms skip** — heavy/ROS-coupled; Pinocchio + cuRobo/OMPL behind our Planner seam is the lean path |
 | [hungpham2511/toppra](https://github.com/hungpham2511/toppra) | Time-optimal path parameterization | ▶ `v0.6.4` retiming reference (Python) |
 
 ### Robot control / drivers (real hardware)
@@ -160,11 +169,13 @@ Mature open-source building blocks by concern. Status: ✅ used in the build now
 | [frankaemika/libfranka](https://github.com/frankaemika/libfranka) · [doosan-robotics/doosan-robot](https://github.com/doosan-robotics/doosan-robot) · [ros-industrial/abb](https://github.com/ros-industrial/abb) | Franka/Doosan/ABB drivers & descriptions | ▶ per-vendor adapters behind the seam |
 | [IgH EtherLab](https://gitlab.com/etherlab.org/ethercat) | EtherCAT master (own drives) | ▶ `stable-1.6`; needs a Linux PREEMPT_RT rig |
 
-### Vision / perception / learning (don't reinvent)
+### Vision / perception / learning (don't reinvent) — **async-decoupled, never in the 1 kHz loop** (#38)
+Perception runs in its own thread pool; poses cross to the loop via SPSC and a state estimator (EKF) interpolates the low-rate result up to loop rate.
 | Repo | Role | Status |
 |---|---|---|
-| [opencv/opencv](https://github.com/opencv/opencv) | Classical vision (detect, calib, track) | ▶ #6/#32 (Vision capability) |
-| [microsoft/onnxruntime](https://github.com/microsoft/onnxruntime) | Run trained DL models (portable) | ▶ #32 (DL detector slot) |
+| [opencv/opencv](https://github.com/opencv/opencv) | Classical vision (detect, calib, track) | ▶ #6 (Vision capability) |
+| [microsoft/onnxruntime](https://github.com/microsoft/onnxruntime) | Run trained DL models (portable) | ▶ #6 (DL detector slot) |
+| [halide/Halide](https://github.com/halide/Halide) | High-perf image kernels (algorithm/schedule split, ARM64) | ▶ #38 custom vision-node option (review) |
 | [pytorch/pytorch](https://github.com/pytorch/pytorch) · [ultralytics/ultralytics](https://github.com/ultralytics/ultralytics) | Training / detection (YOLO) | ▶ bring-your-own model |
 | [NVlabs/FoundationPose](https://github.com/NVlabs/FoundationPose) · [google-ai-edge/mediapipe](https://github.com/google-ai-edge/mediapipe) | 6-DoF pose / perception blocks | ⏸ candidate detectors |
 
@@ -172,10 +183,19 @@ Mature open-source building blocks by concern. Status: ✅ used in the build now
 | Repo | Role | Status / pin |
 |---|---|---|
 | [yhirose/cpp-httplib](https://github.com/yhirose/cpp-httplib) | HTTP+SSE gateway (v0 transport) | ✅ `v0.19.0`, `gateway` + `bridges/rtb` |
-| [eclipse-zenoh/zenoh](https://github.com/eclipse-zenoh/zenoh) | Edge↔cloud pub/sub data plane | ▶ #7 (`zenoh-c`/`zenoh-cpp` 1.9.0) |
-| [ros2/ros2](https://github.com/ros2/ros2) | Full robotics middleware + ecosystem | ⏸ **feedback-wanted** — chose Zenoh-native + our IDL; ROS 2 is bridged (rmw_zenoh), not the foundation |
+| [eclipse-zenoh/zenoh](https://github.com/eclipse-zenoh/zenoh) | Edge↔cloud pub/sub data plane (+ `zenoh-shm` zero-copy for vision) | ▶ #7 (`zenoh-c`/`zenoh-cpp` 1.9.0); review: use shm transport for frames |
+| [ros2/ros2](https://github.com/ros2/ros2) | Full robotics middleware + ecosystem | ⏸ **review confirms bridge-not-foundation** — Zenoh-native + our IDL; ROS 2 attaches via rmw_zenoh |
+| [eclipse-ecal/ecal](https://github.com/eclipse-ecal/ecal) | Pure-C++ zero-copy shared-memory transport | ⏸ alt to Zenoh for vision shm if the zenoh-c bindings prove cumbersome (review) |
 | [grpc/grpc](https://github.com/grpc/grpc) | Typed RPC (SDKs/UI/Tier-B) | ⏸ #8 deferred (HTTP/SSE covers v0) |
-| [nlohmann/json](https://github.com/nlohmann/json) | JSON (descriptors, gateway) | ✅ `v3.12.0` |
+| [nlohmann/json](https://github.com/nlohmann/json) | JSON (descriptors, gateway) — **authoring only** | ✅ `v3.12.0` (RT-loop reads move to FlatBuffers, #40) |
+
+### Real-time plumbing (external review — keep the 1 kHz path clean)
+| Repo | Role | Status / pin |
+|---|---|---|
+| [boostorg/lockfree](https://github.com/boostorg/lockfree) | Lock-free SPSC queue — non-RT↔RT command/telemetry hand-off | ▶ **#35** (review: no mutex/alloc/blocking in the loop; don't hand-roll) |
+| [TartanLlama/expected](https://github.com/TartanLlama/expected) | `std::expected` shim (pre-C++23) for seam error returns | ▶ #36 (review: expected over exceptions across seams — RT/ABI safety) |
+| [google/flatbuffers](https://github.com/google/flatbuffers) | Zero-copy descriptor reads inside the RT loop | ▶ #40 (JSON stays for authoring; FlatBuffers for in-loop config) |
+| [gabime/spdlog](https://github.com/gabime/spdlog) · [fmtlib/fmt](https://github.com/fmtlib/fmt) | Async, lock-free logging | ▶ #42 (no blocking I/O in the celld/motion loop) |
 
 ### Telemetry / visualization
 | Repo | Role | Status / pin |
@@ -188,7 +208,7 @@ Mature open-source building blocks by concern. Status: ✅ used in the build now
 ### User-module sandbox (bring your own, safely) · fleet
 | Repo | Role | Status |
 |---|---|---|
-| [bytecodealliance/wasmtime](https://github.com/bytecodealliance/wasmtime) | WASM runtime for user algorithms | ▶ #26 (`v46`; component-model-via-C-API is the unproven bet, WASI-p1 fallback) |
+| [bytecodealliance/wasmtime](https://github.com/bytecodealliance/wasmtime) | WASM runtime for user algorithms (Tier-B) | ▶ #26/#37 (`v46`; review: **AOT/Cranelift precompile + WASI disabled** for in-loop modules — no JIT warmup, no OS calls; component-model-via-C-API remains the unproven bet, WASI-p1 fallback). Tier-A bare-metal drivers/planners use a dlopen C-ABI `.so`/`.dylib` slot instead (#37). |
 | OCI/containerd · [google/gvisor](https://github.com/google/gvisor) | Heavier/GPU user modules, isolation | ▶ Tier-B (containers) |
 | [BehaviorTree/BehaviorTree.CPP](https://github.com/BehaviorTree/BehaviorTree.CPP) | Program/flow engine | ▶ `4.9.1` (under the flow UI) |
 | [mendersoftware/mender](https://github.com/mendersoftware/mender) | A/B OTA updates | ▶ later (`5.1.0`) |
@@ -206,8 +226,23 @@ Mature open-source building blocks by concern. Status: ✅ used in the build now
 | Sandbox (Tier-B) | `CellClient` contract | wasmtime · OCI |
 | Sim | `AxisAdapter` (sim adapter) | MuJoCo · Gazebo |
 
-## Stance for reviewers (open question)
+## External review → decisions (2026-07)
 
-We built a **lean C++ core with clean seams** and reuse best-in-class engines behind them, rather than adopting the full **ROS 2 / MoveIt / ros2_control** stack up front — to avoid coupling the product API + node model to ROS distro cadence, keep the RT loop small and auditable, and let ROS be **bridged** (rmw_zenoh) for teams that want it. **Is the lean-core-with-bridges bet right, or should ROS 2 / MoveIt / ros2_control be first-class from the start?** Critiques welcome.
+Two independent Gemini deep-reviews of this file. Both **validate the lean-core-over-ROS 2 bet** — stay lean, bridge ROS via rmw_zenoh — and converge on the same real-time hardening. (A third review, ChatGPT, returned generic cloud-backend advice — K8s, Redis, Kafka, OAuth — unrelated to a 1 kHz C++ controller; discarded.) Each finding → our decision → issue:
+
+| Review finding | Decision | Issue |
+|---|---|---|
+| Python RTB in the 1 kHz loop = IPC + GIL jitter, blows the deadline | **Pinocchio (C++) does RT FK/IK/Jac in-process**; RTB demoted to offline model source / Tier-C | #34 (P0) |
+| Mutex on the non-RT↔RT boundary = priority inversion | **Lock-free SPSC** (vendored boost::lockfree), no lock/alloc/blocking in the loop | #35 (P0) |
+| Exceptions across seams break RT-safety + ABI | **`std::expected`** (tl::expected pre-C++23) on seam returns; RT path stays noexcept + latched | #36 |
+| Wasm JIT warmup (15–30 ms) + WASI syscalls break determinism | **Wasmtime AOT/Cranelift + WASI-off** for in-loop modules; native C-ABI `.so` slot for Tier-A | #37 |
+| DL inference (15–100 ms) cannot sit in the loop | **Vision async-decoupled**: own thread pool → SPSC → EKF interpolation; zenoh-shm zero-copy frames | #38 |
+| OMPL global planning ~1 s, jagged paths | **cuRobo (GPU)** behind the Planner seam (~45 ms), OMPL CPU fallback | #39 |
+| JSON parse allocates → RT spikes | **FlatBuffers** for in-loop descriptor reads; JSON stays for authoring | #40 |
+| Contact-rich optimal control wanted | **Crocoddyl** DynamicPlanner (DDP on Pinocchio), later | #41 |
+| Blocking I/O logging in the loop | **spdlog/fmt async** logging | #42 |
+| MuJoCo · Ruckig · Zenoh · Wasmtime · MCAP choices | **Confirmed** — keep pinned | — |
+
+The seam design is what lets every one of these land **without touching product logic**: Pinocchio slots behind the same `Kinematics` interface RTB uses; cuRobo behind the same `Planner`; the SPSC behind the `CellGateway` transport. That is the modularity paying rent.
 
 *Version-review cadence: re-run `git ls-remote --tags` at each milestone; watch zenoh 1.x→2.x, foxglove-sdk pre-1.0, wasmtime monthly majors (pin, don't track latest).*

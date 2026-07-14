@@ -34,6 +34,30 @@ Format: one entry per decision; status Accepted unless noted. Context/options li
 
 **Consequences:** pilot contracts state the integrator holds safety responsibility; FR-8.5 report generator is MVP-scoped; safety-PLC vendor conversations (REER/Pilz/SICK class) start during pilots.
 
+## ADR-5 — RT kinematics run in-process (Pinocchio); the Python RTB service is offline-only
+
+**Decision (2026-07-14, from external review):** forward/inverse kinematics and Jacobians on the 1 kHz path are computed **in-process by Pinocchio (C++)** behind the existing `Kinematics` seam. The `rtb-kinematics` Python service (Robotics Toolbox) is demoted to an **offline** role: model/URDF source, one-shot IK at configuration time, and Tier-C batch planning. It is never called from the RT loop.
+
+**Why:** two independent reviews flagged the `motion --1kHz--> rtb-kinematics(Python)` hop as the system's critical flaw — IPC round-trip (50–500 µs) plus Python's GIL and interpreter overhead cannot fit a 1 ms budget deterministically, so it breaks NFR-1. Pinocchio is the industry-standard C++ rigid-body library (Eigen-backed, compile-time-unrolled, analytic derivatives), resolving FK/IK/Jacobian in microseconds inside the motion module's memory space. The seam we already own makes this a swap, not a rewrite: RTB and Pinocchio both satisfy `Kinematics`.
+
+**Consequences:** new dependency `pinocchio` owned by a C++ kinematics impl behind the seam (issue #34, P0); `bridges/rtb` + `services/rtb-kinematics` stay for offline use and the real-robot model catalogue; analytic derivatives unlock gradient-based Tier-C planning (Crocoddyl, #41). The `UsingRealRobot` thesis is unchanged — RTB still supplies validated real-robot models; Pinocchio just does the math the loop needs.
+
+## ADR-6 — Non-RT↔RT hand-off is a lock-free SPSC queue; the 1 kHz path never locks or allocates
+
+**Decision (2026-07-14, from external review):** all data crossing between the non-real-time `CellGateway` (commands in, telemetry out) and the real-time executive goes through **lock-free single-producer/single-consumer queues** (pre-allocated ring, `memory_order_release`/`acquire`). The RT path performs no heap allocation, no mutex, no blocking I/O. We vendor a vetted implementation (`boost::lockfree::spsc_queue`) rather than hand-rolling.
+
+**Why:** a mutex shared between the gateway thread and the motion thread admits priority inversion — if the OS pre-empts the gateway while it holds the lock, the 1 kHz loop blocks and misses its deadline. The reviews call SPSC the standard remedy and explicitly warn against hand-rolling (cache-coherence, false sharing, memory-reordering hazards).
+
+**Consequences:** `CellGateway` gains a command-ingress and a telemetry-egress SPSC (issue #35, P0); the executive polls wait-free (empty queue → keep last setpoint); `boost::lockfree` becomes a gateway-private dependency behind the transport seam. Supersedes any ad-hoc copy/lock in the current HTTP+SSE gateway.
+
+## ADR-7 — Seam error model is `std::expected`, not exceptions
+
+**Decision (2026-07-14, from external review):** value-returning calls across the Module/Capability seams return `std::expected<T, core::Error>` (via `tl::expected` until the toolchain is C++23). Exceptions are not thrown across a seam boundary. The RT step path stays `noexcept` with latched safety state (already the case).
+
+**Why:** exceptions unwinding across an ABI/plugin boundary are neither RT-safe (unbounded) nor stable across independently-compiled modules — a problem the moment Tier-A `.so` plugins and hot-swapped drivers cross the seam. `expected` makes the error path explicit, allocation-free, and ABI-stable. Replaces throwing factories such as `MotionPlan::move`'s `std::invalid_argument`.
+
+**Consequences:** `core::Status` converges with `std::expected` (issue #36); configuration verbs return `expected`; the boundary lint gains an exceptions-across-seams check. Small mechanical refactor across the existing factories.
+
 ## Open
 
 - **OQ-3 — open-core license boundary** (REQUIREMENTS NFR-12): needs counsel + business input before anything is published publicly. Interim rule: nothing leaves the private repo, so no boundary is being created implicitly.

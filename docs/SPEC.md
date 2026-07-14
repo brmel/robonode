@@ -225,18 +225,24 @@ OCI containers against the telemetry lake + fleet API (read) and registry (write
 | Slot | Choice (v0) | Runner-up |
 |---|---|---|
 | RT OS | Linux + PREEMPT_RT | Xenomai |
+| RT kinematics | **Pinocchio (C++, in-process)** — ADR-5 | RTB offline / KDL |
 | Motion OTG | Ruckig (community) wrapped behind Tier C slot | in-house OTG |
+| Global planning | cuRobo (GPU) | OMPL (CPU) |
+| RT hand-off | **lock-free SPSC (boost::lockfree)** — ADR-6 | — |
+| Seam error model | **`std::expected`** — ADR-7 | `core::Status` |
 | Fieldbus master | IgH EtherCAT (kernel, CiA 402) | SOEM / Acontis (commercial fallback) |
 | Arm protocols | UR RTDE+servoj first; Fanuc J519, ABB EGM next | vendor ROS 2 drivers via bridge |
-| Data plane | Zenoh | DDS (CycloneDDS) |
-| ROS 2 stance | Bridge, not foundation | full ROS 2 core |
-| Tier B sandbox | wasmtime (WASM components) + OCI | gVisor-only containers |
+| Data plane | Zenoh (+ zenoh-shm for vision) | DDS (CycloneDDS) / eCAL |
+| ROS 2 stance | Bridge, not foundation (review-confirmed) | full ROS 2 core |
+| Tier B sandbox | wasmtime (AOT/Cranelift, WASI-off) + OCI; Tier-A native C-ABI `.so` | gVisor-only containers |
 | Recording | MCAP + Foxglove compat | rosbag2 |
-| Sim | Gazebo Harmonic-class | Isaac Sim (later, synthetic data) |
+| Sim | **MuJoCo (local twin, in-process)** | Gazebo (Linux/CI) / Isaac (synthetic data) |
 | Orchestration | BehaviorTree.CPP engine under flow UI | Node-RED embed |
 | OTA | Mender-style A/B + container updates | balena |
 | North integration | OPC UA server + Sparkplug B option | REST-only |
 | Cloud | K8s, Postgres, object store (MCAP), gRPC gateway | — |
+
+*RT-loop discipline (ADR-5/6/7): no Python, no heap alloc, no locks, no blocking I/O on the 1 kHz path. In-loop descriptor reads use FlatBuffers (JSON for authoring); perception is async-decoupled off the loop.*
 
 ## 12. Milestones
 
