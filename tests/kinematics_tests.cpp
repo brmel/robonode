@@ -10,6 +10,7 @@
 
 #include "check.hpp"
 #include "robonode/motion/cartesian.hpp"
+#include "robonode/motion/planner.hpp"
 #include "robonode/sim_mujoco/mujoco_kinematics.hpp"
 
 #ifndef ROBONODE_WORLDS
@@ -130,6 +131,29 @@ void test_cartesian_jog_produces_requested_tcp_velocity() {
     CHECK((v - v_req).norm() < 0.02);  // DLS tracks the request (small damping bias)
 }
 
+void test_cartesian_line_planner_reaches_goal() {
+    auto kin = make_kin();
+    robonode::CartesianLinePlanner planner{*kin, 25};
+
+    const std::vector<double> q0{0.1, -0.4, 0.5, 0.0, -0.2, 0.0};
+    robonode::Goal goal;
+    goal.kind = robonode::Goal::kCartesianPosition;
+    goal.cartesian = kin->tcp_position(q0) + robonode::Vec3{0.1, -0.06, 0.05};
+
+    std::vector<std::vector<double>> wp;  // [joint][step]
+    CHECK(planner.plan(q0, goal, wp).ok());
+    CHECK(wp.size() == 6);
+    std::vector<double> q_end(6);
+    for (std::size_t k = 0; k < 6; ++k) q_end[k] = wp[k].back();
+    CHECK((kin->tcp_position(q_end) - goal.cartesian).norm() < 1e-3);
+
+    // Unreachable goal fails closed; wrong goal kind rejected.
+    goal.cartesian = robonode::Vec3{10, 10, 10};
+    CHECK(!planner.plan(q0, goal, wp).ok());
+    goal.kind = robonode::Goal::kJoint;
+    CHECK(!planner.plan(q0, goal, wp).ok());
+}
+
 }  // namespace
 
 int main() {
@@ -139,6 +163,7 @@ int main() {
     test_ik_reports_unreachable();
     test_move_l_traces_straight_line();
     test_cartesian_jog_produces_requested_tcp_velocity();
+    test_cartesian_line_planner_reaches_goal();
     std::puts("robonode kinematics: all tests passed");
     return 0;
 }

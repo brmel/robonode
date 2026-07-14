@@ -10,6 +10,7 @@
 #include "robonode/motion/governor.hpp"
 #include "robonode/motion/motion_plan.hpp"
 #include "robonode/motion/otg.hpp"
+#include "robonode/motion/planner.hpp"
 #include "robonode/motion/sim_axis.hpp"
 #include "robonode/motion/sync_blend.hpp"
 #include "robonode/motion/sync_executive.hpp"
@@ -337,6 +338,25 @@ void test_sync_executive_coherent_hold() {
     CHECK(std::abs(rows[1].back().actual_position_mm - 500.0) < 0.5);
 }
 
+void test_joint_planner_produces_reaching_waypoints() {
+    robonode::JointPlanner planner;
+    const std::vector<double> start{0.0, 0.0, 0.0};
+    robonode::Goal goal;
+    goal.kind = robonode::Goal::kJoint;
+    goal.joint = {0.5, -0.3, 1.0};
+
+    std::vector<std::vector<double>> wp;
+    CHECK(planner.plan(start, goal, wp).ok());
+    CHECK(wp.size() == 3);
+    for (std::size_t k = 0; k < 3; ++k) {
+        CHECK(wp[k].front() == start[k]);       // starts where we are
+        CHECK(wp[k].back() == goal.joint[k]);   // ends at the goal
+    }
+    // Wrong goal kind fails closed.
+    goal.kind = robonode::Goal::kCartesianPosition;
+    CHECK(!planner.plan(start, goal, wp).ok());
+}
+
 }  // namespace
 
 int main() {
@@ -353,6 +373,7 @@ int main() {
     test_sync_plan_reversal_corner_respects_limits();
     test_sync_executive_two_axes_settle_together();
     test_sync_executive_coherent_hold();
+    test_joint_planner_produces_reaching_waypoints();
     std::puts("robonode motion: all tests passed");
     return 0;
 }
