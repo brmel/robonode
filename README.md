@@ -1,5 +1,9 @@
 # RoboNode (working name)
 
+> **Goal.** An open-source, modular platform for testing robotics algorithms in a real physics environment. In a web app, users see and manipulate robots **and stations** (moving deck, pallet, conveyor) in a real physics engine, and swap or bring their own **module** — path/trajectory, robot control, vision, learning — behind **one clean interface that hides the complexity** (in the spirit of the Matrox Imaging Library). Every node is a typed capability with interchangeable versions and a bring-your-own slot, run safely in a sandbox. We **reuse mature engines** (MuJoCo physics, Robotics Toolbox kinematics, OpenCV/DL vision, Ruckig motion) and never reinvent them; the platform is the clean, modular glue and the swap/test experience.
+>
+> *(This statement is written for external review — feed it, with [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), to Codex/Gemini to critique the design.)*
+
 Platform where every robot and each of its modules is a **node** you can see, control, and plug your own algorithms into — end-to-end like Vention.io, open like nothing on the market: user code runs at every tier, from cloud analytics down to the certified real-time control loop.
 
 ## Documents
