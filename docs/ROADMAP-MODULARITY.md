@@ -25,3 +25,13 @@ Progress:
 - ✅ **Iteration 1** — per-node driver versions (dropdown per node, live swap, `Cell::replace_node`).
 - ✅ **Clean I/O visible** (roadmap #5, pulled forward — it's the heart of "clean input/output"): the node table shows each node's driver version + actual output + Δfollowing-error live. Physics joints show a real gap; the sim filter shows none.
 - ▶ Next: **iteration 2** (real physics model, menagerie UR10e) or **iteration 4** (bring-your-own node template) — user's call.
+
+## UI/UX track (make the modularity legible + clean)
+
+The per-node dropdowns proved the swap contract; the UI now needs to become a coherent, well-designed surface — this is the visible face of the whole platform. Tracked separately because it cuts across every capability:
+
+- **#46 Unified cell view** — all robot components + the **camera feed** (what Vision sees) + **physics** state, integrated correctly in one legible scene (not schematic + table).
+- **#47 Module/version manager** — one menu to browse **every node's versions**, swap live, **update** a version, and **implement your own** (BYO template #23 + register), over the Module/Capability ontology (#30). The MIL-style module gallery.
+- **#48 Theme + design system** — tokens, light/dark, consistent components; the app looks professional, not a prototype.
+
+Each ships an e2e cell in the scenario matrix ([TEST-STRATEGY.md](TEST-STRATEGY.md)); CLI parity (#43) keeps the same state reachable headless.

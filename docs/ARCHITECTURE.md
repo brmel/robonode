@@ -13,7 +13,7 @@
 ```mermaid
 flowchart TB
   subgraph FE["Clients — one contract, zero divergence (#43): every surface is a thin client of the facade, no surface owns logic the others lack"]
-    UI["web UI (three.js) ✅ · node table · clean I/O ✅ · goals ▶#22 · inspector ▶#24 · algo editor ▶#26"]
+    UI["web UI (three.js) ✅ · node table + clean I/O ✅ · **unified robot+camera+physics view ▶#46** · **module/version manager ▶#47** · goals ▶#22 · inspector ▶#24 · algo editor ▶#26 · **theme/design system ▶#48**"]
     CLI["robonode CLI (CLI11) ▶#43 — **agent-complete**: run · swap · monitor · logs -f · trace · telemetry · lifecycle · --json machine output"]
     SDK["Python / other SDK ▶#8 (same contract)"]
   end
