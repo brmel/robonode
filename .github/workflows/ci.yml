@@ -5,12 +5,14 @@ on:
   pull_request:
 
 jobs:
-  boundaries:
+  # Design-drift gate: boundaries + the ADR invariants as greppable rules.
+  # This is the guard that lets an agent work unsupervised (see AGENTS.md).
+  design:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Module boundary lint
-        run: bash scripts/check-boundaries.sh
+      - name: Design invariants (boundaries + ADR rules)
+        run: bash scripts/check-design.sh
 
   # Main package: motion/celld/recorder/UR adapter. MuJoCo off here (its
   # source build is heavy) — it has its own job below.

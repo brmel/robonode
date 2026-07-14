@@ -74,6 +74,17 @@ Format: one entry per decision; status Accepted unless noted. Context/options li
 
 **Consequences:** `spdlog`/`fmt` vendored behind a thin logging seam (module-private, boundary-lint clean); the recorder seam gains a log/trace channel alongside telemetry; CLI + UI subscribe to the same stream; #42 is the RT-no-block piece, #44 is the structured-logging + shared-surface piece.
 
+## ADR-10 — Autonomy is guarded by executable gates, not trust; the design is enforced by code
+
+**Decision (2026-07-14):** the repo is built to be worked by an **autonomous agent, start to finish, unsupervised**. Autonomy rests on three executable artifacts, not on the agent's good judgement:
+1. **`scripts/verify.sh`** — the Definition of Done: design invariants + build + every C++ suite (+ `--e2e` browser journeys). Exit 0 = mergeable. Nothing is "done" until it passes.
+2. **`scripts/check-design.sh`** — the design-drift gate (a CI job): the ADR decisions expressed as greppable rules (seams exist, RT-loop purity, descriptor-driven, no throw across seams). A violation fails CI, so the design **cannot** rot silently. New invariants are added as their issue closes — the guard hardens over time, like the scenario matrix.
+3. **`AGENTS.md`** — the operating constitution: the loop (pick → build → test → verify → record → repeat), how to pick the next issue (tracker #19 + `agent-ready`/`blocked` labels), the roadmap-as-single-source rule (update tracker + matrix as part of Done, no drift), and explicit stop-and-ask conditions.
+
+**Why:** an agent left to "follow the plan" drifts — it hardcodes, bypasses seams, skips tests, and lets the roadmap and reality diverge. Encoding the plan as *gates the agent must pass* and a *constitution it must follow* makes the design self-enforcing: the human launches the loop and reviews closed issues, rather than supervising each step. The tools the agent needs are all headless — `gh` (issues), `ctest` (unit/integration), Playwright (e2e, plus the MCP server for live checks), the `robonode` CLI `--json` (#43), and the observability stream (#44).
+
+**Consequences:** every issue is a tracer slice with executable acceptance criteria + `blocked-by`; the tracker (#19) and scenario matrix (`docs/TEST-STRATEGY.md`) are the single source of truth the agent updates as Done; CI runs `check-design.sh` (`design` job) + `verify.sh`'s suites; the harness itself is tracked by #49 (label automation, next-issue helper, roadmap-consistency check, and enabling the pending `check-design` gates as #32/#34/#35/#36/#42/#44 land).
+
 ## Open
 
 - **OQ-3 — open-core license boundary** (REQUIREMENTS NFR-12): needs counsel + business input before anything is published publicly. Interim rule: nothing leaves the private repo, so no boundary is being created implicitly.

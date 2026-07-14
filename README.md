@@ -17,6 +17,7 @@ Platform where every robot and each of its modules is a **node** you can see, co
 | [docs/ROADMAP-MODULARITY.md](docs/ROADMAP-MODULARITY.md) | Prioritized modularity iterations (try each node version, bring your own) — each ends with a browser check |
 | [docs/REAL-ROBOTS.md](docs/REAL-ROBOTS.md) | Real-robot kinematics via Robotics Toolbox behind our seams (branch `UsingRealRobot`) |
 | [docs/TEST-STRATEGY.md](docs/TEST-STRATEGY.md) | Test layers (unit → integration → browser e2e) + the **scenario matrix** that flips ▶→✅ as the system grows — the visible progress metric |
+| [AGENTS.md](AGENTS.md) | **Autonomous operating manual** — the loop an unsupervised agent runs (pick → build → test → verify → record), the design-drift gates, and the tools (gh · ctest · Playwright · CLI · logging) |
 
 Read order: REQUIREMENTS → SPEC → ARCHITECTURE → DECISIONS.
 
@@ -38,6 +39,18 @@ A 3D UR10e-on-a-rail you watch move in real time: the node table lists all 7 nod
 ## CLI at the heart (agent-complete, same code as the UI)
 
 The `robonode` CLI ([#43](https://github.com/brmel/robonode/issues/43), [ADR-8](docs/DECISIONS.md)) is a **first-class surface, not an afterthought** — an agent drives the whole system headless: execute programs, swap modules, drive lifecycle, monitor state, tail logs/traces/telemetry, get feedback, all with `--json` machine output. The CLI and the web UI are **both thin clients of the one Platform facade** — the same contract, the same code path, no divergence; a capability in one surface but not the other is a bug. Built on [CLI11](https://github.com/CLIUtils/CLI11); logging is [spdlog](https://github.com/gabime/spdlog)/fmt structured + async ([#44](https://github.com/brmel/robonode/issues/44), [ADR-9](docs/DECISIONS.md)), with logs/traces/telemetry exposed as one followable stream both surfaces read.
+
+## Autonomous development (launch an agent, walk away)
+
+The repo is built to be worked by an agent unsupervised, start to finish ([AGENTS.md](AGENTS.md), [ADR-10](docs/DECISIONS.md)). Autonomy rests on **executable gates, not trust**:
+
+```sh
+scripts/verify.sh          # Definition of Done: design invariants + build + all C++ suites
+scripts/verify.sh --e2e    #   … plus the browser journeys (docker + Playwright)
+scripts/check-design.sh    # design-drift gate (CI): the ADRs as greppable rules — seams, RT purity, no hardcoding
+```
+
+An agent picks the next `agent-ready`, unblocked issue from the tracker ([#19](https://github.com/brmel/robonode/issues/19)), implements the thin slice, makes `verify.sh` pass, flips its row in the [scenario matrix](docs/TEST-STRATEGY.md), closes the issue with evidence, commits, and repeats — with `gh` (issues), `ctest` (unit/integration), Playwright (e2e + the MCP server for live checks), the `robonode` CLI (`--json`), and the observability stream as its hands. The gates catch drift so the human reviews closed issues instead of supervising steps.
 
 ## The package (one build, MIL-style modules)
 
