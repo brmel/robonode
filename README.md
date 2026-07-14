@@ -15,6 +15,17 @@ Platform where every robot and each of its modules is a **node** you can see, co
 
 Read order: REQUIREMENTS → SPEC → TECH-LANDSCAPE → DECISIONS.
 
+## Live web app (see it, drive it)
+
+```sh
+docker compose up --build          # → http://localhost:8080   (reproducible, no host toolchain)
+# or locally:
+cmake -B build && cmake --build build -j --target cell_server
+./build/apps/cell_server/cell_server   # → http://localhost:8080
+```
+
+A 3D UR10e-on-a-rail you watch move in real time: the node table lists all 7 nodes with their live driver + position; **Run** streams a coordinated blended move from MuJoCo physics; the **Physics / Sim** toggle rebuilds every node through the `DriverRegistry` under a different driver — both satisfy `AxisAdapter`, so a node's implementation swaps live while the UI and motion code stay untouched (the forced interface). Transport is a thin HTTP+SSE gateway ([gateway/](gateway/), [apps/cell_server/](apps/cell_server/)); the roadmap Zenoh/gRPC surface swaps in behind the same `CellGateway` seam.
+
 ## The package (one build, MIL-style modules)
 
 ```sh

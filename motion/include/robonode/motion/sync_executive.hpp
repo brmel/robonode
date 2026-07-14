@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
+#include <functional>
 #include <stdexcept>
 #include <thread>
 #include <vector>
@@ -14,6 +15,12 @@
 #include "robonode/motion/sync_blend.hpp"
 
 namespace robonode {
+
+// Optional per-cycle observer (telemetry streaming, live viz). Called after
+// each cycle's read phase with the cell clock and the adapters. Empty by
+// default (one branch/cycle when unused); when set it must be cheap and is
+// NOT part of the hard-RT contract — for the demo gateway, not the drive path.
+using CycleHook = std::function<void(double t, const std::vector<AxisAdapter*>&)>;
 
 // N-axis executive: one clock, one cycle, all axes commanded together —
 // the motion-tree "one clock master per cell" rule (FR-2.4) in miniature.
@@ -42,9 +49,10 @@ public:
         }
     }
 
-    // rows[i] receives axis i's telemetry.
+    // rows[i] receives axis i's telemetry. `hook`, if set, is called each
+    // cycle after read (live telemetry streaming).
     CycleStats execute(const SyncBlendPlan& plan, std::vector<std::vector<TelemetryRow>>& rows,
-                       double settle_s = 0.05) {
+                       double settle_s = 0.05, const CycleHook& hook = {}) {
         if (plan.axes() != adapters_.size()) throw std::invalid_argument{"plan/axes mismatch"};
         using clock = std::chrono::steady_clock;
         const auto period = std::chrono::nanoseconds{period_ns_};
@@ -106,6 +114,7 @@ public:
                 rows[i].push_back({t, tgt_[i].position, tgt_[i].velocity, cmd_[i], st.position_mm,
                                    st.velocity_mm_s, cmd_[i] - st.position_mm});
             }
+            if (hook) hook(t, adapters_);
         }
 
         stats.cycles = n_cycles;

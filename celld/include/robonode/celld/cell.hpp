@@ -60,7 +60,7 @@ public:
     // settle_s runs the loop past the plan end so a physical plant converges.
     Status run_waypoints(const std::vector<std::vector<double>>& waypoints, double rate_hz,
                          std::vector<std::vector<TelemetryRow>>& rows, CycleStats& stats,
-                         double settle_s = 0.5) {
+                         double settle_s = 0.5, const CycleHook& hook = {}) {
         if (waypoints.size() != nodes_.size()) {
             return Status::failure("waypoint lists != node count");
         }
@@ -78,7 +78,7 @@ public:
         try {
             const auto plan = SyncBlendPlan::plan(waypoints, limits);
             SyncExecutive exec{adapters, governors, rate_hz};
-            stats = exec.execute(plan, rows, settle_s);
+            stats = exec.execute(plan, rows, settle_s, hook);
         } catch (const std::exception& e) {
             return Status::failure(std::string{"plan/execute: "} + e.what());
         }

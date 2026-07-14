@@ -1,0 +1,8 @@
+# One command to build + run the live cell server:
+#   docker compose up --build      →  http://localhost:8080
+services:
+  cell-server:
+    build: .
+    image: robonode
+    ports:
+      - "8080:8080"

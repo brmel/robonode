@@ -1,0 +1,159 @@
+import * as THREE from './three.module.min.js';
+
+// ---- scene ---------------------------------------------------------------
+const view = document.getElementById('view');
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0e1116);
+
+const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 100);
+camera.position.set(1.6, 1.35, 2.1);
+camera.lookAt(0.4, 0.5, 0);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(devicePixelRatio);
+view.appendChild(renderer.domElement);
+
+scene.add(new THREE.HemisphereLight(0xbcd0ff, 0x202028, 0.9));
+const key = new THREE.DirectionalLight(0xffffff, 1.4);
+key.position.set(2, 4, 3);
+scene.add(key);
+
+// floor grid
+const grid = new THREE.GridHelper(6, 24, 0x33404f, 0x222a34);
+grid.position.y = 0;
+scene.add(grid);
+
+// rail track (0..1.45 m along X)
+const rail = new THREE.Mesh(
+  new THREE.BoxGeometry(1.45, 0.03, 0.24),
+  new THREE.MeshStandardMaterial({ color: 0x2a3340, metalness: 0.3, roughness: 0.7 }));
+rail.position.set(1.45 / 2, 0.015, 0);
+scene.add(rail);
+
+// ---- robot chain ---------------------------------------------------------
+// carriage rides the rail (X, metres); base + UR-style 6R arm on top.
+const carriage = new THREE.Group();
+scene.add(carriage);
+
+const steel = new THREE.MeshStandardMaterial({ color: 0x8894a6, metalness: 0.4, roughness: 0.5 });
+const blue = new THREE.MeshStandardMaterial({ color: 0x4c8dff, metalness: 0.3, roughness: 0.45 });
+const orange = new THREE.MeshStandardMaterial({ color: 0xcf8a3a, metalness: 0.3, roughness: 0.6 });
+
+function box(w, h, d, mat, y = 0) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  m.position.y = y;
+  return m;
+}
+// carriage block
+carriage.add(box(0.18, 0.1, 0.18, orange, 0.08));
+const base = new THREE.Group();
+base.position.y = 0.13;
+carriage.add(base);
+base.add(new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 0.08, 24), steel));
+
+// Joint chain: each entry rotates about `axis`, then a link of `len` extends
+// along +Y to the next joint. Believable UR10e proportions (visual twin).
+const chain = [
+  { axis: 'y', len: 0.10, r: 0.062, mat: steel },  // j1 base yaw
+  { axis: 'z', len: 0.61, r: 0.055, mat: blue },   // j2 shoulder
+  { axis: 'z', len: 0.57, r: 0.045, mat: blue },   // j3 elbow
+  { axis: 'z', len: 0.12, r: 0.040, mat: steel },  // j4 wrist1
+  { axis: 'y', len: 0.12, r: 0.040, mat: steel },  // j5 wrist2
+  { axis: 'z', len: 0.09, r: 0.032, mat: blue },   // j6 wrist3
+];
+const joints = [];
+let parent = base;
+for (const seg of chain) {
+  const g = new THREE.Group();
+  parent.add(g);
+  // link cylinder from origin to +len along Y
+  const link = new THREE.Mesh(new THREE.CylinderGeometry(seg.r, seg.r, seg.len, 20), seg.mat);
+  link.position.y = seg.len / 2;
+  g.add(link);
+  // joint collar
+  const collar = new THREE.Mesh(new THREE.CylinderGeometry(seg.r * 1.25, seg.r * 1.25, seg.r * 1.1, 20),
+    new THREE.MeshStandardMaterial({ color: 0x39d98a, metalness: 0.2, roughness: 0.4 }));
+  collar.rotation.z = seg.axis === 'y' ? 0 : Math.PI / 2;
+  g.add(collar);
+  const next = new THREE.Group();
+  next.position.y = seg.len;
+  g.add(next);
+  joints.push({ group: g, axis: seg.axis });
+  parent = next;
+}
+// TCP marker
+parent.add(new THREE.Mesh(new THREE.SphereGeometry(0.02, 16, 16),
+  new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x224466 })));
+
+const AX = { x: new THREE.Vector3(1, 0, 0), y: new THREE.Vector3(0, 1, 0), z: new THREE.Vector3(0, 0, 1) };
+
+// ---- live pose (lerp toward latest telemetry) ----------------------------
+let target = [0, 0, 0, 0, 0, 0, 0];   // [rail_mm, j1..j6 rad]
+let shown = [0, 0, 0, 0, 0, 0, 0];
+
+function applyPose() {
+  for (let i = 0; i < 7; i++) shown[i] += (target[i] - shown[i]) * 0.25;
+  carriage.position.x = shown[0] / 1000;      // mm → m
+  for (let i = 0; i < 6; i++) {
+    joints[i].group.quaternion.setFromAxisAngle(AX[joints[i].axis], shown[i + 1]);
+  }
+}
+
+function resize() {
+  const w = view.clientWidth, h = view.clientHeight;
+  renderer.setSize(w, h);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize);
+resize();
+
+let spin = 0;
+function loop() {
+  applyPose();
+  spin += 0.0015;
+  camera.position.x = 0.4 + 1.9 * Math.cos(spin);
+  camera.position.z = 1.9 * Math.sin(spin);
+  camera.position.y = 1.35;
+  camera.lookAt(0.4, 0.55, 0);
+  renderer.render(scene, camera);
+  requestAnimationFrame(loop);
+}
+loop();
+
+// ---- data: SSE + commands ------------------------------------------------
+const nodesBody = document.getElementById('nodes');
+const statusEl = document.getElementById('status');
+const famBadge = document.getElementById('fambadge');
+let nodeMeta = [];
+
+function renderNodes(tree) {
+  nodeMeta = tree.nodes;
+  famBadge.textContent = tree.family;
+  famBadge.className = 'badge ' + tree.family;
+  for (const b of document.querySelectorAll('#family button'))
+    b.classList.toggle('on', b.dataset.fam === tree.family);
+  drawRows();
+}
+function drawRows() {
+  nodesBody.innerHTML = '';
+  nodeMeta.forEach((n, i) => {
+    const tr = document.createElement('tr');
+    const p = target[i] ?? 0;
+    const v = n.unit === 'mm' ? p.toFixed(0) + ' mm' : p.toFixed(3) + ' rad';
+    tr.innerHTML = `<td>${n.id}</td><td class="drv">${n.driver.replace('robonode.', '')}</td><td class="val">${v}</td>`;
+    nodesBody.appendChild(tr);
+  });
+}
+
+const es = new EventSource('/events');
+es.addEventListener('nodes', e => { statusEl.textContent = 'live'; renderNodes(JSON.parse(e.data)); });
+es.onmessage = e => { const f = JSON.parse(e.data); if (f.pos) { target = f.pos; drawRows(); } };
+es.onerror = () => { statusEl.textContent = 'reconnecting…'; };
+
+async function cmd(body) {
+  await fetch('/command', { method: 'POST', body: JSON.stringify(body) });
+}
+document.getElementById('run').onclick = () => cmd({ cmd: 'run' });
+for (const b of document.querySelectorAll('#family button'))
+  b.onclick = () => cmd({ cmd: 'driver', family: b.dataset.fam });

@@ -60,7 +60,8 @@ void test_cell_lifecycle_and_coherent_run() {
         CHECK(n.adapter->lifecycle() == robonode::Lifecycle::kActive);
     }
 
-    CHECK(cell.run_waypoints({{0.0, 500.0, 300.0}, {-10.0, 45.0, 20.0}}, 1000.0, rows, stats).ok());
+    // Waypoints start at each node's home (sim homes at 0 clamped into range).
+    CHECK(cell.run_waypoints({{0.0, 500.0, 300.0}, {0.0, 45.0, 20.0}}, 1000.0, rows, stats).ok());
     CHECK(rows.size() == 2);
     CHECK(std::abs(rows[0].back().actual_position_mm - 300.0) < 0.5);
     CHECK(std::abs(rows[1].back().actual_position_mm - 20.0) < 0.5);

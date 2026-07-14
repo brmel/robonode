@@ -41,8 +41,16 @@ check adapters/ur/include 'robonode/recorder|trajlib/|ruckig/|mcap/' \
   "adapter headers may include core + motion + vendor only"
 
 # celld: vendor-blind coordination plane — core + motion + json only
-check celld 'robonode/(recorder|adapter|sim_mujoco)|trajlib/|ruckig/|mcap/|mujoco/|ur_client_library/' \
+check celld 'robonode/(recorder|adapter|sim_mujoco|gateway)|trajlib/|ruckig/|mcap/|mujoco/|httplib|ur_client_library/' \
   "celld may include core + motion + json only"
+
+# gateway: the web-facing bridge — celld + sim_mujoco + httplib (its own dep).
+# httplib is gateway/app-private.
+hits=$(grep -rnE '^#include [<"]httplib' core motion recorder celld sim-mujoco adapters trajectory-lab 2>/dev/null || true)
+if [ -n "$hits" ]; then
+  violation "httplib is private to gateway/ + its server app"
+  echo "$hits" | sed 's/^/    /'
+fi
 
 # trajlib and ruckig are motion-private
 hits=$(grep -rnE '^#include ["<](trajlib|ruckig)/' apps tests adapters core recorder celld sim-mujoco 2>/dev/null || true)
