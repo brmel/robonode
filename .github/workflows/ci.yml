@@ -51,6 +51,30 @@ jobs:
       - name: Test (physics twin)
         run: ctest --test-dir build -R mujoco_tests --output-on-failure
 
+  # Browser end-to-end: bring up the live cell_server (docker) and run the
+  # Playwright journeys (docs/TEST-STRATEGY.md scenario matrix). The same
+  # journeys an agent drives via the Playwright MCP server, pinned for CI.
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start cell_server (docker compose)
+        run: docker compose up --build -d
+      - name: Wait for the app
+        run: |
+          for i in $(seq 1 60); do curl -sf http://localhost:8080/ >/dev/null && exit 0; sleep 5; done
+          echo "cell_server did not come up"; docker compose logs; exit 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install Playwright
+        run: npm install && npx playwright install --with-deps chromium
+      - name: Run browser e2e
+        run: E2E_BASE_URL=http://localhost:8080 npm run test:e2e
+      - name: Stop
+        if: always()
+        run: docker compose down
+
   # Real robot kinematics (Robotics Toolbox) — the Python service self-checks
   # the mature library's FK/IK/moveL. The C++ bridge is compile-checked by the
   # main `robonode` job (ROBONODE_BUILD_RTB defaults on, no MuJoCo needed).

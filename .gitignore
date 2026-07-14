@@ -11,6 +11,12 @@ _archive/
 .playwright-mcp/
 .DS_Store
 
+# e2e (Playwright)
+node_modules/
+e2e/report/
+test-results/
+playwright/.cache/
+
 # demo outputs
 telemetry*.csv
 

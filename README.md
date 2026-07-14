@@ -16,6 +16,7 @@ Platform where every robot and each of its modules is a **node** you can see, co
 | [docs/DECISIONS.md](docs/DECISIONS.md) | ADR-1…4: x86+PREEMPT_RT reference hardware, Zenoh-native data plane, dual Tier B sandbox, MVP safety posture |
 | [docs/ROADMAP-MODULARITY.md](docs/ROADMAP-MODULARITY.md) | Prioritized modularity iterations (try each node version, bring your own) — each ends with a browser check |
 | [docs/REAL-ROBOTS.md](docs/REAL-ROBOTS.md) | Real-robot kinematics via Robotics Toolbox behind our seams (branch `UsingRealRobot`) |
+| [docs/TEST-STRATEGY.md](docs/TEST-STRATEGY.md) | Test layers (unit → integration → browser e2e) + the **scenario matrix** that flips ▶→✅ as the system grows — the visible progress metric |
 
 Read order: REQUIREMENTS → SPEC → ARCHITECTURE → DECISIONS.
 

@@ -37,4 +37,14 @@ if(ROBONODE_BUILD_MUJOCO)
   target_link_libraries(kinematics_tests PRIVATE robonode::sim_mujoco robonode::warnings)
   target_compile_definitions(kinematics_tests PRIVATE ROBONODE_WORLDS="${ROBONODE_WORLDS}")
   add_test(NAME kinematics_tests COMMAND kinematics_tests)
+
+  # Integration: the CellGateway seam (command JSON in → telemetry JSON out),
+  # the same contract the web UI and the CLI (#43) bind to. gateway needs
+  # MuJoCo (it is only added under the same guard in the root CMakeLists).
+  if(TARGET robonode::gateway)
+    add_executable(gateway_integration_tests gateway_integration_tests.cpp)
+    target_link_libraries(gateway_integration_tests PRIVATE robonode::gateway robonode::warnings)
+    target_compile_definitions(gateway_integration_tests PRIVATE ROBONODE_WORLDS="${ROBONODE_WORLDS}")
+    add_test(NAME gateway_integration_tests COMMAND gateway_integration_tests)
+  endif()
 endif()
