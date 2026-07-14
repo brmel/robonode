@@ -31,8 +31,9 @@ namespace robonode {
 class CellGateway {
 public:
     explicit CellGateway(std::string world_path) : world_{std::move(world_path)} {
-        register_sim_axis(registry_);
-        register_mujoco_axis(registry_);
+        register_sim_axis(registry_);       // robonode.sim-axis  (filter, fast)
+        register_sim_axis_soft(registry_);  // robonode.sim-axis-soft (sluggish)
+        register_mujoco_axis(registry_);    // robonode.mujoco-axis (physics)
         build_cell("physics");
         worker_ = std::thread([this] { worker_loop(); });
     }
@@ -74,7 +75,16 @@ public:
             if (fam != "sim" && fam != "physics") {
                 return R"({"ok":false,"error":"unknown family"})";
             }
-            enqueue({Command::kSwap, fam});
+            enqueue({Command::kSwap, fam, {}, {}});
+            return R"({"ok":true})";
+        }
+        if (cmd == "set_driver") {
+            const std::string node = j.value("node", "");
+            const std::string driver = j.value("driver", "");
+            if (node.empty() || driver.empty()) {
+                return R"({"ok":false,"error":"need node+driver"})";
+            }
+            enqueue({Command::kSetNodeDriver, {}, node, driver});
             return R"({"ok":true})";
         }
         return R"({"ok":false,"error":"unknown cmd"})";
@@ -82,11 +92,13 @@ public:
 
 private:
     struct Command {
-        enum Kind { kRun, kSwap } kind;
-        std::string family;
+        enum Kind { kRun, kSwap, kSetNodeDriver } kind;
+        std::string family;  // kSwap
+        std::string node;    // kSetNodeDriver
+        std::string driver;  // kSetNodeDriver
     };
     struct NodeInfo {
-        std::string id, driver, unit;
+        std::string id, unit;
         double lo, hi;
     };
 
@@ -110,8 +122,15 @@ private:
             }
             if (c.kind == Command::kRun) {
                 run_move();
-            } else {
+            } else if (c.kind == Command::kSwap) {
                 build_cell(c.family);
+            } else {  // kSetNodeDriver
+                {
+                    std::lock_guard<std::mutex> lk{cell_mtx_};
+                    if (cell_) (void)cell_->replace_node(c.node, c.driver);
+                }
+                publish_nodes();
+                publish_telemetry(0.0);
             }
         }
     }
@@ -145,12 +164,13 @@ private:
             d.driver = driver;
             d.limits = {s.lo, s.hi, s.v, s.a, s.jk};
             d.command_rate_hz = 1000;
-            if (family == "physics") {
-                d.config = {{"world", world_}, {"joint", s.joint}, {"actuator", s.act},
-                            {"units_per_m", s.units_per_m}};
-            }
+            // Always carry the MuJoCo config so ANY node can later be swapped
+            // to the physics driver (sim drivers ignore it). This is what lets
+            // per-node version-swapping work in both directions.
+            d.config = {{"world", world_}, {"joint", s.joint}, {"actuator", s.act},
+                        {"units_per_m", s.units_per_m}};
             if (const auto st = cell->add_node(d); !st.ok()) return;  // leaves old cell
-            infos_.push_back({s.id, driver, s.unit, s.lo, s.hi});
+            infos_.push_back({s.id, s.unit, s.lo, s.hi});
         }
         if (!cell->configure_all().ok() || !cell->activate_all().ok()) return;
 
@@ -181,17 +201,23 @@ private:
         cell_->run_waypoints(waypoints, 1000.0, rows, stats, /*settle_s=*/1.5, hook);
     }
 
+    // Worker-thread only (reads cell_). Advertises the driver versions a node
+    // can be swapped to (registry_.names()) and each node's current driver.
     void publish_nodes() {
         nlohmann::json j;
         j["family"] = family_;
-        j["nodes"] = nlohmann::json::array();
-        for (const auto& n : infos_) {
-            j["nodes"].push_back({{"id", n.id},
-                                  {"driver", n.driver},
-                                  {"unit", n.unit},
-                                  {"lo", n.lo},
-                                  {"hi", n.hi},
-                                  {"state", "active"}});
+        j["available"] = registry_.names();
+        auto& arr = j["nodes"] = nlohmann::json::array();
+        if (cell_) {
+            const auto& nodes = cell_->nodes();
+            for (std::size_t i = 0; i < nodes.size() && i < infos_.size(); ++i) {
+                arr.push_back({{"id", nodes[i].id},
+                               {"driver", nodes[i].descriptor.driver},
+                               {"unit", infos_[i].unit},
+                               {"lo", infos_[i].lo},
+                               {"hi", infos_[i].hi},
+                               {"state", "active"}});
+            }
         }
         std::lock_guard<std::mutex> lk{snap_mtx_};
         nodes_snap_ = j.dump();

@@ -126,29 +126,53 @@ const nodesBody = document.getElementById('nodes');
 const statusEl = document.getElementById('status');
 const famBadge = document.getElementById('fambadge');
 let nodeMeta = [];
+let available = [];
+let posCells = [];
 
+// Rebuilt on a 'nodes' event (initial + after any swap): each node gets a
+// dropdown of the driver versions it can be swapped to. Only the position
+// cells update on telemetry, so the dropdowns stay stable.
 function renderNodes(tree) {
   nodeMeta = tree.nodes;
+  available = tree.available || [];
   famBadge.textContent = tree.family;
   famBadge.className = 'badge ' + tree.family;
   for (const b of document.querySelectorAll('#family button'))
     b.classList.toggle('on', b.dataset.fam === tree.family);
-  drawRows();
-}
-function drawRows() {
+
   nodesBody.innerHTML = '';
+  posCells = [];
   nodeMeta.forEach((n, i) => {
     const tr = document.createElement('tr');
-    const p = target[i] ?? 0;
-    const v = n.unit === 'mm' ? p.toFixed(0) + ' mm' : p.toFixed(3) + ' rad';
-    tr.innerHTML = `<td>${n.id}</td><td class="drv">${n.driver.replace('robonode.', '')}</td><td class="val">${v}</td>`;
+    const tdId = document.createElement('td'); tdId.textContent = n.id;
+    const tdDrv = document.createElement('td');
+    const sel = document.createElement('select');
+    for (const d of available) {
+      const o = document.createElement('option');
+      o.value = d; o.textContent = d.replace('robonode.', '');
+      if (d === n.driver) o.selected = true;
+      sel.appendChild(o);
+    }
+    sel.onchange = () => cmd({ cmd: 'set_driver', node: n.id, driver: sel.value });
+    tdDrv.appendChild(sel);
+    const tdPos = document.createElement('td'); tdPos.className = 'val';
+    tr.append(tdId, tdDrv, tdPos);
     nodesBody.appendChild(tr);
+    posCells.push(tdPos);
+  });
+  updatePositions();
+}
+function updatePositions() {
+  nodeMeta.forEach((n, i) => {
+    if (!posCells[i]) return;
+    const p = target[i] ?? 0;
+    posCells[i].textContent = n.unit === 'mm' ? p.toFixed(0) + ' mm' : p.toFixed(3) + ' rad';
   });
 }
 
 const es = new EventSource('/events');
 es.addEventListener('nodes', e => { statusEl.textContent = 'live'; renderNodes(JSON.parse(e.data)); });
-es.onmessage = e => { const f = JSON.parse(e.data); if (f.pos) { target = f.pos; drawRows(); } };
+es.onmessage = e => { const f = JSON.parse(e.data); if (f.pos) { target = f.pos; updatePositions(); } };
 es.onerror = () => { statusEl.textContent = 'reconnecting…'; };
 
 async function cmd(body) {

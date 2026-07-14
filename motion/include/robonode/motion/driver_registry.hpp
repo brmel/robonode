@@ -4,6 +4,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "robonode/core/limits.hpp"
 #include "robonode/core/status.hpp"
@@ -35,6 +36,14 @@ public:
 
     [[nodiscard]] bool has(const std::string& name) const {
         return factories_.find(name) != factories_.end();
+    }
+
+    // Registered driver names, sorted — the versions a node can be swapped to.
+    [[nodiscard]] std::vector<std::string> names() const {
+        std::vector<std::string> out;
+        out.reserve(factories_.size());
+        for (const auto& [name, _] : factories_) out.push_back(name);
+        return out;  // std::map iterates sorted
     }
 
     // Builds an adapter for `name` from `ctx`; failure Status if the driver

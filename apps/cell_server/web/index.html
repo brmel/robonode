@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" href="data:," />
 <title>RoboNode — live cell</title>
 <style>
   :root {
@@ -34,6 +35,9 @@
   th,td { text-align:left; padding:6px 6px; border-bottom:1px solid var(--line); }
   th { color:var(--dim); font-weight:500; font-size:11px; }
   td.val { font-variant-numeric:tabular-nums; color:var(--dim); }
+  td select { font:inherit; font-size:11.5px; color:var(--ink); background:#222835;
+    border:1px solid var(--line); border-radius:6px; padding:3px 5px; max-width:150px; }
+  td select:hover { border-color:var(--accent); }
   .pill { font-size:11px; padding:1px 7px; border-radius:999px; background:#1e2430; color:var(--ok);
     border:1px solid var(--line); }
   .drv { color:var(--dim); font-size:11px; }
@@ -72,7 +76,7 @@
     </div>
 
     <div class="sec" style="flex:1">
-      <h2>Nodes</h2>
+      <h2>Nodes — try each version per node</h2>
       <table>
         <thead><tr><th>node</th><th>driver</th><th>pos</th></tr></thead>
         <tbody id="nodes"></tbody>

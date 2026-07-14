@@ -21,4 +21,15 @@ inline void register_sim_axis(DriverRegistry& registry) {
     });
 }
 
+// A second, deliberately more sluggish sim version (larger time constant) —
+// a real alternative to swap a node to, so "try each version of a node" has
+// something to try. Same AxisAdapter contract; visibly different response.
+inline void register_sim_axis_soft(DriverRegistry& registry) {
+    registry.register_driver("robonode.sim-axis-soft", [](const DriverContext& ctx) {
+        const double home =
+            std::clamp(0.0, ctx.limits.position_min_mm, ctx.limits.position_max_mm);
+        return std::make_unique<SimAxis>(ctx.id, home, /*tau_s=*/0.025);
+    });
+}
+
 }  // namespace robonode

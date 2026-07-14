@@ -48,6 +48,32 @@ public:
         return Status::success();
     }
 
+    // Swap ONE node's implementation to a different registered driver, live
+    // — the same descriptor (limits, config) rebuilt behind the AxisAdapter
+    // seam. The rest of the cell is untouched. This is "try each version of a
+    // node" at node granularity; an unknown/incompatible driver fails closed
+    // and the old node stays.
+    Status replace_node(const std::string& id, const std::string& new_driver) {
+        for (auto& n : nodes_) {
+            if (n.id != id) continue;
+            (void)n.adapter->deactivate();
+            Descriptor d = n.descriptor;
+            d.driver = new_driver;
+            std::unique_ptr<AxisAdapter> adapter;
+            const DriverContext ctx{d.id, d.limits, d.config};
+            if (const auto st = registry_.make(new_driver, ctx, adapter); !st.ok()) {
+                (void)n.adapter->activate();  // restore the old one
+                return Status::failure(id + ": " + st.message());
+            }
+            if (const auto st = adapter->configure(); !st.ok()) return Status::failure(st.message());
+            if (const auto st = adapter->activate(); !st.ok()) return Status::failure(st.message());
+            n.adapter = std::move(adapter);
+            n.descriptor = d;
+            return Status::success();
+        }
+        return Status::failure("no node '" + id + "'");
+    }
+
     // Lifecycle over the whole tree (FR-1.2): first failure aborts and
     // reports which node; already-transitioned nodes are left as-is for the
     // caller to inspect — celld's reconciler will handle rollback.
