@@ -313,6 +313,30 @@ void test_sync_executive_two_axes_settle_together() {
     CHECK(std::abs(rows[1].back().actual_position_mm - 45.0) < 0.5);
 }
 
+// Cell-coherent safety (FR-8.2): when ANY axis in a synchronized group goes
+// non-NORMAL, EVERY axis holds — a group that keeps moving while one member
+// is stopped is how gantries rack themselves. The property #3 requires for
+// the 7-DOF arm, proven here generically at the motion level.
+void test_sync_executive_coherent_hold() {
+    robonode::SimAxis normal_axis{"a", 0.0, 0.005};
+    FaultTimedAxis faulting{100, 300};  // trips protective stop, cycles [100,300)
+    robonode::Governor g0{kLimits}, g1{kLimits};
+    robonode::SyncExecutive exec{{&normal_axis, &faulting}, {&g0, &g1}, 1000.0};
+
+    const auto plan = robonode::SyncBlendPlan::plan({{0.0, 500.0}, {0.0, 500.0}}, {kLimits, kLimits});
+    std::vector<std::vector<robonode::TelemetryRow>> rows;
+    const auto stats = exec.execute(plan, rows, /*settle_s=*/0.5);
+
+    CHECK(stats.safety_hold_cycles == 200);  // whole trip window
+    // The NORMAL axis freezes too during the fault window — coherence.
+    for (std::size_t i = 101; i < 300; ++i) {
+        CHECK(rows[0][i].governed_position_mm == rows[0][100].governed_position_mm);
+    }
+    // Both still complete after recovery.
+    CHECK(std::abs(rows[0].back().actual_position_mm - 500.0) < 0.5);
+    CHECK(std::abs(rows[1].back().actual_position_mm - 500.0) < 0.5);
+}
+
 }  // namespace
 
 int main() {
@@ -328,6 +352,7 @@ int main() {
     test_sync_plan_passes_through_monotonic_via();
     test_sync_plan_reversal_corner_respects_limits();
     test_sync_executive_two_axes_settle_together();
+    test_sync_executive_coherent_hold();
     std::puts("robonode motion: all tests passed");
     return 0;
 }

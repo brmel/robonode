@@ -20,4 +20,10 @@ if(ROBONODE_BUILD_MUJOCO)
   target_link_libraries(mujoco_tests PRIVATE robonode::sim_mujoco robonode::warnings)
   target_compile_definitions(mujoco_tests PRIVATE ROBONODE_WORLDS="${ROBONODE_WORLDS}")
   add_test(NAME mujoco_tests COMMAND mujoco_tests)
+
+  # 7-DOF arm: celld + sim_mujoco integration (one shared world).
+  add_executable(arm_tests arm_tests.cpp)
+  target_link_libraries(arm_tests PRIVATE robonode::celld robonode::sim_mujoco robonode::warnings)
+  target_compile_definitions(arm_tests PRIVATE ROBONODE_WORLDS="${ROBONODE_WORLDS}")
+  add_test(NAME arm_tests COMMAND arm_tests)
 endif()

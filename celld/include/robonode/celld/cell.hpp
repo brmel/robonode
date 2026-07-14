@@ -57,8 +57,10 @@ public:
 
     // Cell-coherent synchronized waypoint run across every node (FR-2.3/2.4).
     // waypoints[i] belongs to nodes()[i]; all nodes must be kActive.
+    // settle_s runs the loop past the plan end so a physical plant converges.
     Status run_waypoints(const std::vector<std::vector<double>>& waypoints, double rate_hz,
-                         std::vector<std::vector<TelemetryRow>>& rows, CycleStats& stats) {
+                         std::vector<std::vector<TelemetryRow>>& rows, CycleStats& stats,
+                         double settle_s = 0.5) {
         if (waypoints.size() != nodes_.size()) {
             return Status::failure("waypoint lists != node count");
         }
@@ -76,7 +78,7 @@ public:
         try {
             const auto plan = SyncBlendPlan::plan(waypoints, limits);
             SyncExecutive exec{adapters, governors, rate_hz};
-            stats = exec.execute(plan, rows);
+            stats = exec.execute(plan, rows, settle_s);
         } catch (const std::exception& e) {
             return Status::failure(std::string{"plan/execute: "} + e.what());
         }

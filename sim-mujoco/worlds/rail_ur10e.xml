@@ -1,0 +1,83 @@
+<!-- Rail (7th axis) + a UR10e-parameterised 6R arm mounted on the carriage.
+     One physics body, 7 actuated DOF sharing one world (MujocoWorldPool),
+     stepped once per cycle by the rail (clock owner). Link lengths follow
+     the UR10e (d1,a2,a3,d4,d5,d6); geometry is primitive (capsules) — a
+     control twin cares about joint axes + offsets + inertia, not visual
+     meshes. #4 cross-checks our FK against MuJoCo's FK of THIS model, so the
+     exact numbers here are the reference either way.
+
+     Descriptor units: rail mm (×1000), joints rad (×1). Actuators are
+     position servos; ctrlrange matches each descriptor's limits. -->
+<mujoco model="rail_ur10e">
+  <option timestep="0.0005" integrator="implicitfast" gravity="0 0 -9.81"/>
+  <default>
+    <joint damping="5" armature="0.1"/>
+    <!-- contype/conaffinity 0: no contacts. This is a control + coordination
+         twin (inertia, gravity-comp, joint dynamics are real); self-collision
+         is out of scope here and would otherwise hold joints off-target.
+         Collision-aware planning (#5) uses a separate collision world. -->
+    <geom rgba="0.6 0.6 0.65 1" contype="0" conaffinity="0"/>
+    <position kp="30000" kv="800"/>
+  </default>
+
+  <worldbody>
+    <light pos="0 0 3"/>
+    <geom name="floor" type="plane" size="3 3 0.1" rgba="0.3 0.3 0.35 1"/>
+
+    <!-- 7th axis: linear carriage 0..1.45 m along X. -->
+    <body name="carriage" pos="0 0 0.1">
+      <joint name="rail" type="slide" axis="1 0 0" range="0 1.45" damping="30"/>
+      <geom type="box" size="0.08 0.08 0.06" mass="12" rgba="0.7 0.5 0.2 1"/>
+
+      <!-- UR10e base on the carriage. Arm links are gravity-compensated
+           (gravcomp="1") — real robots feed-forward gravity so the joint
+           servos fight only inertia/damping; without it a PD position servo
+           carries a steady-state gravity error. Inertia and coordination are
+           still real. -->
+      <body name="base" pos="0 0 0.06">
+        <geom type="cylinder" size="0.06 0.04" mass="4"/>
+
+        <body name="shoulder" pos="0 0 0.1807" gravcomp="1">
+          <joint name="j1" type="hinge" axis="0 0 1" range="-6.28 6.28"/>
+          <geom type="capsule" fromto="0 0 -0.05 0 0 0.05" size="0.06" mass="2.0"/>
+
+          <body name="upper_arm" pos="0 0.13 0" quat="0.5 0.5 -0.5 0.5" gravcomp="1">
+            <joint name="j2" type="hinge" axis="0 0 1" range="-6.28 6.28"/>
+            <geom type="capsule" fromto="0 0 0 0.6127 0 0" size="0.055" mass="3.0"/>
+
+            <body name="forearm" pos="0.6127 0 0" gravcomp="1">
+              <joint name="j3" type="hinge" axis="0 0 1" range="-3.14 3.14"/>
+              <geom type="capsule" fromto="0 0 0 0.5716 0 0" size="0.045" mass="2.0"/>
+
+              <body name="wrist1" pos="0.5716 0 0" quat="0.7071 0 0 0.7071" gravcomp="1">
+                <joint name="j4" type="hinge" axis="0 0 1" range="-6.28 6.28"/>
+                <geom type="capsule" fromto="0 0 -0.05 0 0 0.05" size="0.038" mass="1.0"/>
+
+                <body name="wrist2" pos="0 0.11985 0" quat="0.7071 0.7071 0 0" gravcomp="1">
+                  <joint name="j5" type="hinge" axis="0 0 1" range="-6.28 6.28"/>
+                  <geom type="capsule" fromto="0 0 -0.05 0 0 0.05" size="0.038" mass="1.0"/>
+
+                  <body name="wrist3" pos="0 0.11655 0" quat="0.7071 -0.7071 0 0" gravcomp="1">
+                    <joint name="j6" type="hinge" axis="0 0 1" range="-6.28 6.28"/>
+                    <geom type="capsule" fromto="0 0 0 0 0 0.05" size="0.03" mass="0.5"/>
+                    <site name="tcp" pos="0 0 0.06" size="0.01"/>
+                  </body>
+                </body>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+
+  <actuator>
+    <position name="rail_servo" joint="rail" kp="8000" kv="400" ctrlrange="0 1.45"/>
+    <position name="j1_servo" joint="j1" ctrlrange="-6.28 6.28"/>
+    <position name="j2_servo" joint="j2" ctrlrange="-6.28 6.28"/>
+    <position name="j3_servo" joint="j3" ctrlrange="-3.14 3.14"/>
+    <position name="j4_servo" joint="j4" ctrlrange="-6.28 6.28"/>
+    <position name="j5_servo" joint="j5" ctrlrange="-6.28 6.28"/>
+    <position name="j6_servo" joint="j6" ctrlrange="-6.28 6.28"/>
+  </actuator>
+</mujoco>

@@ -27,6 +27,15 @@ ctest --test-dir build -R mujoco_tests
 - The descriptor speaks its own units (mm for a rail, rad for a joint); MuJoCo speaks SI. `units_per_m` in the driver config is the descriptor-unit-per-metre scale (1000 for mm). The adapter is the unit boundary.
 - One world may back many joints (an arm, #3). Exactly one adapter is the `clock_owner` and calls `mj_step`; `SyncExecutive` phases write→step→read so every setpoint is in place before that single step. `MujocoWorld::step` accumulates a residual so sim time tracks the control clock whatever the timestep/rate ratio.
 
+## Worlds
+
+- `rail.xml` — single linear axis (#2), gravity real; the 65 mm physical following error comes from inertia.
+- `rail_ur10e.xml` — rail + UR10e-parameterised 6R arm (#3), 7 DOF sharing one world. UR10e link lengths (`d1,a2,a3,d4,d5,d6`), primitive capsule geometry, gravity-compensated links, self-collision off (a control/coordination twin; collision-aware planning uses a separate collision world, #5). **Servo gains are nominal** — the platform drives every commanded (governed) setpoint to the exact target on one clock; the joints' physical tracking to within ~0.1 rad is a realistic following error, not a defect. Tightening it is inner-loop control tuning, orthogonal to coordination, and #4 cross-checks kinematics against MuJoCo's FK regardless.
+
+## Arm: shared world
+
+`MujocoWorldPool` shares one `MujocoWorld` across every adapter that names the same MJCF path, so the arm's 7 descriptors (one `world`) drive a single physics body; the first node is the clock owner (steps physics). celld keeps its per-node model and stays vendor-blind. `apps/arm_dev` runs the 7-DOF coordinated blended program; `tests/arm_tests` proves one-clock + governed-exact + a protective stop on one joint holding all 7 (cell-coherent safety).
+
 ## Boundary
 
 `mujoco.h` is private to this module (lint: no `#include <mujoco/...>` anywhere else). Everything above sees only `AxisAdapter` + core types.

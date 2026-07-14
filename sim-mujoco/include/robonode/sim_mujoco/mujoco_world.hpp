@@ -1,5 +1,6 @@
 #pragma once
 
+#include <map>
 #include <memory>
 #include <string>
 
@@ -70,6 +71,31 @@ private:
     mjModel* model_;
     mjData* data_;
     double accum_{0.0};
+};
+
+// Shares one MujocoWorld across every adapter that names the same MJCF path,
+// so an arm's joints (7 nodes, one `world` path) drive a single physics
+// body. The first adapter to request a path is its clock owner (the one that
+// steps physics); the rest only marshal ctrl/state. Loaded lazily, once.
+class MujocoWorldPool {
+public:
+    Status get(const std::string& path, std::shared_ptr<MujocoWorld>& out, bool& is_clock_owner) {
+        const auto it = worlds_.find(path);
+        if (it != worlds_.end()) {
+            out = it->second;
+            is_clock_owner = false;
+            return Status::success();
+        }
+        std::shared_ptr<MujocoWorld> w;
+        if (const auto st = MujocoWorld::load(path, w); !st.ok()) return st;
+        worlds_[path] = w;
+        out = w;
+        is_clock_owner = true;
+        return Status::success();
+    }
+
+private:
+    std::map<std::string, std::shared_ptr<MujocoWorld>> worlds_;
 };
 
 }  // namespace robonode

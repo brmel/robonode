@@ -8,17 +8,20 @@
 
 namespace robonode {
 
-// Registers "robonode.mujoco-axis": a single-axis physics node. Each node
-// gets its own world (one joint), so this driver is for standalone axes; an
-// arm shares one world across joints and is built by the arm module (#3),
-// not through this per-node factory.
+// Registers "robonode.mujoco-axis". Nodes naming the same "world" path share
+// one physics world (via a pool captured in the factory), so an arm's 7 DOF
+// — 7 descriptors, one world path — drive one body; the first node per world
+// is its clock owner. celld keeps its per-node model and stays vendor-blind;
+// physics is shared underneath.
 //
 // Required config: "world" (MJCF path), "joint", "actuator". Optional
 // "units_per_m" (default 1000 = descriptor mm). Factory returns null on any
 // missing/invalid config or world-load failure (registry reports it).
 inline void register_mujoco_axis(DriverRegistry& registry) {
+    auto pool = std::make_shared<MujocoWorldPool>();
     registry.register_driver(
-        "robonode.mujoco-axis", [](const DriverContext& ctx) -> std::unique_ptr<AxisAdapter> {
+        "robonode.mujoco-axis",
+        [pool](const DriverContext& ctx) -> std::unique_ptr<AxisAdapter> {
             const auto world = ctx.config.find("world");
             const auto joint = ctx.config.find("joint");
             const auto actuator = ctx.config.find("actuator");
@@ -35,10 +38,10 @@ inline void register_mujoco_axis(DriverRegistry& registry) {
                 }
             }
             std::shared_ptr<MujocoWorld> w;
-            if (!MujocoWorld::load(world->second, w).ok()) return nullptr;
+            bool clock_owner = false;
+            if (!pool->get(world->second, w, clock_owner).ok()) return nullptr;
             return std::make_unique<MujocoAxisAdapter>(ctx.id, std::move(w), joint->second,
-                                                       actuator->second, units_per_m,
-                                                       /*clock_owner=*/true);
+                                                       actuator->second, units_per_m, clock_owner);
         });
 }
 
