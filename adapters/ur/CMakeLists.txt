@@ -1,5 +1,5 @@
 # robonode::adapter_ur — UR vendor adapter behind the AxisAdapter seam.
-# Owns the ur_client_library dependency (STACK.md pin 2.13.0). Built as part
+# Owns the ur_client_library dependency (ARCHITECTURE.md pin 2.13.0). Built as part
 # of the robonode package (root CMakeLists), gated by
 # ROBONODE_BUILD_UR_ADAPTER.
 include(FetchContent)

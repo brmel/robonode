@@ -6,7 +6,7 @@
 #include "robonode/core/state.hpp"
 #include "robonode/motion/setpoint_source.hpp"
 
-// Ruckig is a motion-module implementation detail (STACK.md pin v0.17.3) —
+// Ruckig is a motion-module implementation detail (ARCHITECTURE.md pin v0.17.3) —
 // nothing outside motion/ may include it (boundary lint).
 #include <ruckig/ruckig.hpp>
 
@@ -20,7 +20,7 @@ namespace robonode {
 // soft-RT commands and hard-RT streaming."
 //
 // Wraps ruckig::Ruckig<1> (community: single target state — exactly this
-// use; waypoint sequences remain SyncBlendPlan's job, see STACK.md).
+// use; waypoint sequences remain SyncBlendPlan's job, see ARCHITECTURE.md).
 class Otg final : public SetpointSource {
 public:
     Otg(double rate_hz, const AxisLimits& limits, double initial_position)

@@ -10,7 +10,7 @@ MujocoWorld (owns mjModel+mjData, one mj_step per cycle)
 
 ## Why MuJoCo (and where Gazebo stays)
 
-Local dev is Apple-silicon, where Gazebo-on-macOS-arm64 is effectively unsupported and we already lived the URSim-under-qemu pain (STACK.md). MuJoCo runs native arm64 and headless (physics needs no GL), so it is the **local dev twin**. Gazebo remains the Linux/CI twin — both sit behind the same `AxisAdapter` seam, so the motion core never learns which is underneath. That is the modularity paying rent.
+Local dev is Apple-silicon, where Gazebo-on-macOS-arm64 is effectively unsupported and we already lived the URSim-under-qemu pain (ARCHITECTURE.md). MuJoCo runs native arm64 and headless (physics needs no GL), so it is the **local dev twin**. Gazebo remains the Linux/CI twin — both sit behind the same `AxisAdapter` seam, so the motion core never learns which is underneath. That is the modularity paying rent.
 
 ## Build
 

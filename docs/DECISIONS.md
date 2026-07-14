@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-Format: one entry per decision; status Accepted unless noted. Context/options live in [TECH-LANDSCAPE.md](TECH-LANDSCAPE.md).
+Format: one entry per decision; status Accepted unless noted. Context/options live in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## ADR-1 — Reference controller = industrial x86_64 + PREEMPT_RT (resolves OQ-1)
 

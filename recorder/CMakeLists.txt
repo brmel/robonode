@@ -3,7 +3,7 @@
 # recorder knows nothing of adapters, plans, or executives).
 #
 # mcap is fetched as a tarball, not a git clone: the repo carries git-lfs
-# assets plain clones can't fetch (STACK.md). Header-only; this module's
+# assets plain clones can't fetch (ARCHITECTURE.md). Header-only; this module's
 # single TU defines MCAP_IMPLEMENTATION; compression off = zero extra deps.
 include(FetchContent)
 FetchContent_Declare(mcap

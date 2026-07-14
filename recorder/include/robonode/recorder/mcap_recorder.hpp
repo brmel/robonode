@@ -13,7 +13,7 @@ namespace robonode {
 
 // Flight-recorder v0 (FR-6.2/6.3): telemetry rows → MCAP, one channel per
 // node topic, JSON-encoded so Foxglove opens the file with zero plugins.
-// Raw mcap writer (STACK.md verified pin); the foxglove-sdk spike may
+// Raw mcap writer (ARCHITECTURE.md verified pin); the foxglove-sdk spike may
 // replace the implementation later — the wire format stays MCAP either way.
 //
 // Module boundary: recorder depends on core only (TelemetryRow is the

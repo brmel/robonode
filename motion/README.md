@@ -14,6 +14,6 @@ Module rules (enforced by [scripts/check-boundaries.sh](../scripts/check-boundar
 - Public surface speaks **core types only** (`robonode::State`, `AxisLimits`, `MotionProfile`, `TelemetryRow`); trajlib is an internal detail nothing else may include.
 - Lifecycle verbs (`configure/activate/deactivate` → `Status`) are the non-RT surface; `write_setpoint/step/read` are the RT surface — noexcept, allocation-free, faults latch into `AxisState.safety`.
 
-What is placeholder: profile sampling instead of retargetable OTG (Ruckig, per STACK.md), host scheduler timing (PREEMPT_RT rig later — NFR-1).
+What is placeholder: profile sampling instead of retargetable OTG (Ruckig, per ARCHITECTURE.md), host scheduler timing (PREEMPT_RT rig later — NFR-1).
 
 Build from repo root: `cmake -B build && cmake --build build && ctest --test-dir build`.

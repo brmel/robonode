@@ -1,6 +1,6 @@
 # RoboNode — System Specification
 
-> **Status:** Draft v0.1 — 2026-07-11. Companion to [REQUIREMENTS.md](REQUIREMENTS.md); FR-x references point there. Technology choices are justified in [TECH-LANDSCAPE.md](TECH-LANDSCAPE.md).
+> **Status:** Draft v0.1 — 2026-07-11. Companion to [REQUIREMENTS.md](REQUIREMENTS.md); FR-x references point there. Technology choices are justified in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ---
 
@@ -220,7 +220,7 @@ OCI containers against the telemetry lake + fleet API (read) and registry (write
 - Governors (I3): joint/Cartesian envelopes, workspace fences, reduced-speed modes (T1 ≤ 250 mm/s TCP, FR-8.6), safety-state speed scaling; compiled into the RT path, configuration signed with the cell config.
 - Commissioning artifacts: exportable safety-config report (FR-8.5).
 
-## 11. Technology choices (summary — rationale in TECH-LANDSCAPE.md, exact verified pins in [STACK.md](STACK.md))
+## 11. Technology choices (summary — rationale + exact verified pins in [ARCHITECTURE.md](ARCHITECTURE.md) Part 2)
 
 | Slot | Choice (v0) | Runner-up |
 |---|---|---|

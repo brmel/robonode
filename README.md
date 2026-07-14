@@ -2,7 +2,7 @@
 
 > **Goal.** An open-source, modular platform for testing robotics algorithms in a real physics environment. In a web app, users see and manipulate robots **and stations** (moving deck, pallet, conveyor) in a real physics engine, and swap or bring their own **module** — path/trajectory, robot control, vision, learning — behind **one clean interface that hides the complexity** (in the spirit of the Matrox Imaging Library). Every node is a typed capability with interchangeable versions and a bring-your-own slot, run safely in a sandbox. We **reuse mature engines** (MuJoCo physics, Robotics Toolbox kinematics, OpenCV/DL vision, Ruckig motion) and never reinvent them; the platform is the clean, modular glue and the swap/test experience.
 >
-> *(For external review — feed this with [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (system map) and [docs/OSS-STACK.md](docs/OSS-STACK.md) (open-source building blocks we reuse instead of reinventing) to Codex/Gemini to critique the design.)*
+> *(For external review — feed this with [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (system map **and** the open-source building blocks we reuse instead of reinventing, exact pins + seams, in one file) to Codex/Gemini to critique the design.)*
 
 Platform where every robot and each of its modules is a **node** you can see, control, and plug your own algorithms into — end-to-end like Vention.io, open like nothing on the market: user code runs at every tier, from cloud analytics down to the certified real-time control loop.
 
@@ -12,12 +12,12 @@ Platform where every robot and each of its modules is a **node** you can see, co
 |---|---|
 | [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) | Product requirements: vision, personas, domain model, FR-1…FR-10 with priorities, NFRs, MVP cut, risks |
 | [docs/SPEC.md](docs/SPEC.md) | System spec: three-plane architecture, node/capability model, motion core, algorithm tiers A/B/C, data plane, safety, milestones M0–M4 |
-| [docs/TECH-LANDSCAPE.md](docs/TECH-LANDSCAPE.md) | Researched survey of usable systems (Viam, ROS 2, Zenoh, Ruckig, EtherCAT, WASM, Gazebo, Mender, …) + recommended stack |
-| [docs/STACK.md](docs/STACK.md) | **Exact pins**: repo + tag + license per dependency, build-verified status, and the modularity seam each one hides behind |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | **Architecture + stack in one file**: system map (components, nodes/versions, control flow), enforced principles, and every open-source building block we reuse (exact pins + the modularity seam each hides behind). The file to hand external reviewers. |
 | [docs/DECISIONS.md](docs/DECISIONS.md) | ADR-1…4: x86+PREEMPT_RT reference hardware, Zenoh-native data plane, dual Tier B sandbox, MVP safety posture |
-| [docs/research/](docs/research/) | Competitive intel on Vention (API surface + verified gaps, product specs, customers, company) — the seams RoboNode targets |
+| [docs/ROADMAP-MODULARITY.md](docs/ROADMAP-MODULARITY.md) | Prioritized modularity iterations (try each node version, bring your own) — each ends with a browser check |
+| [docs/REAL-ROBOTS.md](docs/REAL-ROBOTS.md) | Real-robot kinematics via Robotics Toolbox behind our seams (branch `UsingRealRobot`) |
 
-Read order: REQUIREMENTS → SPEC → TECH-LANDSCAPE → DECISIONS.
+Read order: REQUIREMENTS → SPEC → ARCHITECTURE → DECISIONS.
 
 ## Real robots (branch `UsingRealRobot`)
 
@@ -65,6 +65,6 @@ Boundaries are structural: [scripts/check-boundaries.sh](scripts/check-boundarie
 
 ## Status & next
 
-M0 done: IDL v0 + motion-core skeleton verified (see [docs/audit/2026-07-12-journey-audit.md](docs/audit/2026-07-12-journey-audit.md) for the full entry-point audit). OQ-1/2/4/5 decided ([DECISIONS](docs/DECISIONS.md)); OQ-3 (license) open.
+M0 done: IDL v0 + motion-core skeleton verified. OQ-1/2/4/5 decided ([DECISIONS](docs/DECISIONS.md)); OQ-3 (license) open.
 
 Next — **M1** (SPEC §12): UR adapter against URSim, EtherCAT bench axis, blended arm+axis sequences, flight recorder + Foxglove live.
