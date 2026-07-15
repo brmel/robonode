@@ -67,7 +67,7 @@ These are the ADRs as hard rules. `check-design.sh` fails the build on violation
 - **Don't reinvent** — reuse the engines in `docs/ARCHITECTURE.md` Part 2 behind a seam; adding a dep without a seam is drift.
 - **One contract, many surfaces (ADR-8)** — a capability reachable in the UI but not the CLI (or vice-versa) is a bug; both are thin clients of the facade.
 - **Logging is spdlog/fmt structured+async (ADR-9)** — no `printf`/`iostream` in product code.
-- **Self-documenting code** — small, single-purpose functions and classes with intention-revealing names; comments carry the *why*, not the *what*. If a block needs a comment to explain what it does, extract and name it. Favour many small units over long methods.
+- **Self-documenting, minimal-comment, modern code** — code speaks; comment only the non-obvious *why*, never narrate the *what*, no section-header comments. Small single-purpose functions/classes, intention-revealing names, no god-classes. Prefer modern C++20/JS idioms over boilerplate. Fewer, better lines.
 
 The full architecture + rationale: `docs/ARCHITECTURE.md`. Decisions: `docs/DECISIONS.md`.
 
