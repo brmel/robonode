@@ -39,6 +39,18 @@ test.describe('RoboNode live cell', () => {
     await expect(j3.locator('select')).toHaveValue('sim-axis');
   });
 
+  test('node inspector shows capability/limits + live in/out (#24)', async ({ page }) => {
+    await page.locator('table tbody tr', { hasText: 'j3' }).locator('td').first().click();
+    const insp = page.locator('#inspector');
+    await expect(insp).toContainText('MotionAxis@1');
+    await expect(insp).toContainText('rad'); // limits shown in the node's unit
+    await page.getByRole('button', { name: /Run coordinated move/ }).click();
+    // setpoint (in) populates with a live value during the move.
+    await expect(insp.locator('.kv', { hasText: 'setpoint' }).locator('.v')).not.toHaveText('—', {
+      timeout: 20_000,
+    });
+  });
+
   test('theme toggle flips light/dark and persists (#48)', async ({ page }) => {
     const panelBg = () =>
       page.evaluate(() => getComputedStyle(document.getElementById('side')!).backgroundColor);

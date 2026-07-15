@@ -129,6 +129,9 @@ let nodeMeta = [];
 let available = [];
 let posCells = [];
 let errVals = [];
+let liveIn = [];        // governed setpoint (in), per node
+let selected = 0;       // inspected node index
+const inspectorEl = document.getElementById('inspector');
 
 // Rebuilt on a 'nodes' event (initial + after any swap): each node gets a
 // dropdown of the driver versions it can be swapped to. Only the position
@@ -158,10 +161,41 @@ function renderNodes(tree) {
     tdDrv.appendChild(sel);
     const tdPos = document.createElement('td'); tdPos.className = 'val';
     tr.append(tdId, tdDrv, tdPos);
+    tr.onclick = ev => { if (ev.target.tagName !== 'SELECT') selectNode(i); };
     nodesBody.appendChild(tr);
     posCells.push(tdPos);
   });
+  if (selected >= nodeMeta.length) selected = 0;
+  markSelected();
   updatePositions();
+  renderInspector();
+}
+
+function selectNode(i) { selected = i; markSelected(); renderInspector(); }
+
+function markSelected() {
+  [...nodesBody.children].forEach((tr, i) => tr.classList.toggle('sel', i === selected));
+}
+
+// The clean I/O contract, legible: what the selected node declares (capability,
+// limits) and its live in/out — setpoint, actual, following error.
+function renderInspector() {
+  const n = nodeMeta[selected];
+  if (!n) { inspectorEl.innerHTML = '<span class="drv">select a node…</span>'; return; }
+  const unit = ' ' + n.unit;
+  const fmt = v => v == null ? '—' : (n.unit === 'mm' ? v.toFixed(0) : v.toFixed(3)) + unit;
+  const rows = [
+    ['capability', 'MotionAxis@1'],
+    ['driver', n.driver.replace('robonode.', '')],
+    ['limits', `${fmt(n.lo)} … ${fmt(n.hi)}`],
+    ['setpoint · in', fmt(liveIn[selected])],
+    ['actual · out', fmt(target[selected])],
+    ['following err', fmt(errVals[selected] == null ? null : Math.abs(errVals[selected]))],
+    ['state', n.state],
+  ];
+  inspectorEl.innerHTML =
+    `<div class="kv"><span class="k">node</span><span class="v">${n.id}</span></div>` +
+    rows.map(([k, v]) => `<div class="kv"><span class="k">${k}</span><span class="v">${v}</span></div>`).join('');
 }
 function updatePositions() {
   nodeMeta.forEach((n, i) => {
@@ -181,7 +215,11 @@ const es = new EventSource('/events');
 es.addEventListener('nodes', e => { statusEl.textContent = 'live'; renderNodes(JSON.parse(e.data)); });
 es.onmessage = e => {
   const f = JSON.parse(e.data);
-  if (f.pos) { target = f.pos; errVals = f.err || []; updatePositions(); }
+  if (f.pos) {
+    target = f.pos; errVals = f.err || []; liveIn = f.target || [];
+    updatePositions();
+    renderInspector();
+  }
 };
 es.onerror = () => { statusEl.textContent = 'reconnecting…'; };
 

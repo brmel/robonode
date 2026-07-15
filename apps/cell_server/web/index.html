@@ -68,6 +68,13 @@
   .badge { display:inline-block; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:600; }
   .badge.physics { background:var(--badge-phys-bg); color:var(--badge-phys-ink); }
   .badge.sim { background:var(--badge-sim-bg); color:var(--badge-sim-ink); }
+  .insp { font-size:12px; }
+  .insp .kv { display:flex; justify-content:space-between; gap:10px; padding:3px 0; border-bottom:1px dashed var(--line); }
+  .insp .kv:last-child { border-bottom:0; }
+  .insp .k { color:var(--dim); }
+  .insp .v { font-variant-numeric:tabular-nums; }
+  tr.sel td { box-shadow:inset 2px 0 0 var(--accent); }
+  tbody tr { cursor:pointer; }
   @media (max-width:720px) { #side { width:100%; flex-basis:auto; } #app { flex-direction:column; } }
 </style>
 <script>
@@ -123,6 +130,11 @@
       </div>
       <p class="drv" style="margin:.6rem 0 0">Both drivers satisfy <code>AxisAdapter</code>; the cell is
       rebuilt through the registry. The robot moves either way — the interface is what's enforced.</p>
+    </div>
+
+    <div class="sec">
+      <h2>Node inspector</h2>
+      <div id="inspector" class="insp"><span class="drv">select a node…</span></div>
     </div>
 
     <div class="sec" style="flex:1">
