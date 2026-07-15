@@ -204,6 +204,16 @@ void test_gateway_cartesian_move_reaches_target() {
     CHECK(arrived);
 }
 
+// #6: the toy vision detector reports the target part's pose from the sim.
+void test_gateway_vision_detects_part() {
+    robonode::CellGateway gw{kWorld, kCell};
+    const auto v = json::parse(gw.vision_json());
+    CHECK(v.contains("part"));
+    const auto& p = v.at("part");
+    CHECK(std::abs(double(p[0]) - 0.2) < 0.02);
+    CHECK(std::abs(double(p[2]) - 1.2) < 0.02);
+}
+
 // The forced interface refuses what it does not know — bad commands and
 // unregistered driver families fail closed, never corrupt the cell.
 void test_gateway_rejects_bad_commands() {
@@ -243,6 +253,7 @@ int main() {
     test_gateway_byo_example_driver_selectable_and_drives();
     test_gateway_logs_surface_records_events();
     test_gateway_cartesian_move_reaches_target();
+    test_gateway_vision_detects_part();
     test_gateway_rejects_bad_commands();
     std::puts("robonode gateway integration: all tests passed");
     return 0;

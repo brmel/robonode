@@ -35,7 +35,7 @@ Each row is a user/agent journey. ✅ verified & guarded · ▶ planned (issue) 
 | J6 | Cartesian goal → IK → TCP arrives (in-process) | ✅ | ✅ | ✅ | **✅** |
 | J7 | Bring-your-own node appears + drives | ✅ | ✅ | ▶#43 | **✅** |
 | J8 | Node inspector: capability/limits + live in/out/Δfollow | — | ✅ | ▶#43 | **✅** |
-| J9 | Vision → pose → target reached | ▶#38 | ▶#6 | ▶#43 | ▶ |
+| J9 | Vision → pose → target reached (toy detector → pick) | ✅ | ✅ | ✅ | **✅** |
 | J10 | Tier-B sandboxed algo drives a node | ▶#26 | ▶#26 | ▶#43 | ▶ |
 | J11 | Real robot model (menagerie UR10e) renders + moves | ▶#20 | ▶#20 | ▶#43 | ▶ |
 | J12 | Logs/traces/telemetry followable from one surface (UI panel + CLI) | ✅ | ✅ | ✅ | **✅** |
@@ -44,7 +44,7 @@ Each row is a user/agent journey. ✅ verified & guarded · ▶ planned (issue) 
 | J15 | Application library — deploy a ready app (Pick demo) | — | ✅ | ✅ | **✅** |
 | J16 | Version manager — chips list versions, click swaps live | ✅ | ✅ | ✅ | **✅** |
 
-**Green: 14/16 journeys (J1–J4, J6, J7, J8, J12–J16, +CLI parity).** Add its integration + e2e cell here and flip its row.
+**Green: 15/16 journeys (J1–J4, J6–J9, J12–J16, +CLI parity).** Add its integration + e2e cell here and flip its row.
 
 ## Running the layers
 

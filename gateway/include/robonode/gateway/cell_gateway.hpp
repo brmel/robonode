@@ -49,6 +49,7 @@ public:
         if (std::unique_ptr<MujocoKinematics> k;
             MujocoKinematics::create(world_, {"j1", "j2", "j3", "j4", "j5", "j6"}, "tcp", k).ok()) {
             kin_ = std::move(k);
+            part_pose_ = kin_->site_position("part");  // toy vision detection (real: #38)
         } else {
             RN_LOG_WARN("kinematics unavailable — Cartesian moves disabled");
         }
@@ -77,6 +78,9 @@ public:
     }
     // Recent log records (newest last) — the followable surface the UI + CLI tail.
     std::string logs_json() { return Log::instance().recent_json(); }
+    std::string vision_json() {
+        return nlohmann::json{{"part", {part_pose_.x, part_pose_.y, part_pose_.z}}}.dump();
+    }
 
     // Parse a command body and enqueue it. Returns a JSON result (accepted /
     // error). Recognised: {"cmd":"run"} and {"cmd":"driver","family":"sim"|"physics"}.
@@ -302,6 +306,7 @@ private:
             err.push_back(row.following_error);
         }
         add_tcp(j, arm_joints(rws));
+        j["vision"]["part"] = {part_pose_.x, part_pose_.y, part_pose_.z};
         std::lock_guard<std::mutex> lk{snap_mtx_};
         telem_snap_ = j.dump();
     }
@@ -324,6 +329,7 @@ private:
             q.push_back(p);
         }
         if (q.size() >= 7) add_tcp(j, {q.begin() + 1, q.begin() + 7});  // arm joints 1..6
+        j["vision"]["part"] = {part_pose_.x, part_pose_.y, part_pose_.z};
         std::lock_guard<std::mutex> lk{snap_mtx_};
         telem_snap_ = j.dump();
     }
@@ -344,6 +350,7 @@ private:
     std::string world_;
     CellDescriptor cell_desc_;
     std::unique_ptr<MujocoKinematics> kin_;  // arm kinematics for Cartesian moves (#22)
+    Vec3 part_pose_{};                       // vision target (#6)
     DriverRegistry registry_;
     std::mutex cell_mtx_;
     std::unique_ptr<Cell> cell_;

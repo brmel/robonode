@@ -40,6 +40,12 @@ public:
 
     [[nodiscard]] std::size_t dof() const override { return qadr_.size(); }
 
+    // World pose of a named site (e.g. a target the vision node reports).
+    [[nodiscard]] Vec3 site_position(const std::string& name) const {
+        world_->forward();
+        return world_->site_xpos(world_->site_id(name));
+    }
+
     [[nodiscard]] Vec3 tcp_position(const std::vector<double>& q) const override {
         write_and_forward(q);
         return world_->site_xpos(tcp_);

@@ -100,6 +100,7 @@ int main(int argc, char** argv) {
     auto* c_telem = app.add_subcommand("telemetry", "print the live I/O snapshot");
     auto* c_logs = app.add_subcommand("logs", "print recent log records");
     auto* c_apps = app.add_subcommand("apps", "list saved applications");
+    auto* c_detect = app.add_subcommand("detect", "print the vision detection (part pose)");
 
     std::string node, driver;
     auto* c_swap = app.add_subcommand("swap", "swap one node's driver version");
@@ -137,6 +138,8 @@ int main(int argc, char** argv) {
         }
     } else if (*c_apps) {
         std::printf("%s\n", p.apps_json().c_str());
+    } else if (*c_detect) {
+        std::printf("%s\n", p.vision_json().c_str());
     } else if (*c_movel) {
         if (const auto st = p.move_l(mx, my, mz); !st.ok()) return fail(st);
         wait_until([&] { return p.telemetry_json(); },

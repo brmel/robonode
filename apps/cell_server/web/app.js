@@ -262,6 +262,10 @@ es.onmessage = e => {
     updateDash();
   }
   if (f.tcp) setTargetDefault(f.tcp);
+  if (f.vision?.part) {
+    partPose = f.vision.part;
+    if (visionPartEl) visionPartEl.textContent = partPose.map(v => v.toFixed(2)).join(', ');
+  }
 };
 es.onerror = () => { statusEl.textContent = 'reconnecting…'; };
 
@@ -282,6 +286,13 @@ function setTargetDefault(tcp) {
 const movelBtn = document.getElementById('movel');
 if (movelBtn) movelBtn.onclick = () =>
   cmd({ cmd: 'move_l', x: parseFloat(txEl.value), y: parseFloat(tyEl.value), z: parseFloat(tzEl.value) });
+
+// Vision (#6): the toy detector reports a part's pose; Pick moves the TCP to it.
+const visionPartEl = document.getElementById('visionPart');
+let partPose = null;
+const pickBtn = document.getElementById('pick');
+if (pickBtn) pickBtn.onclick = () =>
+  partPose && cmd({ cmd: 'move_l', x: partPose[0], y: partPose[1], z: partPose[2] });
 
 // Application library (#57/#59): saved apps come from the store (GET /apps),
 // so the catalog is data-driven, not hardcoded. Deploying an app runs its

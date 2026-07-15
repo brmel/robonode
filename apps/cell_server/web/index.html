@@ -156,6 +156,7 @@
         <input id="ty" type="number" step="0.02" title="TCP y (m)" />
         <input id="tz" type="number" step="0.02" title="TCP z (m)" />
         <button id="movel" title="Cartesian move to TCP target (real IK)">Move TCP</button>
+        <button id="pick" title="Move to the detected part (vision → pick)">🎯 Pick part</button>
       </div>
       <p class="drv" style="margin:.5rem 0 0">Enter a TCP target (m) — real IK plans a straight moveL, the arm reaches it in physics.</p>
     </div>
@@ -215,9 +216,9 @@
         <div class="dl">gravity −9.81 · one clock</div>
       </div>
       <div class="dcard">
-        <div class="dt">📷 Camera</div>
-        <div class="dv2 soon">▶ vision feed · #6</div>
-        <div class="dl">MuJoCo camera</div>
+        <div class="dt">📷 Vision</div>
+        <div class="dv2" id="visionPart">detecting…</div>
+        <div class="dl">toy detector · part pose (m)</div>
       </div>
     </div>
   </main>
