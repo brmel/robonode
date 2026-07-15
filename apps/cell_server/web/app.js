@@ -240,5 +240,15 @@ async function cmd(body) {
   await fetch('/command', { method: 'POST', body: JSON.stringify(body) });
 }
 document.getElementById('run').onclick = () => cmd({ cmd: 'run' });
+
+// Application library (#57): a ready app is a saved program of facade verbs.
+// Deploying "Pick demo" runs its program (physics family → coordinated move) —
+// the Vention MachineApps browse-and-run experience. Bin picking / palletizing
+// / machine tending arrive as real apps (#61-#63).
+const appPick = document.getElementById('app-pick');
+if (appPick) appPick.onclick = async () => {
+  await cmd({ cmd: 'driver', family: 'physics' });
+  await cmd({ cmd: 'run' });
+};
 for (const b of document.querySelectorAll('#family button'))
   b.onclick = () => cmd({ cmd: 'driver', family: b.dataset.fam });

@@ -16,6 +16,12 @@ services:
       # Where the real-robot kinematics service lives (used by the RTB bridge).
       RTB_HOST: rtb-kinematics
       RTB_PORT: "8091"
+    volumes:
+      # Serve the web app + cell/app descriptors live from source (dev): UI and
+      # config changes need no image rebuild. Drop these for an immutable prod image.
+      - ./apps/cell_server/web:/src/apps/cell_server/web:ro
+      - ./apps/cell_server/cells:/src/apps/cell_server/cells:ro
+      - ./apps/cell_server/apps:/src/apps/cell_server/apps:ro
     restart: unless-stopped
     networks: [robonode]
 
