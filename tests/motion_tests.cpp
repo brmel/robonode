@@ -357,10 +357,39 @@ void test_joint_planner_produces_reaching_waypoints() {
     CHECK(!planner.plan(start, goal, wp).ok());
 }
 
+// #54: a time-parameterized trajectory plays through the SAME executive/
+// governor as everything else — a timed planner's output drives the axis to
+// its final sample, no re-timing.
+void test_timed_trajectory_drives_axis_through_executive() {
+    robonode::TimedAxisSource src{{0.0, 0.5, 1.0}, {0.0, 250.0, 500.0}};  // rail 0→500 mm / 1 s
+    robonode::SimAxis axis{"rail", 0.0, 0.005};
+    robonode::Governor gov{kLimits};
+    robonode::Executive exec{axis, gov, 1000.0};
+    std::vector<robonode::TelemetryRow> rows;
+    exec.execute(src, rows, /*run_for_s=*/1.3);
+    CHECK(gov.position_clamps() == 0);  // in-envelope
+    CHECK(std::abs(rows.back().actual_position - 500.0) < 1.0);
+}
+
+// The default plan_trajectory wraps bare waypoints (waypoint-form planners).
+void test_planner_trajectory_wraps_waypoints() {
+    robonode::JointPlanner planner;
+    robonode::Goal goal;
+    goal.kind = robonode::Goal::kJoint;
+    goal.joint = {0.5, -0.3, 1.0};
+    robonode::PlannedTrajectory traj;
+    CHECK(planner.plan_trajectory({0.0, 0.0, 0.0}, goal, traj).ok());
+    CHECK(!traj.is_timed());
+    CHECK(traj.waypoints.size() == 3);
+    CHECK(traj.waypoints[0].back() == 0.5);
+}
+
 }  // namespace
 
 int main() {
     test_governor_holds_position_envelope();
+    test_timed_trajectory_drives_axis_through_executive();
+    test_planner_trajectory_wraps_waypoints();
     test_governor_rate_limits_jumps();
     test_governor_rejects_nonfinite_and_bad_dt();
     test_adapter_lifecycle_defaults();

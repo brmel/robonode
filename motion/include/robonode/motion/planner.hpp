@@ -7,6 +7,7 @@
 #include "robonode/core/status.hpp"
 #include "robonode/motion/cartesian.hpp"
 #include "robonode/motion/kinematics.hpp"
+#include "robonode/motion/planned_trajectory.hpp"
 
 namespace robonode {
 
@@ -30,6 +31,18 @@ public:
     virtual ~Planner() = default;
     virtual Status plan(const std::vector<double>& start_q, const Goal& goal,
                         std::vector<std::vector<double>>& waypoints) const = 0;
+
+    // Richer output (#54): a PlannedTrajectory. Default wraps plan()'s bare
+    // waypoints; a timed planner (cuRobo #39, Crocoddyl #41) overrides to
+    // return a dynamically-feasible trajectory played directly (TimedAxisSource)
+    // instead of being re-timed by the blend layer.
+    virtual Status plan_trajectory(const std::vector<double>& start_q, const Goal& goal,
+                                   PlannedTrajectory& out) const {
+        std::vector<std::vector<double>> wp;
+        if (const auto st = plan(start_q, goal, wp); !st.ok()) return st;
+        out = PlannedTrajectory::from_waypoints(std::move(wp));
+        return Status::success();
+    }
 };
 
 // Joint-space: a direct start→goal move (two waypoints; the blend/OTG layer
