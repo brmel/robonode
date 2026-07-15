@@ -2,6 +2,10 @@
 
 You are an agent working this repo **unsupervised, start to finish**. This file is the constitution: how to pick work, prove it done, avoid design drift, and record progress — all headless, with no human in the loop. When in doubt, the rule here wins.
 
+## Vision (why — read [CLAUDE.md](CLAUDE.md) + [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) first)
+
+Build a **modular, open-source platform to test robotics algorithms in real physics** — users and agents swap or bring their own module (path/control/vision/learning) behind **one clean MIL-style interface**. The four principles you serve every slice: **(1) reuse mature engines, never reinvent** (MuJoCo · Pinocchio · Ruckig · OpenCV/ONNX · MCAP · spdlog — behind a seam); **(2) modular — extend a seam, never bypass**; **(3) RT-correct + descriptor-driven** (no Python/alloc/locks in the loop, no hardcoding); **(4) one contract, many surfaces** (UI = CLI = SDK). **Follow the architecture and improve it via ADR + issue — never drift silently, never reinvent.**
+
 ## The loop (repeat until the queue is empty or you hit a stop condition)
 
 ```
