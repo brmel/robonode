@@ -49,6 +49,9 @@
   button.primary { background:var(--accent); border-color:var(--accent); color:var(--accent-ink); font-weight:600; }
   #themeToggle { background:transparent; border:1px solid var(--line); border-radius:var(--radius);
     padding:5px 9px; font-size:13px; line-height:1; }
+  input[type=number] { width:56px; font:inherit; font-size:12px; color:var(--ink); background:var(--btn);
+    border:1px solid var(--line); border-radius:6px; padding:5px 6px; }
+  input[type=number]:focus { outline:none; border-color:var(--accent); }
   .row { display:flex; gap:8px; align-items:center; }
   .seg { display:inline-flex; border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; }
   .seg button { border:0; border-radius:0; background:transparent; padding:7px 12px; }
@@ -148,6 +151,13 @@
       <div class="row" style="justify-content:space-between">
         <button id="run" class="primary">▶ Run coordinated move</button>
       </div>
+      <div class="row" style="margin-top:10px; gap:5px">
+        <input id="tx" type="number" step="0.02" title="TCP x (m)" />
+        <input id="ty" type="number" step="0.02" title="TCP y (m)" />
+        <input id="tz" type="number" step="0.02" title="TCP z (m)" />
+        <button id="movel" title="Cartesian move to TCP target (real IK)">Move TCP</button>
+      </div>
+      <p class="drv" style="margin:.5rem 0 0">Enter a TCP target (m) — real IK plans a straight moveL, the arm reaches it in physics.</p>
     </div>
 
     <div class="sec">

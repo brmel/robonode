@@ -32,7 +32,7 @@ Each row is a user/agent journey. ✅ verified & guarded · ▶ planned (issue) 
 | J3 | Per-node driver swap, live (try each version; incl. clock-owner swap #50) | ✅ | ✅ | ✅ | **✅ live** |
 | J4 | Bad command / unknown driver fails closed | ✅ | — | ✅ | **✅** |
 | J5 | Physics vs Sim family toggle rebuilds the cell | ▶ | ▶ | ✅ | ▶ |
-| J6 | Cartesian goal → IK → TCP arrives (in-process) | ▶#34 | ▶#22 | ▶#43 | ▶ |
+| J6 | Cartesian goal → IK → TCP arrives (in-process) | ✅ | ✅ | ✅ | **✅** |
 | J7 | Bring-your-own node appears + drives | ✅ | ✅ | ▶#43 | **✅** |
 | J8 | Node inspector: capability/limits + live in/out/Δfollow | — | ✅ | ▶#43 | **✅** |
 | J9 | Vision → pose → target reached | ▶#38 | ▶#6 | ▶#43 | ▶ |
@@ -44,7 +44,7 @@ Each row is a user/agent journey. ✅ verified & guarded · ▶ planned (issue) 
 | J15 | Application library — deploy a ready app (Pick demo) | — | ✅ | ✅ | **✅** |
 | J16 | Version manager — chips list versions, click swaps live | ✅ | ✅ | ✅ | **✅** |
 
-**Green: 13/16 journeys (J1–J4, J7, J8, J12, J13, J14, J15, J16, +CLI parity).** When you add a capability, add its integration + e2e cell here and flip its row.
+**Green: 14/16 journeys (J1–J4, J6, J7, J8, J12–J16, +CLI parity).** Add its integration + e2e cell here and flip its row.
 
 ## Running the layers
 

@@ -181,6 +181,29 @@ void test_gateway_logs_surface_records_events() {
     CHECK(has_run);
 }
 
+// #22: a Cartesian goal — real IK plans a straight moveL and the arm reaches
+// the TCP target in physics (within servo tolerance).
+void test_gateway_cartesian_move_reaches_target() {
+    robonode::CellGateway gw{kWorld, kCell};
+    const auto home = json::parse(gw.telemetry_json());
+    CHECK(home.contains("tcp"));
+    const auto& h = home.at("tcp");
+    const double tx = double(h[0]) + 0.06, ty = double(h[1]) - 0.05, tz = double(h[2]) - 0.08;
+    const json c = {{"cmd", "move_l"}, {"x", tx}, {"y", ty}, {"z", tz}};
+    CHECK(json::parse(gw.submit_command(c.dump())).at("ok") == true);
+
+    const bool arrived = poll_until(
+        [&] { return gw.telemetry_json(); },
+        [&](const json& j) {
+            if (!j.contains("tcp")) return false;
+            const auto& t = j.at("tcp");
+            const double dx = double(t[0]) - tx, dy = double(t[1]) - ty, dz = double(t[2]) - tz;
+            return dx * dx + dy * dy + dz * dz < 0.08 * 0.08;  // within 8 cm (physics servo lag)
+        },
+        20s);
+    CHECK(arrived);
+}
+
 // The forced interface refuses what it does not know — bad commands and
 // unregistered driver families fail closed, never corrupt the cell.
 void test_gateway_rejects_bad_commands() {
@@ -219,6 +242,7 @@ int main() {
     test_gateway_swap_clock_owner_keeps_physics_alive();
     test_gateway_byo_example_driver_selectable_and_drives();
     test_gateway_logs_surface_records_events();
+    test_gateway_cartesian_move_reaches_target();
     test_gateway_rejects_bad_commands();
     std::puts("robonode gateway integration: all tests passed");
     return 0;

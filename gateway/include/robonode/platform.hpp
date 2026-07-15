@@ -29,6 +29,10 @@ public:
     Status set_node_driver(const std::string& node, const std::string& driver) {
         return apply({{"cmd", "set_driver"}, {"node", node}, {"driver", driver}});
     }
+    // Cartesian move to a TCP target (x,y,z in metres) — real IK behind the seam.
+    Status move_l(double x, double y, double z) {
+        return apply({{"cmd", "move_l"}, {"x", x}, {"y", y}, {"z", z}});
+    }
 
     // --- observation surface (the same JSON every surface renders) ---
     std::string nodes_json() { return gw_.nodes_json(); }

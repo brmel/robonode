@@ -92,6 +92,16 @@ int main() {
         res.set_content(platform.apps_json(), "application/json");
     });
 
+    // REST reads (handy for scripts/tests; the UI uses the SSE stream).
+    svr.Get("/telemetry", [&platform](const httplib::Request&, httplib::Response& res) {
+        res.set_header("Access-Control-Allow-Origin", "*");
+        res.set_content(platform.telemetry_json(), "application/json");
+    });
+    svr.Get("/nodes", [&platform](const httplib::Request&, httplib::Response& res) {
+        res.set_header("Access-Control-Allow-Origin", "*");
+        res.set_content(platform.nodes_json(), "application/json");
+    });
+
     svr.set_mount_point("/", web);
 
     std::printf("cell_server on http://localhost:8080  (web: %s)\n", web.c_str());

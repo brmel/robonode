@@ -261,6 +261,7 @@ es.onmessage = e => {
     renderInspector();
     updateDash();
   }
+  if (f.tcp) setTargetDefault(f.tcp);
 };
 es.onerror = () => { statusEl.textContent = 'reconnecting…'; };
 
@@ -268,6 +269,19 @@ async function cmd(body) {
   await fetch('/command', { method: 'POST', body: JSON.stringify(body) });
 }
 document.getElementById('run').onclick = () => cmd({ cmd: 'run' });
+
+// Cartesian move (#22): the target inputs default to the current TCP (so you
+// nudge from where the tool is); Move TCP asks for real IK to a straight moveL.
+const txEl = document.getElementById('tx'), tyEl = document.getElementById('ty'), tzEl = document.getElementById('tz');
+let tcpInit = false;
+function setTargetDefault(tcp) {
+  if (tcpInit || !txEl || !tcp) return;
+  txEl.value = tcp[0].toFixed(2); tyEl.value = tcp[1].toFixed(2); tzEl.value = tcp[2].toFixed(2);
+  tcpInit = true;
+}
+const movelBtn = document.getElementById('movel');
+if (movelBtn) movelBtn.onclick = () =>
+  cmd({ cmd: 'move_l', x: parseFloat(txEl.value), y: parseFloat(tyEl.value), z: parseFloat(tzEl.value) });
 
 // Application library (#57/#59): saved apps come from the store (GET /apps),
 // so the catalog is data-driven, not hardcoded. Deploying an app runs its

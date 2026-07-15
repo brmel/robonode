@@ -114,6 +114,12 @@ int main(int argc, char** argv) {
     auto* c_app = app.add_subcommand("app", "run an application (a program of steps, #56)");
     c_app->add_option("file", appfile, "app descriptor JSON")->required();
 
+    double mx = 0, my = 0, mz = 0;
+    auto* c_movel = app.add_subcommand("movel", "Cartesian move: TCP to x y z (metres)");
+    c_movel->add_option("x", mx)->required();
+    c_movel->add_option("y", my)->required();
+    c_movel->add_option("z", mz)->required();
+
     CLI11_PARSE(app, argc, argv);
 
     using namespace std::chrono_literals;
@@ -131,6 +137,18 @@ int main(int argc, char** argv) {
         }
     } else if (*c_apps) {
         std::printf("%s\n", p.apps_json().c_str());
+    } else if (*c_movel) {
+        if (const auto st = p.move_l(mx, my, mz); !st.ok()) return fail(st);
+        wait_until([&] { return p.telemetry_json(); },
+                   [&](const nlohmann::json& j) {
+                       if (!j.contains("tcp")) return false;
+                       const auto& t = j.at("tcp");
+                       const double dx = double(t[0]) - mx, dy = double(t[1]) - my,
+                                    dz = double(t[2]) - mz;
+                       return dx * dx + dy * dy + dz * dz < 0.02 * 0.02;  // within 2 cm
+                   },
+                   20s);
+        std::printf("%s\n", p.telemetry_json().c_str());
     } else if (*c_run) {
         if (const auto st = p.run(); !st.ok()) return fail(st);
         wait_until([&] { return p.telemetry_json(); },

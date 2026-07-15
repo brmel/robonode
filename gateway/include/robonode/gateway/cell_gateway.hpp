@@ -15,8 +15,10 @@
 #include "robonode/celld/cell_descriptor.hpp"
 #include "robonode/log.hpp"
 #include "robonode/motion/byo_axis.hpp"
+#include "robonode/motion/cartesian.hpp"
 #include "robonode/motion/sim_driver.hpp"
 #include "robonode/sim_mujoco/mujoco_driver.hpp"
+#include "robonode/sim_mujoco/mujoco_kinematics.hpp"
 
 namespace robonode {
 
@@ -42,6 +44,14 @@ public:
         register_mujoco_axis(registry_);    // robonode.mujoco-axis (physics)
         register_byo_axis(registry_);       // robonode.byo-example (bring-your-own template, #23)
         (void)load_cell_descriptor(cell_path, cell_desc_);  // empty on failure → empty cell
+        // Kinematics over the 6 arm joints for Cartesian moves (#22). Scratch
+        // world; the rail stays at its default, so moveL is relative to rail home.
+        if (std::unique_ptr<MujocoKinematics> k;
+            MujocoKinematics::create(world_, {"j1", "j2", "j3", "j4", "j5", "j6"}, "tcp", k).ok()) {
+            kin_ = std::move(k);
+        } else {
+            RN_LOG_WARN("kinematics unavailable — Cartesian moves disabled");
+        }
         build_cell("physics");
         worker_ = std::thread([this] { worker_loop(); });
     }
@@ -97,15 +107,26 @@ public:
             enqueue({Command::kSetNodeDriver, {}, node, driver});
             return R"({"ok":true})";
         }
+        if (cmd == "move_l") {
+            if (!kin_) return R"({"ok":false,"error":"kinematics unavailable"})";
+            Command c;
+            c.kind = Command::kMoveL;
+            c.x = j.value("x", 0.0);
+            c.y = j.value("y", 0.0);
+            c.z = j.value("z", 0.0);
+            enqueue(std::move(c));
+            return R"({"ok":true})";
+        }
         return R"({"ok":false,"error":"unknown cmd"})";
     }
 
 private:
     struct Command {
-        enum Kind { kRun, kSwap, kSetNodeDriver } kind;
-        std::string family;  // kSwap
-        std::string node;    // kSetNodeDriver
-        std::string driver;  // kSetNodeDriver
+        enum Kind { kRun, kSwap, kSetNodeDriver, kMoveL } kind;
+        std::string family;    // kSwap
+        std::string node;      // kSetNodeDriver
+        std::string driver;    // kSetNodeDriver
+        double x{}, y{}, z{};  // kMoveL (TCP target, metres)
     };
     struct NodeInfo {
         std::string id, unit;
@@ -137,6 +158,8 @@ private:
             } else if (c.kind == Command::kSwap) {
                 RN_LOG_INFO("family -> {}", c.family);
                 build_cell(c.family);
+            } else if (c.kind == Command::kMoveL) {
+                run_move_l(c.x, c.y, c.z);
             } else {  // kSetNodeDriver
                 {
                     std::lock_guard<std::mutex> lk{cell_mtx_};
@@ -208,6 +231,39 @@ private:
         cell_->run_waypoints(waypoints, 1000.0, rows, stats, /*settle_s=*/1.5, hook);
     }
 
+    // Cartesian move (#22): straight TCP line from the current arm pose to
+    // (x,y,z) in metres. moveL resolves the 6 arm joints (rail held); the plan
+    // flows through the same blend/governor/executive as everything else.
+    void run_move_l(double x, double y, double z) {
+        std::lock_guard<std::mutex> lk{cell_mtx_};
+        if (!cell_ || !kin_) return;
+        const auto& nodes = cell_->nodes();
+        if (nodes.size() != 7) return;
+        std::vector<double> q0(6);
+        for (int i = 0; i < 6; ++i) q0[i] = nodes[i + 1].adapter->read().position;  // arm joints (rad)
+        std::vector<std::vector<double>> jwp;                                        // [joint][step]
+        if (const auto st = plan_move_l(*kin_, q0, {x, y, z}, 30, jwp); !st.ok()) {
+            RN_LOG_WARN("move_l ({:.3f},{:.3f},{:.3f}) unreachable: {}", x, y, z, st.message());
+            return;
+        }
+        const std::size_t steps = jwp.empty() ? 0 : jwp[0].size();
+        const double rail = nodes[0].adapter->read().position;  // held across the move (mm)
+        std::vector<std::vector<double>> wp;
+        wp.reserve(7);
+        wp.emplace_back(steps, rail);
+        for (auto& j : jwp) wp.push_back(std::move(j));
+        RN_LOG_INFO("move_l -> ({:.3f}, {:.3f}, {:.3f}) m", x, y, z);
+        std::vector<std::vector<TelemetryRow>> rows;
+        CycleStats stats{};
+        std::uint64_t k = 0;
+        const CycleHook hook = [this, &k](double t,
+                                          const std::vector<std::vector<TelemetryRow>>& rws) {
+            if (k++ % 20 == 0) publish_io(t, rws);
+        };
+        cell_->run_waypoints(wp, 1000.0, rows, stats, /*settle_s=*/1.5, hook);
+        RN_LOG_INFO("move_l complete");
+    }
+
     // Worker-thread only (reads cell_). Advertises the driver versions a node
     // can be swapped to (registry_.names()) and each node's current driver.
     void publish_nodes() {
@@ -245,6 +301,7 @@ private:
             tgt.push_back(row.governed_position);
             err.push_back(row.following_error);
         }
+        add_tcp(j, arm_joints(rws));
         std::lock_guard<std::mutex> lk{snap_mtx_};
         telem_snap_ = j.dump();
     }
@@ -258,18 +315,35 @@ private:
         auto& pos = j["pos"] = nlohmann::json::array();
         auto& tgt = j["target"] = nlohmann::json::array();
         auto& err = j["err"] = nlohmann::json::array();
+        std::vector<double> q;
         for (auto& n : cell_->nodes()) {
             const double p = n.adapter->read().position;
             pos.push_back(p);
             tgt.push_back(p);
             err.push_back(0.0);
+            q.push_back(p);
         }
+        if (q.size() >= 7) add_tcp(j, {q.begin() + 1, q.begin() + 7});  // arm joints 1..6
         std::lock_guard<std::mutex> lk{snap_mtx_};
         telem_snap_ = j.dump();
     }
 
+    // FK of the arm joints → the current TCP (metres), so the UI shows where the
+    // tool is and defaults a Cartesian target near it (#22).
+    void add_tcp(nlohmann::json& j, const std::vector<double>& arm_q) {
+        if (!kin_ || arm_q.size() != 6) return;
+        const auto p = kin_->tcp_position(arm_q);
+        j["tcp"] = {p.x, p.y, p.z};
+    }
+    static std::vector<double> arm_joints(const std::vector<std::vector<TelemetryRow>>& rws) {
+        std::vector<double> q;
+        for (std::size_t i = 1; i < rws.size() && i < 7; ++i) q.push_back(rws[i].back().actual_position);
+        return q;
+    }
+
     std::string world_;
     CellDescriptor cell_desc_;
+    std::unique_ptr<MujocoKinematics> kin_;  // arm kinematics for Cartesian moves (#22)
     DriverRegistry registry_;
     std::mutex cell_mtx_;
     std::unique_ptr<Cell> cell_;
