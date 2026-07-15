@@ -31,7 +31,7 @@ Each row is a user/agent journey. ✅ verified & guarded · ▶ planned (issue) 
 | J2 | Run coordinated move → telemetry leaves home (physics) | ✅ | ✅ | ✅ | **✅ live** |
 | J3 | Per-node driver swap, live (try each version; incl. clock-owner swap #50) | ✅ | ✅ | ✅ | **✅ live** |
 | J4 | Bad command / unknown driver fails closed | ✅ | — | ✅ | **✅** |
-| J5 | Physics vs Sim family toggle rebuilds the cell | ▶ | ▶ | ▶#43 | ▶ |
+| J5 | Physics vs Sim family toggle rebuilds the cell | ▶ | ▶ | ✅ | ▶ |
 | J6 | Cartesian goal → IK → TCP arrives (in-process) | ▶#34 | ▶#22 | ▶#43 | ▶ |
 | J7 | Bring-your-own node appears + drives | ✅ | ✅ | ▶#43 | **✅** |
 | J8 | Node inspector: capability/limits + live in/out/Δfollow | — | ✅ | ▶#43 | **✅** |
@@ -39,8 +39,8 @@ Each row is a user/agent journey. ✅ verified & guarded · ▶ planned (issue) 
 | J10 | Tier-B sandboxed algo drives a node | ▶#26 | ▶#26 | ▶#43 | ▶ |
 | J11 | Real robot model (menagerie UR10e) renders + moves | ▶#20 | ▶#20 | ▶#43 | ▶ |
 | J12 | Logs/traces/telemetry followable from one surface | ▶#44 | ▶#44 | ▶#44 | ▶ |
-| J13 | Theme toggle flips light/dark and persists | â | â | â¶#43 | **â** |
-| J14 | Dashboard overlay (robot 3D + live physics Â· env Â· camera) | â | â | – | **â** |
+| J13 | Theme toggle flips light/dark and persists | — | ✅ | ▶#43 | **✅** |
+| J14 | Dashboard overlay (robot 3D + live physics · env · camera) | — | ✅ | — | **✅** |
 
 **Green: 9/14 journeys (J1–J4, J7, J8, J13, J14, +CLI parity).** When you add a capability, add its integration + e2e cell here and flip its row.
 
