@@ -90,6 +90,11 @@
   .dcard .dv2 { font-size:12px; margin-top:3px; }
   .dcard .dl { font-size:10.5px; color:var(--dim); margin-top:2px; }
   .dcard .soon { color:var(--warn); }
+  .logs { font:11px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; max-height:150px; overflow:auto;
+    color:var(--dim); background:var(--bg); border:1px solid var(--line); border-radius:var(--radius); padding:8px 10px; }
+  .logs div { white-space:pre-wrap; }
+  .logs .warn { color:var(--warn); }
+  .logs .err { color:#ff6b6b; }
   @media (max-width:720px) { #side { width:100%; flex-basis:auto; } #app { flex-direction:column; } }
 </style>
 <script>
@@ -178,6 +183,10 @@
         <thead><tr><th>node</th><th>driver (version)</th><th>out · Δfollow</th></tr></thead>
         <tbody id="nodes"></tbody>
       </table>
+    </div>
+    <div class="sec">
+      <h2>Logs</h2>
+      <div id="logs" class="logs"><span class="drv">…</span></div>
     </div>
   </aside>
   <main id="view">

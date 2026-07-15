@@ -98,6 +98,7 @@ int main(int argc, char** argv) {
     auto* c_nodes = app.add_subcommand("nodes", "print the node tree");
     auto* c_run = app.add_subcommand("run", "run the coordinated move");
     auto* c_telem = app.add_subcommand("telemetry", "print the live I/O snapshot");
+    auto* c_logs = app.add_subcommand("logs", "print recent log records");
 
     std::string node, driver;
     auto* c_swap = app.add_subcommand("swap", "swap one node's driver version");
@@ -121,6 +122,11 @@ int main(int argc, char** argv) {
         std::printf("%s\n", p.nodes_json().c_str());
     } else if (*c_telem) {
         std::printf("%s\n", p.telemetry_json().c_str());
+    } else if (*c_logs) {
+        const auto arr = nlohmann::json::parse(p.logs_json(), nullptr, false);
+        if (!arr.is_discarded()) {
+            for (const auto& l : arr) std::printf("%s\n", l.get<std::string>().c_str());
+        }
     } else if (*c_run) {
         if (const auto st = p.run(); !st.ok()) return fail(st);
         wait_until([&] { return p.telemetry_json(); },

@@ -223,8 +223,19 @@ function updatePositions() {
   });
 }
 
+const logsEl = document.getElementById('logs');
+function renderLogs(lines) {
+  if (!logsEl) return;
+  logsEl.innerHTML = lines.map(l => {
+    const cls = /error/i.test(l) ? ' class="err"' : /warn/i.test(l) ? ' class="warn"' : '';
+    return `<div${cls}>${l.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))}</div>`;
+  }).join('');
+  logsEl.scrollTop = logsEl.scrollHeight;
+}
+
 const es = new EventSource('/events');
 es.addEventListener('nodes', e => { statusEl.textContent = 'live'; renderNodes(JSON.parse(e.data)); });
+es.addEventListener('logs', e => renderLogs(JSON.parse(e.data)));
 es.onmessage = e => {
   const f = JSON.parse(e.data);
   if (f.pos) {

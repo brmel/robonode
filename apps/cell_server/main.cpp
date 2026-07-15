@@ -56,6 +56,7 @@ int main() {
                 const std::string init = "event: nodes\ndata: " + platform.nodes_json() + "\n\n";
                 if (!sink.write(init.data(), init.size())) return false;
                 std::string last_nodes = platform.nodes_json();
+                int k = 0;
                 while (true) {
                     const std::string nn = platform.nodes_json();
                     if (nn != last_nodes) {
@@ -65,6 +66,11 @@ int main() {
                     }
                     const std::string frame = "data: " + platform.telemetry_json() + "\n\n";
                     if (!sink.write(frame.data(), frame.size())) break;
+                    // Logs ~every 500 ms — the followable observability surface.
+                    if (++k % 25 == 0) {
+                        const std::string lg = "event: logs\ndata: " + platform.logs_json() + "\n\n";
+                        if (!sink.write(lg.data(), lg.size())) break;
+                    }
                     std::this_thread::sleep_for(std::chrono::milliseconds{20});
                 }
                 return true;

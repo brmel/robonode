@@ -13,6 +13,7 @@
 
 #include "robonode/celld/cell.hpp"
 #include "robonode/celld/cell_descriptor.hpp"
+#include "robonode/log.hpp"
 #include "robonode/motion/byo_axis.hpp"
 #include "robonode/motion/sim_driver.hpp"
 #include "robonode/sim_mujoco/mujoco_driver.hpp"
@@ -64,6 +65,8 @@ public:
         std::lock_guard<std::mutex> lk{snap_mtx_};
         return telem_snap_;
     }
+    // Recent log records (newest last) — the followable surface the UI + CLI tail.
+    std::string logs_json() { return Log::instance().recent_json(); }
 
     // Parse a command body and enqueue it. Returns a JSON result (accepted /
     // error). Recognised: {"cmd":"run"} and {"cmd":"driver","family":"sim"|"physics"}.
@@ -128,13 +131,22 @@ private:
                 cmds_.pop_front();
             }
             if (c.kind == Command::kRun) {
+                RN_LOG_INFO("run: coordinated move");
                 run_move();
+                RN_LOG_INFO("run: complete");
             } else if (c.kind == Command::kSwap) {
+                RN_LOG_INFO("family -> {}", c.family);
                 build_cell(c.family);
             } else {  // kSetNodeDriver
                 {
                     std::lock_guard<std::mutex> lk{cell_mtx_};
-                    if (cell_) (void)cell_->replace_node(c.node, c.driver);
+                    const auto st = cell_ ? cell_->replace_node(c.node, c.driver)
+                                          : Status::failure("no cell");
+                    if (st.ok()) {
+                        RN_LOG_INFO("swap {} -> {}", c.node, c.driver);
+                    } else {
+                        RN_LOG_WARN("swap {} -> {} rejected: {}", c.node, c.driver, st.message());
+                    }
                 }
                 publish_nodes();
                 publish_telemetry(0.0);
@@ -172,6 +184,7 @@ private:
             cell_ = std::move(cell);
             family_ = family;
         }
+        RN_LOG_INFO("cell built: {} nodes ({} family)", cell_desc_.nodes.size(), family);
         publish_nodes();
         publish_telemetry(0.0);  // home pose
     }

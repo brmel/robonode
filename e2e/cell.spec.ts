@@ -94,6 +94,11 @@ test.describe('RoboNode live cell', () => {
       .toEqual(theme);
   });
 
+  test('logs panel tails events after a run (#42/#44)', async ({ page }) => {
+    await page.getByRole('button', { name: /Run coordinated move/ }).click();
+    await expect(page.locator('#logs')).toContainText('run', { timeout: 20_000 });
+  });
+
   test('no console errors during the session', async ({ page }) => {
     const errors: string[] = [];
     page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));

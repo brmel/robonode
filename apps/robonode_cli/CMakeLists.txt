@@ -21,3 +21,7 @@ set_tests_properties(robonode_cli_nodes PROPERTIES PASS_REGULAR_EXPRESSION "rail
 # App runner (#56): `robonode app <file>` runs a program to completion (exit 0).
 add_test(NAME robonode_cli_app
   COMMAND robonode_cli app "${CMAKE_SOURCE_DIR}/apps/cell_server/apps/pick-demo.app.json")
+
+# Logs surface (#42/#44): `robonode logs` prints the log ring (cell-built at least).
+add_test(NAME robonode_cli_logs COMMAND robonode_cli logs)
+set_tests_properties(robonode_cli_logs PROPERTIES PASS_REGULAR_EXPRESSION "cell built")

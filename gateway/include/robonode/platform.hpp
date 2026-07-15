@@ -32,6 +32,7 @@ public:
     // --- observation surface (the same JSON every surface renders) ---
     std::string nodes_json() { return gw_.nodes_json(); }
     std::string telemetry_json() { return gw_.telemetry_json(); }
+    std::string logs_json() { return gw_.logs_json(); }
 
     // Transport escape hatch: the HTTP layer forwards raw command bodies here so
     // the wire contract lives in one place.

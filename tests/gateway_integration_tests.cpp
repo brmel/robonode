@@ -162,6 +162,25 @@ void test_gateway_byo_example_driver_selectable_and_drives() {
     CHECK(j2_moved);
 }
 
+// #42/#44: events land on the log surface — after a run, logs_json carries the
+// run record. The same followable stream the UI panel and `robonode logs` tail.
+void test_gateway_logs_surface_records_events() {
+    robonode::CellGateway gw{kWorld, kCell};
+    CHECK(json::parse(gw.submit_command(R"({"cmd":"run"})")).at("ok") == true);
+    CHECK(poll_until(
+        [&] { return gw.telemetry_json(); },
+        [](const json& j) {
+            const auto& pos = j.at("pos");
+            return !pos.empty() && std::abs(double(pos[0]) - 400.0) < 20.0;
+        },
+        20s));
+    const auto logs = json::parse(gw.logs_json());
+    CHECK(logs.is_array() && !logs.empty());
+    bool has_run = false;
+    for (const auto& l : logs) has_run |= std::string(l).find("run") != std::string::npos;
+    CHECK(has_run);
+}
+
 // The forced interface refuses what it does not know — bad commands and
 // unregistered driver families fail closed, never corrupt the cell.
 void test_gateway_rejects_bad_commands() {
@@ -199,6 +218,7 @@ int main() {
     test_gateway_swaps_one_node_driver_live();
     test_gateway_swap_clock_owner_keeps_physics_alive();
     test_gateway_byo_example_driver_selectable_and_drives();
+    test_gateway_logs_surface_records_events();
     test_gateway_rejects_bad_commands();
     std::puts("robonode gateway integration: all tests passed");
     return 0;
