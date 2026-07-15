@@ -8,6 +8,8 @@ An **open-source, modular platform for testing robotics algorithms in real physi
 
 **A "node" is a capability MODULE, not a joint.** Nodes are the top-level modules — **Robot** node (a whole arm; its joints are internal to it), **Camera** node, **Vision/Tracking** node, **Station** node (conveyor/deck/pallet), Planner node, … — each swappable with versions (MIL). The joint list (rail-x, j1–j6) is the **Robot node's internal inspector**, not the node list. The UI must be a **beautiful dashboard** — robot 3D · physics · environment · camera feed · per-node cards — **not a junction table**. Reuse mature 3D/vision/robot libraries (don't reinvent) and converge toward a mature system.
 
+**Application layer (Vention.io-class, #56–#64).** Above the nodes: ready-to-use **applications** (bin picking, palletizing, machine tending) you deploy from a **library**, **modify** in an editor, **override** any algorithm (vision / control / path-planning) per capability, all persisted in a **database**. An App = a cell (nodes + stations) + a **program** (task steps) + chosen capability versions — data, run by the Platform facade. Apps are *compositions* of the node layer, not new machinery. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) "Application layer".
+
 ## The four principles (do not violate; improve within them)
 
 1. **Reuse mature engines — never reinvent.** Physics = MuJoCo. Kinematics = Pinocchio (RT) / Robotics Toolbox (offline). OTG = Ruckig. Planning = cuRobo/OMPL. Vision = OpenCV/ONNX. Telemetry = MCAP/Foxglove. Logging = spdlog/fmt. CLI = CLI11. The full catalogue with exact pins + the seam each hides behind is **ARCHITECTURE.md Part 2**. Adding a dependency without a seam we own is drift.

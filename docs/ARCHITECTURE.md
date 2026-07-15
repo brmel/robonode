@@ -106,6 +106,37 @@ flowchart LR
   REG --- MotionAxis ; REG --- Arm ; REG --- Plan ; REG --- Vision ; REG --- Station ; REG --- Algo
 ```
 
+## Application layer — ready-to-use apps you compose, modify, and override (Vention.io-style)
+
+Above the nodes sits the **application layer**: an **Application** is a cell (nodes + stations) + a **program** (task steps) + the chosen capability versions — all data, run by the Platform facade. Users pick a ready app from a **library** (bin picking, palletizing, machine tending), **modify** it in an editor, **override** any algorithm (vision / control / path-planning) with another version or their own, and everything persists in a **database**. This is the MIL-style promise at the product level: ready value out of the box, full override underneath.
+
+```mermaid
+flowchart TB
+  subgraph LIB["Application library ▶#57 — ready-to-use"]
+    A1["Bin picking ▶#61"] ; A2["Palletizing / depalletizing ▶#62"] ; A3["Machine tending ▶#63"] ; A4["Pick-and-place · inspection ▶"]
+  end
+  subgraph APP["An Application = data (descriptor-driven) ▶#56"]
+    CELL["cell: nodes + stations (#28/#29)"]
+    PROG["program: task steps (BehaviorTree) ▶#64"]
+    VERS["chosen capability versions + overrides ▶#60"]
+  end
+  subgraph OVR["Algorithm override per capability ▶#60 (extends registry #30 / manager #47)"]
+    V["Vision detector ▾"] ; C["Control law ▾"] ; P["Path planner ▾"] ; B["…or bring your own (#23)"]
+  end
+  EDIT["Application editor ▶#58 — compose / modify"]
+  DB["Database ▶#59 — apps · cells · recipes · run history (Postgres)"]
+  FACADE["Platform facade (#33) — runs the app"]
+
+  LIB --> APP
+  EDIT --> APP
+  APP --> VERS --> OVR
+  APP --> FACADE
+  APP <--> DB
+  EDIT <--> DB
+```
+
+The app layer reuses everything below it: nodes/capabilities (#30), descriptor-driven cells + stations (#28/#29), the facade (#33), the CLI (#43), the dashboard (#46). An app is a *composition*, not new machinery — reuse mature engines, don't reinvent, converge to a Vention-class platform.
+
 ## Control/telemetry flow (browser → physics → back)
 
 ```mermaid
