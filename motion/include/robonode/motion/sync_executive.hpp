@@ -71,6 +71,17 @@ public:
         jitter_us_.reserve(n_cycles);
         cmd_.resize(n);  // per-cycle scratch, allocated once
         tgt_.resize(n);
+        // Distinct shared worlds to tick once per cycle (deduped by pointer):
+        // physics steps regardless of which adapters exist, so a node swap is
+        // safe (#50). Built once here, not per cycle.
+        worlds_.clear();
+        for (auto* a : adapters_) {
+            if (auto* w = a->shared_world()) {
+                if (std::find(worlds_.begin(), worlds_.end(), w) == worlds_.end()) {
+                    worlds_.push_back(w);
+                }
+            }
+        }
         for (std::size_t i = 0; i < n; ++i) {
             governors_[i]->reset(adapters_[i]->read().position_mm);
         }
@@ -109,7 +120,10 @@ public:
                 }
                 adapters_[i]->write_setpoint(cmd_[i]);
             }
-            // Phase 2: advance every device (shared worlds step once here).
+            // Phase 2: advance devices. Tick each distinct shared world once
+            // (physics), then step self-stepping adapters (no-op for the ones
+            // backed by a shared world). All setpoints are already written.
+            for (auto* w : worlds_) w->tick(dt_s);
             for (std::size_t i = 0; i < n; ++i) adapters_[i]->step(dt_s);
             // Phase 3: read state, record telemetry.
             for (std::size_t i = 0; i < n; ++i) {
@@ -140,6 +154,7 @@ private:
     std::vector<double> jitter_us_;
     std::vector<double> cmd_;
     std::vector<State> tgt_;
+    std::vector<CycleSteppable*> worlds_;
 };
 
 }  // namespace robonode

@@ -19,15 +19,18 @@ namespace robonode {
 // per-metre scale (1000 for mm, 1 for rad/SI). The adapter is the unit
 // boundary; everything above it stays in descriptor units.
 //
-// One adapter per world is the `clock_owner`: it advances physics in step().
-// The rest only marshal ctrl/state — SyncExecutive's write→step→read phasing
-// guarantees all setpoints are in place before that single step.
+// The adapter never steps physics itself: it exposes the shared world via
+// shared_world(), and the executive ticks that world once per cycle (deduped
+// across all adapters sharing it). SyncExecutive's write→step→read phasing
+// guarantees all setpoints are in place before that single tick — and because
+// stepping is not tied to any adapter's identity, swapping ANY node (even the
+// rail) leaves the world advancing (#50).
 class MujocoAxisAdapter final : public AxisAdapter {
 public:
     MujocoAxisAdapter(std::string name, std::shared_ptr<MujocoWorld> world, std::string joint,
-                      std::string actuator, double units_per_m, bool clock_owner)
+                      std::string actuator, double units_per_m)
         : name_{std::move(name)}, world_{std::move(world)}, joint_{std::move(joint)},
-          actuator_{std::move(actuator)}, scale_{units_per_m}, clock_owner_{clock_owner} {}
+          actuator_{std::move(actuator)}, scale_{units_per_m} {}
 
     Status configure() override {
         const int jid = world_->joint_id(joint_);
@@ -47,9 +50,10 @@ public:
         if (act_ >= 0) world_->set_ctrl(act_, position_units / scale_);
     }
 
-    void step(double dt_s) noexcept override {
-        if (clock_owner_) world_->step(dt_s);
-    }
+    // No-op: the executive ticks the shared world (see shared_world).
+    void step(double /*dt_s*/) noexcept override {}
+
+    [[nodiscard]] CycleSteppable* shared_world() const noexcept override { return world_.get(); }
 
     // Live read straight from mjData — no cached state, so telemetry is fresh
     // and order-independent within a cycle.
@@ -71,7 +75,6 @@ private:
     std::string joint_;
     std::string actuator_;
     double scale_;
-    bool clock_owner_;
     int act_{-1};
     int qadr_{-1};
     int vadr_{-1};

@@ -95,6 +95,37 @@ void test_gateway_swaps_one_node_driver_live() {
     CHECK(swapped);
 }
 
+// Regression (#50): swapping the node that used to be the physics "clock
+// owner" (rail-x, built first) to a non-physics driver must NOT freeze the
+// shared world — the remaining physics joints still move. World-stepping is
+// the executive's job now, not any adapter's identity.
+void test_gateway_swap_clock_owner_keeps_physics_alive() {
+    robonode::CellGateway gw{kWorld};
+    CHECK(json::parse(gw.submit_command(
+                          R"({"cmd":"set_driver","node":"rail-x","driver":"robonode.sim-axis"})"))
+              .at("ok") == true);
+    CHECK(poll_until(
+        [&] { return gw.nodes_json(); },
+        [](const json& j) {
+            for (const auto& n : j.at("nodes")) {
+                if (n.at("id") == "rail-x") return n.at("driver") == "robonode.sim-axis";
+            }
+            return false;
+        },
+        5s));
+
+    CHECK(json::parse(gw.submit_command(R"({"cmd":"run"})")).at("ok") == true);
+    // j1 (pos[1], still robonode.mujoco-axis) must move off zero under physics.
+    const bool j1_moved = poll_until(
+        [&] { return gw.telemetry_json(); },
+        [](const json& j) {
+            const auto& pos = j.at("pos");
+            return pos.size() > 1 && std::abs(double(pos[1])) > 0.05;
+        },
+        20s);
+    CHECK(j1_moved);
+}
+
 // The forced interface refuses what it does not know — bad commands and
 // unregistered driver families fail closed, never corrupt the cell.
 void test_gateway_rejects_bad_commands() {
@@ -112,6 +143,7 @@ int main() {
     test_gateway_boots_seven_nodes_with_driver_versions();
     test_gateway_run_moves_the_cell_and_streams_telemetry();
     test_gateway_swaps_one_node_driver_live();
+    test_gateway_swap_clock_owner_keeps_physics_alive();
     test_gateway_rejects_bad_commands();
     std::puts("robonode gateway integration: all tests passed");
     return 0;

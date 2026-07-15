@@ -88,8 +88,8 @@ void test_arm_seven_dof_one_clock() {
 }
 
 // Generic fault injector: forwards to an already-configured adapter but
-// reports PROTECTIVE_STOP for cycles [trip, clear). Wraps a non-clock-owner
-// joint so world stepping is untouched.
+// reports PROTECTIVE_STOP for cycles [trip, clear). World stepping is the
+// executive's job (via shared_world), so wrapping any joint is safe.
 class FaultInjector final : public robonode::AxisAdapter {
 public:
     FaultInjector(robonode::AxisAdapter* inner, std::uint64_t trip, std::uint64_t clear)
@@ -104,6 +104,9 @@ public:
         if (cycle_ >= trip_ && cycle_ < clear_) s.safety = robonode::SafetyState::kProtectiveStop;
         return s;
     }
+    [[nodiscard]] robonode::CycleSteppable* shared_world() const noexcept override {
+        return inner_->shared_world();
+    }
     [[nodiscard]] std::string name() const override { return inner_->name(); }
 
 private:
@@ -117,20 +120,18 @@ void test_arm_fault_on_one_joint_holds_all() {
     std::vector<std::unique_ptr<robonode::MujocoAxisAdapter>> owned;
     auto make = [&](std::string id, std::string joint, std::string act, double upm) {
         std::shared_ptr<robonode::MujocoWorld> w;
-        bool owner = false;
-        CHECK(pool.get(kWorld, w, owner).ok());
-        owned.push_back(std::make_unique<robonode::MujocoAxisAdapter>(std::move(id), std::move(w),
-                                                                      std::move(joint),
-                                                                      std::move(act), upm, owner));
+        CHECK(pool.get(kWorld, w).ok());
+        owned.push_back(std::make_unique<robonode::MujocoAxisAdapter>(
+            std::move(id), std::move(w), std::move(joint), std::move(act), upm));
         CHECK(owned.back()->configure().ok());
         CHECK(owned.back()->activate().ok());
     };
-    make("rail-x", "rail", "rail_servo", 1000);  // first → clock owner
+    make("rail-x", "rail", "rail_servo", 1000);
     make("j1", "j1", "j1_servo", 1);
     make("j2", "j2", "j2_servo", 1);
     make("j3", "j3", "j3_servo", 1);
 
-    // Trip j3 (index 3, non-clock-owner) for cycles [200, 600).
+    // Trip j3 (index 3) for cycles [200, 600).
     FaultInjector faulted{owned[3].get(), 200, 600};
     std::vector<robonode::AxisAdapter*> adapters{owned[0].get(), owned[1].get(), owned[2].get(),
                                                  &faulted};
@@ -145,8 +146,8 @@ void test_arm_fault_on_one_joint_holds_all() {
     const auto stats = exec.execute(plan, rows, /*settle_s=*/0.6);
 
     CHECK(stats.safety_hold_cycles == 400);  // whole trip window, all axes
-    // Every axis (including the rail clock owner) freezes its command during
-    // the fault window — coherence across the shared world.
+    // Every axis (including the rail) freezes its command during the fault
+    // window — coherence across the shared world.
     for (std::size_t ax = 0; ax < 4; ++ax) {
         for (std::size_t i = 201; i < 600; ++i) {
             CHECK(rows[ax][i].governed_position_mm == rows[ax][200].governed_position_mm);

@@ -45,6 +45,9 @@ public:
         jitter_us_.reserve(n_cycles);
 
         governor_.reset(adapter_.read().position_mm);
+        // A shared world (e.g. MuJoCo) is ticked by the executive, not the
+        // adapter, so stepping never depends on adapter identity (#50).
+        CycleSteppable* world = adapter_.shared_world();
 
         CycleStats stats{};
         auto deadline = clock::now();
@@ -78,6 +81,7 @@ public:
             }
 
             adapter_.write_setpoint(command_mm);
+            if (world) world->tick(dt_s);
             adapter_.step(dt_s);
             const AxisState state = adapter_.read();
 

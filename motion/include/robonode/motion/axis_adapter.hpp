@@ -4,6 +4,7 @@
 
 #include "robonode/core/lifecycle.hpp"
 #include "robonode/core/state.hpp"
+#include "robonode/motion/steppable.hpp"
 
 namespace robonode {
 
@@ -26,8 +27,16 @@ public:
     [[nodiscard]] virtual AxisState read() const noexcept = 0;
 
     // Advance the device by one cycle. Fieldbus adapters exchange frames
-    // here; the sim adapter integrates its plant model.
+    // here; the sim adapter integrates its plant model. Adapters backed by a
+    // shared world stepped by the executive (see shared_world) leave this a
+    // no-op.
     virtual void step(double dt_s) noexcept = 0;
+
+    // A world this adapter reads/drives but does NOT step itself — the
+    // executive ticks it once per cycle, deduped across adapters that share
+    // it. Default: none (self-stepping adapter). Returning non-null decouples
+    // physics stepping from adapter identity, so swapping any node is safe.
+    [[nodiscard]] virtual CycleSteppable* shared_world() const noexcept { return nullptr; }
 
     [[nodiscard]] virtual std::string name() const = 0;
 };

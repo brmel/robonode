@@ -8,18 +8,20 @@
 
 #include "robonode/core/geometry.hpp"
 #include "robonode/core/status.hpp"
+#include "robonode/motion/steppable.hpp"
 
 namespace robonode {
 
 // Owns one MuJoCo model + data — the physics substrate a cell's axis/joint
-// adapters read and drive. One world may back many adapters (an arm's
-// joints share it); it is stepped exactly once per control cycle by the
-// designated clock-owner adapter (SyncExecutive phases write→step→read so
-// every ctrl is set before physics advances).
+// adapters read and drive. One world may back many adapters (an arm's joints
+// share it); it is a CycleSteppable the executive ticks exactly once per
+// control cycle (SyncExecutive phases write→step→read so every ctrl is set
+// before physics advances). Stepping is the executive's job, not any single
+// adapter's — so swapping any node leaves the world advancing (#50).
 //
 // mujoco.h is private to this module (boundary lint): nothing above
 // sim-mujoco sees a MuJoCo type.
-class MujocoWorld {
+class MujocoWorld : public CycleSteppable {
 public:
     // Loads an MJCF world from disk. Failure Status carries MuJoCo's parser
     // error verbatim.
@@ -55,8 +57,9 @@ public:
     [[nodiscard]] double qvel(int adr) const noexcept { return data_->qvel[adr]; }
 
     // Advance physics by dt_s, accumulating a residual so sim time tracks the
-    // control clock regardless of the mj timestep / cycle-rate ratio.
-    void step(double dt_s) noexcept {
+    // control clock regardless of the mj timestep / cycle-rate ratio. This is
+    // the CycleSteppable hook the executive calls once per cycle.
+    void tick(double dt_s) noexcept override {
         accum_ += dt_s;
         const double ts = model_->opt.timestep;
         while (accum_ >= ts - 1e-12) {
@@ -91,23 +94,21 @@ private:
 };
 
 // Shares one MujocoWorld across every adapter that names the same MJCF path,
-// so an arm's joints (7 nodes, one `world` path) drive a single physics
-// body. The first adapter to request a path is its clock owner (the one that
-// steps physics); the rest only marshal ctrl/state. Loaded lazily, once.
+// so an arm's joints (7 nodes, one `world` path) drive a single physics body.
+// Every adapter reads/drives the shared world; the executive ticks it once
+// per cycle (no adapter "owns" the clock — #50). Loaded lazily, once.
 class MujocoWorldPool {
 public:
-    Status get(const std::string& path, std::shared_ptr<MujocoWorld>& out, bool& is_clock_owner) {
+    Status get(const std::string& path, std::shared_ptr<MujocoWorld>& out) {
         const auto it = worlds_.find(path);
         if (it != worlds_.end()) {
             out = it->second;
-            is_clock_owner = false;
             return Status::success();
         }
         std::shared_ptr<MujocoWorld> w;
         if (const auto st = MujocoWorld::load(path, w); !st.ok()) return st;
         worlds_[path] = w;
         out = w;
-        is_clock_owner = true;
         return Status::success();
     }
 

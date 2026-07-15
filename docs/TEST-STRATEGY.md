@@ -29,7 +29,7 @@ Each row is a user/agent journey. ✅ verified & guarded · ▶ planned (issue) 
 |---|---|---|---|---|---|
 | J1 | Boot cell → 7 nodes, driver versions listed | ✅ | ✅ | ▶#43 | **✅ live** |
 | J2 | Run coordinated move → telemetry leaves home (physics) | ✅ | ✅ | ▶#43 | **✅ live** |
-| J3 | Per-node driver swap, live (try each version) | ✅ | ✅ | ▶#43 | **✅ live** |
+| J3 | Per-node driver swap, live (try each version; incl. clock-owner swap #50) | ✅ | ✅ | ▶#43 | **✅ live** |
 | J4 | Bad command / unknown driver fails closed | ✅ | — | ▶#43 | **✅** |
 | J5 | Physics vs Sim family toggle rebuilds the cell | ▶ | ▶ | ▶#43 | ▶ |
 | J6 | Cartesian goal → IK → TCP arrives (in-process) | ▶#34 | ▶#22 | ▶#43 | ▶ |
