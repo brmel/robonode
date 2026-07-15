@@ -27,6 +27,7 @@ SEAMS=(
   motion/include/robonode/motion/setpoint_source.hpp
   motion/include/robonode/motion/driver_registry.hpp
   gateway/include/robonode/gateway/cell_gateway.hpp
+  gateway/include/robonode/platform.hpp
   celld/include/robonode/celld/cell.hpp
 )
 for s in "${SEAMS[@]}"; do

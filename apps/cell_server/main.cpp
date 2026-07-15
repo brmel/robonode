@@ -17,7 +17,7 @@
 
 #include <httplib.h>
 
-#include "robonode/gateway/cell_gateway.hpp"
+#include "robonode/platform.hpp"
 
 #ifndef ROBONODE_WORLDS
 #error "ROBONODE_WORLDS must point at the sim-mujoco worlds dir"
@@ -43,26 +43,27 @@ int main() {
     const std::string web = env_or("ROBONODE_WEB_DIR", ROBONODE_WEB);
     const std::string cell = env_or("ROBONODE_CELL_FILE", ROBONODE_CELL);
 
-    robonode::CellGateway gateway{worlds + "/rail_ur10e.xml", cell};
+    // The one facade every surface binds to (#33). HTTP is just transport.
+    robonode::Platform platform{worlds + "/rail_ur10e.xml", cell};
     httplib::Server svr;
 
     // Live stream: node tree once, then telemetry frames ~50 Hz; re-send the
     // node tree whenever the driver family is swapped.
-    svr.Get("/events", [&gateway](const httplib::Request&, httplib::Response& res) {
+    svr.Get("/events", [&platform](const httplib::Request&, httplib::Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");
         res.set_chunked_content_provider(
-            "text/event-stream", [&gateway](std::size_t, httplib::DataSink& sink) {
-                const std::string init = "event: nodes\ndata: " + gateway.nodes_json() + "\n\n";
+            "text/event-stream", [&platform](std::size_t, httplib::DataSink& sink) {
+                const std::string init = "event: nodes\ndata: " + platform.nodes_json() + "\n\n";
                 if (!sink.write(init.data(), init.size())) return false;
-                std::string last_nodes = gateway.nodes_json();
+                std::string last_nodes = platform.nodes_json();
                 while (true) {
-                    const std::string nn = gateway.nodes_json();
+                    const std::string nn = platform.nodes_json();
                     if (nn != last_nodes) {
                         const std::string m = "event: nodes\ndata: " + nn + "\n\n";
                         if (!sink.write(m.data(), m.size())) break;
                         last_nodes = nn;
                     }
-                    const std::string frame = "data: " + gateway.telemetry_json() + "\n\n";
+                    const std::string frame = "data: " + platform.telemetry_json() + "\n\n";
                     if (!sink.write(frame.data(), frame.size())) break;
                     std::this_thread::sleep_for(std::chrono::milliseconds{20});
                 }
@@ -70,9 +71,9 @@ int main() {
             });
     });
 
-    svr.Post("/command", [&gateway](const httplib::Request& req, httplib::Response& res) {
+    svr.Post("/command", [&platform](const httplib::Request& req, httplib::Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");
-        res.set_content(gateway.submit_command(req.body), "application/json");
+        res.set_content(platform.submit_command(req.body), "application/json");
     });
 
     svr.set_mount_point("/", web);

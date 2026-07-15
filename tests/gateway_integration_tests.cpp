@@ -15,6 +15,7 @@
 
 #include "check.hpp"
 #include "robonode/gateway/cell_gateway.hpp"
+#include "robonode/platform.hpp"
 
 #ifndef ROBONODE_WORLDS
 #error "ROBONODE_WORLDS must be defined for the gateway integration test"
@@ -172,9 +173,27 @@ void test_gateway_rejects_bad_commands() {
     CHECK(json::parse(gw.nodes_json()).at("nodes").size() == 7);
 }
 
+// #33: the Platform facade — one typed entry (run / set_node_driver /
+// nodes_json), no JSON hand-crafting; the same object the CLI (#43) binds to.
+void test_platform_facade_typed_verbs() {
+    robonode::Platform p{kWorld, kCell};
+    CHECK(json::parse(p.nodes_json()).at("nodes").size() == 7);
+    CHECK(p.run().ok());
+    const bool arrived = poll_until(
+        [&] { return p.telemetry_json(); },
+        [](const json& j) {
+            const auto& pos = j.at("pos");
+            return !pos.empty() && std::abs(double(pos[0]) - 400.0) < 20.0;
+        },
+        20s);
+    CHECK(arrived);
+    CHECK(p.set_node_driver("j3", "robonode.sim-axis").ok());
+}
+
 }  // namespace
 
 int main() {
+    test_platform_facade_typed_verbs();
     test_gateway_boots_seven_nodes_with_driver_versions();
     test_gateway_run_moves_the_cell_and_streams_telemetry();
     test_gateway_swaps_one_node_driver_live();
