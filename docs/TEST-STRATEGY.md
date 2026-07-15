@@ -39,9 +39,10 @@ Each row is a user/agent journey. ✅ verified & guarded · ▶ planned (issue) 
 | J10 | Tier-B sandboxed algo drives a node | ▶#26 | ▶#26 | ▶#43 | ▶ |
 | J11 | Real robot model (menagerie UR10e) renders + moves | ▶#20 | ▶#20 | ▶#43 | ▶ |
 | J12 | Logs/traces/telemetry followable from one surface | ▶#44 | ▶#44 | ▶#44 | ▶ |
-| J13 | Theme toggle flips light/dark and persists | — | ✅ | ▶#43 | **✅** |
+| J13 | Theme toggle flips light/dark and persists | â | â | â¶#43 | **â** |
+| J14 | Dashboard overlay (robot 3D + live physics Â· env Â· camera) | â | â | – | **â** |
 
-**Green: 7/13 journeys (J1–J4, J7, J8, J13).** When you add a capability, add its integration + e2e cell here and flip its row.
+**Green: 9/14 journeys (J1–J4, J7, J8, J13, J14, +CLI parity).** When you add a capability, add its integration + e2e cell here and flip its row.
 
 ## Running the layers
 

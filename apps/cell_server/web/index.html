@@ -81,6 +81,15 @@
   .ncard h3 { margin:0 0 3px; font-size:12.5px; font-weight:600; }
   .ncard .st { font-size:10.5px; color:var(--dim); }
   .ncard .soon { color:var(--warn); }
+  /* dashboard overlay cards, floating over the 3D robot */
+  #dash { position:absolute; top:14px; right:14px; display:flex; flex-direction:column; gap:10px; z-index:5; width:190px; }
+  .dcard { background:color-mix(in srgb, var(--panel) 82%, transparent); backdrop-filter:blur(8px);
+    border:1px solid var(--line); border-radius:var(--radius); padding:10px 12px; }
+  .dcard .dt { font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--dim); }
+  .dcard .dv { font-size:20px; font-weight:600; font-variant-numeric:tabular-nums; margin-top:2px; }
+  .dcard .dv2 { font-size:12px; margin-top:3px; }
+  .dcard .dl { font-size:10.5px; color:var(--dim); margin-top:2px; }
+  .dcard .soon { color:var(--warn); }
   @media (max-width:720px) { #side { width:100%; flex-basis:auto; } #app { flex-direction:column; } }
 </style>
 <script>
@@ -161,7 +170,26 @@
       </table>
     </div>
   </aside>
-  <main id="view"></main>
+  <main id="view">
+    <div id="dash">
+      <div class="dcard">
+        <div class="dt">⚙ Physics</div>
+        <div class="dv" id="physFollow">—</div>
+        <div class="dl">peak following error (joints)</div>
+        <div class="dv2">1 kHz · MuJoCo</div>
+      </div>
+      <div class="dcard">
+        <div class="dt">🌍 Environment</div>
+        <div class="dv2">UR10e · 7th-axis rail</div>
+        <div class="dl">gravity −9.81 · one clock</div>
+      </div>
+      <div class="dcard">
+        <div class="dt">📷 Camera</div>
+        <div class="dv2 soon">▶ vision feed · #6</div>
+        <div class="dl">MuJoCo camera</div>
+      </div>
+    </div>
+  </main>
 </div>
 <script type="module" src="./app.js"></script>
 </body>

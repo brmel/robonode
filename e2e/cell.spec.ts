@@ -39,6 +39,13 @@ test.describe('RoboNode live cell', () => {
     await expect(j3.locator('select')).toHaveValue('sim-axis');
   });
 
+  test('dashboard overlay — Physics/Environment/Camera cards, live physics (#46)', async ({ page }) => {
+    await expect(page.locator('#dash .dt')).toHaveText(['⚙ Physics', '🌍 Environment', '📷 Camera']);
+    await page.getByRole('button', { name: /Run coordinated move/ }).click();
+    // Physics card's peak following error climbs off zero under load.
+    await expect(page.locator('#physFollow')).not.toHaveText('0.000 rad', { timeout: 20_000 });
+  });
+
   test('nodes are capability modules — Robot/Camera/Vision/Station cards (#55)', async ({ page }) => {
     await expect(page.locator('.ncard h3')).toHaveText([
       '🦾 Robot',

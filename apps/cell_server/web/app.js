@@ -132,6 +132,16 @@ let errVals = [];
 let liveIn = [];        // governed setpoint (in), per node
 let selected = 0;       // inspected node index
 const inspectorEl = document.getElementById('inspector');
+const physFollowEl = document.getElementById('physFollow');
+
+// Dashboard Physics card: peak |following error| across the joints (rad) — a
+// live read of how hard the physics is working vs the commanded setpoints.
+function updateDash() {
+  if (!physFollowEl || !errVals.length) return;
+  let peak = 0;
+  for (let i = 1; i < errVals.length; i++) peak = Math.max(peak, Math.abs(errVals[i] ?? 0));
+  physFollowEl.textContent = peak.toFixed(3) + ' rad';
+}
 
 // Rebuilt on a 'nodes' event (initial + after any swap): each node gets a
 // dropdown of the driver versions it can be swapped to. Only the position
@@ -221,6 +231,7 @@ es.onmessage = e => {
     target = f.pos; errVals = f.err || []; liveIn = f.target || [];
     updatePositions();
     renderInspector();
+    updateDash();
   }
 };
 es.onerror = () => { statusEl.textContent = 'reconnecting…'; };
