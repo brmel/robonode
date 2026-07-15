@@ -154,6 +154,33 @@ void test_cartesian_line_planner_reaches_goal() {
     CHECK(!planner.plan(q0, goal, wp).ok());
 }
 
+// SE(3) seam (#52): a position-only impl gets the full surface via defaults —
+// tcp_pose = position + identity orientation; jacobian = 6×dof with the
+// position rows filled and the orientation rows zero. Pinocchio (#34)
+// overrides these with real orientation; here we assert the default wrapping.
+void test_se3_defaults_wrap_position() {
+    auto kin = make_kin();
+    const std::vector<double> q{0.2, -0.3, 0.4, 0.1, -0.2, 0.3};
+
+    const robonode::Pose pose = kin->tcp_pose(q);
+    const robonode::Vec3 p = kin->tcp_position(q);
+    CHECK((pose.position - p).norm() < 1e-12);
+    CHECK(std::abs(pose.orientation.w - 1.0) < 1e-12);  // identity
+    CHECK(std::abs(pose.orientation.x) < 1e-12 && std::abs(pose.orientation.y) < 1e-12 &&
+          std::abs(pose.orientation.z) < 1e-12);
+
+    const auto J6 = kin->jacobian(q);       // 6×6
+    const auto Jp = kin->position_jacobian(q);  // 3×6
+    CHECK(J6.size() == 6 * 6);
+    const std::size_t n = kin->dof();
+    for (std::size_t r = 0; r < 3; ++r) {
+        for (std::size_t k = 0; k < n; ++k) CHECK(J6[r * n + k] == Jp[r * n + k]);
+    }
+    for (std::size_t r = 3; r < 6; ++r) {
+        for (std::size_t k = 0; k < n; ++k) CHECK(J6[r * n + k] == 0.0);  // orientation rows
+    }
+}
+
 }  // namespace
 
 int main() {
@@ -164,6 +191,7 @@ int main() {
     test_move_l_traces_straight_line();
     test_cartesian_jog_produces_requested_tcp_velocity();
     test_cartesian_line_planner_reaches_goal();
+    test_se3_defaults_wrap_position();
     std::puts("robonode kinematics: all tests passed");
     return 0;
 }

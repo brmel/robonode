@@ -19,9 +19,10 @@ namespace robonode {
 // Waypoints are returned as waypoints[joint][step], the SyncBlendPlan shape.
 
 struct Goal {
-    enum Kind { kJoint, kCartesianPosition } kind{kJoint};
+    enum Kind { kJoint, kCartesianPosition, kCartesianPose } kind{kJoint};
     std::vector<double> joint;  // for kJoint
     Vec3 cartesian;             // for kCartesianPosition (TCP xyz)
+    Pose pose;                  // for kCartesianPose (TCP position + orientation; #34 fills the planner)
 };
 
 class Planner {
