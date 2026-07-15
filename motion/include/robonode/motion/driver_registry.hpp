@@ -1,66 +1,35 @@
 #pragma once
 
-#include <functional>
 #include <map>
 #include <memory>
 #include <string>
-#include <vector>
 
 #include "robonode/core/limits.hpp"
-#include "robonode/core/status.hpp"
 #include "robonode/motion/axis_adapter.hpp"
+#include "robonode/motion/module_registry.hpp"
 
 namespace robonode {
 
 // Everything a factory needs to build an adapter — core types only, never a
-// vendor type. `config` carries driver-specific strings (e.g. robot_ip) so
-// the registry surface stays uniform across sim, UR, EtherCAT, …
+// vendor type. `config` carries driver-specific strings (e.g. robot_ip) so the
+// registry surface stays uniform across sim, UR, EtherCAT, …
 struct DriverContext {
     std::string id;
     AxisLimits limits;
     std::map<std::string, std::string> config;
 };
 
-using DriverFactory = std::function<std::unique_ptr<AxisAdapter>(const DriverContext&)>;
+using DriverFactory = ModuleRegistry<AxisAdapter, DriverContext>::Factory;
 
-// Driver-name → adapter factory. Deliberately NOT a global: a Cell owns one
-// and apps populate it with exactly the drivers they link. This is the seam
-// that keeps celld vendor-blind — adapters register from the outside (their
-// register_* helpers), celld only ever sees AxisAdapter. New hardware = a
-// new module that registers here; celld is untouched.
-class DriverRegistry {
+// The MotionAxis version registry: a ModuleRegistry (#30) specialised for axis
+// drivers. `register_driver` is kept as the axis-flavoured name the register_*
+// helpers use; everything else (has/names/make) is the generic mechanism, so
+// Kinematics/Planner/Vision get the same "try each version" for free.
+class DriverRegistry : public ModuleRegistry<AxisAdapter, DriverContext> {
 public:
     void register_driver(std::string name, DriverFactory factory) {
-        factories_[std::move(name)] = std::move(factory);
+        add(std::move(name), std::move(factory));
     }
-
-    [[nodiscard]] bool has(const std::string& name) const {
-        return factories_.find(name) != factories_.end();
-    }
-
-    // Registered driver names, sorted — the versions a node can be swapped to.
-    [[nodiscard]] std::vector<std::string> names() const {
-        std::vector<std::string> out;
-        out.reserve(factories_.size());
-        for (const auto& [name, _] : factories_) out.push_back(name);
-        return out;  // std::map iterates sorted
-    }
-
-    // Builds an adapter for `name` from `ctx`; failure Status if the driver
-    // is unknown or its factory returned null.
-    Status make(const std::string& name, const DriverContext& ctx,
-                std::unique_ptr<AxisAdapter>& out) const {
-        const auto it = factories_.find(name);
-        if (it == factories_.end()) {
-            return Status::failure("unknown driver '" + name + "'");
-        }
-        out = it->second(ctx);
-        if (!out) return Status::failure("driver '" + name + "' factory returned null");
-        return Status::success();
-    }
-
-private:
-    std::map<std::string, DriverFactory> factories_;
 };
 
 }  // namespace robonode

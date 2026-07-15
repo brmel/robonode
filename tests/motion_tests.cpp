@@ -8,6 +8,7 @@
 #include "check.hpp"
 #include "robonode/motion/executive.hpp"
 #include "robonode/motion/governor.hpp"
+#include "robonode/motion/module_registry.hpp"
 #include "robonode/motion/motion_plan.hpp"
 #include "robonode/motion/otg.hpp"
 #include "robonode/motion/planner.hpp"
@@ -384,12 +385,39 @@ void test_planner_trajectory_wraps_waypoints() {
     CHECK(traj.waypoints[0].back() == 0.5);
 }
 
+// #30: the version registry is generic over ANY capability, not just axes —
+// the mechanism that makes "try each version" real for Kinematics/Vision/etc.
+struct Greeter {
+    virtual ~Greeter() = default;
+    [[nodiscard]] virtual std::string hello() const = 0;
+};
+struct GreeterEn final : Greeter {
+    [[nodiscard]] std::string hello() const override { return "hi"; }
+};
+struct GreeterFr final : Greeter {
+    [[nodiscard]] std::string hello() const override { return "salut"; }
+};
+
+void test_module_registry_generic_over_capabilities() {
+    robonode::ModuleRegistry<Greeter, int> reg;
+    reg.add("en", [](const int&) { return std::make_unique<GreeterEn>(); });
+    reg.add("fr", [](const int&) { return std::make_unique<GreeterFr>(); });
+    CHECK(reg.has("en") && reg.has("fr"));
+    const auto names = reg.names();
+    CHECK(names.size() == 2 && names[0] == "en" && names[1] == "fr");  // sorted
+    std::unique_ptr<Greeter> g;
+    CHECK(reg.make("fr", 0, g).ok());
+    CHECK(g->hello() == "salut");
+    CHECK(!reg.make("de", 0, g).ok());  // unknown fails closed
+}
+
 }  // namespace
 
 int main() {
     test_governor_holds_position_envelope();
     test_timed_trajectory_drives_axis_through_executive();
     test_planner_trajectory_wraps_waypoints();
+    test_module_registry_generic_over_capabilities();
     test_governor_rate_limits_jumps();
     test_governor_rejects_nonfinite_and_bad_dt();
     test_adapter_lifecycle_defaults();
