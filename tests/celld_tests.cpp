@@ -27,11 +27,11 @@ void test_descriptor_load_matches_canonical_example() {
     CHECK(d.driver == "robonode.sim-axis");
     CHECK(d.simulated);
     CHECK(d.command_rate_hz == 1000.0);
-    CHECK(d.limits.position_min_mm == 0.0);
-    CHECK(d.limits.position_max_mm == 1450.0);
-    CHECK(d.limits.velocity_max_mm_s == 1200.0);
-    CHECK(d.limits.acceleration_max_mm_s2 == 8000.0);
-    CHECK(d.limits.jerk_max_mm_s3 == 120000.0);
+    CHECK(d.limits.position_min == 0.0);
+    CHECK(d.limits.position_max == 1450.0);
+    CHECK(d.limits.velocity_max == 1200.0);
+    CHECK(d.limits.acceleration_max == 8000.0);
+    CHECK(d.limits.jerk_max == 120000.0);
 }
 
 void test_descriptor_load_rejects_garbage() {
@@ -63,8 +63,8 @@ void test_cell_lifecycle_and_coherent_run() {
     // Waypoints start at each node's home (sim homes at 0 clamped into range).
     CHECK(cell.run_waypoints({{0.0, 500.0, 300.0}, {0.0, 45.0, 20.0}}, 1000.0, rows, stats).ok());
     CHECK(rows.size() == 2);
-    CHECK(std::abs(rows[0].back().actual_position_mm - 300.0) < 0.5);
-    CHECK(std::abs(rows[1].back().actual_position_mm - 20.0) < 0.5);
+    CHECK(std::abs(rows[0].back().actual_position - 300.0) < 0.5);
+    CHECK(std::abs(rows[1].back().actual_position - 20.0) < 0.5);
     // Limits came from the descriptor files, not from this test: governors
     // stayed silent because the plan respected the JSON envelope.
     for (const auto& n : cell.nodes()) {
@@ -96,7 +96,7 @@ void test_registry_dispatches_custom_driver() {
         seen_id = ctx.id;
         auto ip = ctx.config.find("robot_ip");
         seen_ip = ip != ctx.config.end() ? ip->second : "";
-        return std::make_unique<robonode::SimAxis>(ctx.id, ctx.limits.position_min_mm, 0.005);
+        return std::make_unique<robonode::SimAxis>(ctx.id, ctx.limits.position_min, 0.005);
     });
 
     robonode::Descriptor d;

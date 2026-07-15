@@ -44,7 +44,7 @@ public:
         jitter_us_.clear();
         jitter_us_.reserve(n_cycles);
 
-        governor_.reset(adapter_.read().position_mm);
+        governor_.reset(adapter_.read().position);
         // A shared world (e.g. MuJoCo) is ticked by the executive, not the
         // adapter, so stepping never depends on adapter identity (#50).
         CycleSteppable* world = adapter_.shared_world();
@@ -69,25 +69,25 @@ public:
             // stop category 2. On return to NORMAL, catch-up is bounded by
             // the governor's rate limit.)
             const AxisState pre = adapter_.read();
-            double command_mm;
+            double command;
             State target{};
             if (pre.safety != SafetyState::kNormal) {
-                command_mm = governor_.held_position();
-                target.position = command_mm;
+                command = governor_.held_position();
+                target.position = command;
                 ++stats.safety_hold_cycles;
             } else {
                 target = source.next(t, dt_s);
-                command_mm = governor_.apply(target.position, dt_s).position_mm;
+                command = governor_.apply(target.position, dt_s).position;
             }
 
-            adapter_.write_setpoint(command_mm);
+            adapter_.write_setpoint(command);
             if (world) world->tick(dt_s);
             adapter_.step(dt_s);
             const AxisState state = adapter_.read();
 
-            rows.push_back({t, target.position, target.velocity, command_mm,
-                            state.position_mm, state.velocity_mm_s,
-                            command_mm - state.position_mm});
+            rows.push_back({t, target.position, target.velocity, command,
+                            state.position, state.velocity,
+                            command - state.position});
         }
 
         stats.cycles = n_cycles;

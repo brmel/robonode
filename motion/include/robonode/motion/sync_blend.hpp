@@ -44,7 +44,7 @@ public:
             if (w.size() != m) throw std::invalid_argument{"ragged waypoint lists"};
         }
         for (const auto& l : limits) {
-            if (l.velocity_max_mm_s <= 0.0 || l.acceleration_max_mm_s2 <= 0.0) {
+            if (l.velocity_max <= 0.0 || l.acceleration_max <= 0.0) {
                 throw std::invalid_argument{"limits must be positive"};
             }
         }
@@ -56,7 +56,7 @@ public:
         for (std::size_t k = 0; k < n_seg; ++k) {
             for (std::size_t i = 0; i < n_axes; ++i) {
                 const double d = std::abs(waypoints[i][k + 1] - waypoints[i][k]);
-                T[k] = std::max(T[k], d / (vel_headroom * limits[i].velocity_max_mm_s));
+                T[k] = std::max(T[k], d / (vel_headroom * limits[i].velocity_max));
             }
         }
 
@@ -76,7 +76,7 @@ public:
                     const double v_in = k == 0 ? 0.0 : v[i][k - 1];
                     const double v_out = k == n_seg ? 0.0 : v[i][k];
                     t = std::max(t, std::abs(v_out - v_in) /
-                                        (acc_headroom * limits[i].acceleration_max_mm_s2));
+                                        (acc_headroom * limits[i].acceleration_max));
                 }
                 tb[k] = t;
             }

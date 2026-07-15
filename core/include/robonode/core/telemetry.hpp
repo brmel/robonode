@@ -9,12 +9,12 @@ namespace robonode {
 // data plane. Mirrors robonode.v0.AxisTelemetry field-for-field.
 struct TelemetryRow {
     double t_s;
-    double target_position_mm;
-    double target_velocity_mm_s;
-    double governed_position_mm;
-    double actual_position_mm;
-    double actual_velocity_mm_s;
-    double following_error_mm;
+    double target_position;
+    double target_velocity;
+    double governed_position;
+    double actual_position;
+    double actual_velocity;
+    double following_error;
 };
 
 struct CycleStats {

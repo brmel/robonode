@@ -27,11 +27,11 @@
 int main() {
     // Same descriptor limits as robonode-idl/examples/rail-x (mm).
     const robonode::AxisLimits rail_limits{
-        .position_min_mm = 0.0,
-        .position_max_mm = 1450.0,
-        .velocity_max_mm_s = 1200.0,
-        .acceleration_max_mm_s2 = 8000.0,
-        .jerk_max_mm_s3 = 120000.0,
+        .position_min = 0.0,
+        .position_max = 1450.0,
+        .velocity_max = 1200.0,
+        .acceleration_max = 8000.0,
+        .jerk_max = 120000.0,
     };
 
     robonode::DriverRegistry registry;
@@ -59,8 +59,8 @@ int main() {
     robonode::Executive exec{*rail, governor, 1000.0};
     const auto plan = robonode::MotionPlan::move(
         0.0, 500.0,
-        {rail_limits.velocity_max_mm_s, rail_limits.acceleration_max_mm_s2,
-         rail_limits.jerk_max_mm_s3});
+        {rail_limits.velocity_max, rail_limits.acceleration_max,
+         rail_limits.jerk_max});
     std::printf("mujoco rail: S-curve 0 -> 500 mm, planned %.3f s @1 kHz\n", plan.duration_s());
 
     std::vector<robonode::TelemetryRow> rows;
@@ -68,11 +68,11 @@ int main() {
 
     double max_follow = 0.0;
     for (const auto& r : rows) {
-        if (std::abs(r.following_error_mm) > max_follow) max_follow = std::abs(r.following_error_mm);
+        if (std::abs(r.following_error) > max_follow) max_follow = std::abs(r.following_error);
     }
     const auto& last = rows.back();
     std::printf("final actual %.3f mm (target 500) | peak following error %.3f mm (physical)\n",
-                last.actual_position_mm, max_follow);
+                last.actual_position, max_follow);
     std::printf("governor: pos=%llu vel=%llu | jitter max %.0f us | %llu cycles\n",
                 static_cast<unsigned long long>(governor.position_clamps()),
                 static_cast<unsigned long long>(governor.velocity_clamps()), stats.max_jitter_us,

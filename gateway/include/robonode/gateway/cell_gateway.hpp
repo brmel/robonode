@@ -235,9 +235,9 @@ private:
         auto& err = j["err"] = nlohmann::json::array();
         for (const auto& r : rws) {
             const auto& row = r.back();
-            pos.push_back(row.actual_position_mm);
-            tgt.push_back(row.governed_position_mm);
-            err.push_back(row.following_error_mm);
+            pos.push_back(row.actual_position);
+            tgt.push_back(row.governed_position);
+            err.push_back(row.following_error);
         }
         std::lock_guard<std::mutex> lk{snap_mtx_};
         telem_snap_ = j.dump();
@@ -253,7 +253,7 @@ private:
         auto& tgt = j["target"] = nlohmann::json::array();
         auto& err = j["err"] = nlohmann::json::array();
         for (auto& n : cell_->nodes()) {
-            const double p = n.adapter->read().position_mm;
+            const double p = n.adapter->read().position;
             pos.push_back(p);
             tgt.push_back(p);
             err.push_back(0.0);

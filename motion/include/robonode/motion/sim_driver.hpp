@@ -16,7 +16,7 @@ namespace robonode {
 inline void register_sim_axis(DriverRegistry& registry) {
     registry.register_driver("robonode.sim-axis", [](const DriverContext& ctx) {
         const double home =
-            std::clamp(0.0, ctx.limits.position_min_mm, ctx.limits.position_max_mm);
+            std::clamp(0.0, ctx.limits.position_min, ctx.limits.position_max);
         return std::make_unique<SimAxis>(ctx.id, home, /*tau_s=*/0.005);
     });
 }
@@ -27,7 +27,7 @@ inline void register_sim_axis(DriverRegistry& registry) {
 inline void register_sim_axis_soft(DriverRegistry& registry) {
     registry.register_driver("robonode.sim-axis-soft", [](const DriverContext& ctx) {
         const double home =
-            std::clamp(0.0, ctx.limits.position_min_mm, ctx.limits.position_max_mm);
+            std::clamp(0.0, ctx.limits.position_min, ctx.limits.position_max);
         return std::make_unique<SimAxis>(ctx.id, home, /*tau_s=*/0.025);
     });
 }

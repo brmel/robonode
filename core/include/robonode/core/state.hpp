@@ -17,8 +17,8 @@ struct State {
 enum class SafetyState { kNormal, kReduced, kProtectiveStop, kEStop, kFault };
 
 struct AxisState {
-    double position_mm{};
-    double velocity_mm_s{};
+    double position{};
+    double velocity{};
     SafetyState safety{SafetyState::kNormal};
 };
 

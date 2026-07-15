@@ -6,11 +6,11 @@ namespace robonode {
 // configure time, never compiled in (FR-1.3). Field names carry the shop
 // default units; rotary capabilities reinterpret per their descriptor.
 struct AxisLimits {
-    double position_min_mm{};
-    double position_max_mm{};
-    double velocity_max_mm_s{};
-    double acceleration_max_mm_s2{};
-    double jerk_max_mm_s3{};
+    double position_min{};
+    double position_max{};
+    double velocity_max{};
+    double acceleration_max{};
+    double jerk_max{};
 };
 
 // Per-move kinematic profile (mirrors robonode.v0.MotionProfile).

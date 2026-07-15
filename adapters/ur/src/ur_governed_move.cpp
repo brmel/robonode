@@ -35,11 +35,11 @@ int main(int argc, char** argv) {
     // Descriptor-style limits (units: rad, rad/s, rad/s^2, rad/s^3) — data,
     // not runtime-derived. Wrist range generous; the move stays well inside.
     const robonode::AxisLimits wrist_limits{
-        .position_min_mm = -6.283,
-        .position_max_mm = 6.283,
-        .velocity_max_mm_s = 0.5,
-        .acceleration_max_mm_s2 = 2.0,
-        .jerk_max_mm_s3 = 20.0,
+        .position_min = -6.283,
+        .position_max = 6.283,
+        .velocity_max = 0.5,
+        .acceleration_max = 2.0,
+        .jerk_max = 20.0,
     };
 
     robonode::DriverRegistry registry;
@@ -60,7 +60,7 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    const double q5 = wrist->read().position_mm;  // rad
+    const double q5 = wrist->read().position;  // rad
     std::printf("wrist3 at %.4f rad, safety %s\n", q5,
                 wrist->read().safety == robonode::SafetyState::kNormal ? "NORMAL" : "NOT-NORMAL");
     if (wrist->read().safety != robonode::SafetyState::kNormal &&
@@ -74,8 +74,8 @@ int main(int argc, char** argv) {
 
     const auto plan = robonode::MotionPlan::move(
         q5, q5 + 0.3,
-        {wrist_limits.velocity_max_mm_s, wrist_limits.acceleration_max_mm_s2,
-         wrist_limits.jerk_max_mm_s3});
+        {wrist_limits.velocity_max, wrist_limits.acceleration_max,
+         wrist_limits.jerk_max});
     std::printf("streaming S-curve %.4f -> %.4f rad, duration %.3f s @500 Hz\n", q5, q5 + 0.3,
                 plan.duration_s());
 
@@ -84,8 +84,8 @@ int main(int argc, char** argv) {
     (void)wrist->deactivate();
 
     const auto& last = rows.back();
-    std::printf("done: target %.4f, actual %.4f rad (err %.5f)\n", last.governed_position_mm,
-                last.actual_position_mm, last.governed_position_mm - last.actual_position_mm);
+    std::printf("done: target %.4f, actual %.4f rad (err %.5f)\n", last.governed_position,
+                last.actual_position, last.governed_position - last.actual_position);
     std::printf("governor: pos=%llu vel=%llu rejected=%llu | safety holds %llu | jitter max %.0f us\n",
                 static_cast<unsigned long long>(governor.position_clamps()),
                 static_cast<unsigned long long>(governor.velocity_clamps()),

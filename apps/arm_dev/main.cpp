@@ -96,7 +96,7 @@ int main() {
     for (std::size_t i = 0; i < cell.nodes().size(); ++i) {
         const auto& n = cell.nodes()[i];
         std::printf("  %-7s actual %.4f | governed %.4f | target %.4f\n", n.id.c_str(),
-                    rows[i].back().actual_position_mm, rows[i].back().governed_position_mm,
+                    rows[i].back().actual_position, rows[i].back().governed_position,
                     waypoints[i].back());
         topics.push_back("rn/dev-cell/" + n.id + "/MotionAxis/telemetry");
     }

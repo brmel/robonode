@@ -28,12 +28,12 @@ public:
         in_.current_position = {initial_position};
         in_.current_velocity = {0.0};
         in_.current_acceleration = {0.0};
-        in_.max_velocity = {limits.velocity_max_mm_s};
-        in_.max_acceleration = {limits.acceleration_max_mm_s2};
+        in_.max_velocity = {limits.velocity_max};
+        in_.max_acceleration = {limits.acceleration_max};
         // Ruckig requires jerk > 0; descriptor jerk 0 means "no jerk data" —
         // fall back to a stiff but finite limit derived from acceleration.
-        in_.max_jerk = {limits.jerk_max_mm_s3 > 0.0 ? limits.jerk_max_mm_s3
-                                                    : limits.acceleration_max_mm_s2 * 100.0};
+        in_.max_jerk = {limits.jerk_max > 0.0 ? limits.jerk_max
+                                                    : limits.acceleration_max * 100.0};
         retarget(initial_position);
     }
 

@@ -69,13 +69,13 @@ void test_arm_seven_dof_one_clock() {
         CHECK(rows[i].size() == stats.cycles);
         // Platform correctness — the whole plan/governor/celld chain drives
         // the COMMANDED setpoint to the exact target on every axis.
-        CHECK(std::abs(rows[i].back().governed_position_mm - kWaypoints[i].back()) < 1e-6);
+        CHECK(std::abs(rows[i].back().governed_position - kWaypoints[i].back()) < 1e-6);
         // Physics closed the loop: the plant moved substantially toward its
         // target in the right direction (servo gains are nominal; tight
         // tracking is control tuning, orthogonal to coordination — see the
         // world README). rail tracks tightly (light, direct-drive).
         const double target = kWaypoints[i].back();
-        const double actual = rows[i].back().actual_position_mm;
+        const double actual = rows[i].back().actual_position;
         if (i == 0) {
             CHECK(std::abs(actual - target) < 5.0);  // rail mm
         } else {
@@ -150,7 +150,7 @@ void test_arm_fault_on_one_joint_holds_all() {
     // window — coherence across the shared world.
     for (std::size_t ax = 0; ax < 4; ++ax) {
         for (std::size_t i = 201; i < 600; ++i) {
-            CHECK(rows[ax][i].governed_position_mm == rows[ax][200].governed_position_mm);
+            CHECK(rows[ax][i].governed_position == rows[ax][200].governed_position);
         }
     }
 }

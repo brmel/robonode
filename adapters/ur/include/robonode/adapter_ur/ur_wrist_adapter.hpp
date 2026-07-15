@@ -55,7 +55,7 @@ public:
             return Status::failure(name_ + ": no RTDE data (robot powered? safety confirmed?)");
         }
         refresh_from_pkg();
-        setpoint_rad_ = state_.position_mm;  // hold current pose until commanded
+        setpoint_rad_ = state_.position;  // hold current pose until commanded
         target_q_ = q_;
         set_lifecycle(Lifecycle::kInactive);
         return Status::success();
@@ -104,8 +104,8 @@ private:
         pkg_->getData("actual_qd", qd);
         std::int32_t safety_mode = 0;
         pkg_->getData("safety_mode", safety_mode);
-        state_.position_mm = q_[5];
-        state_.velocity_mm_s = qd[5];
+        state_.position = q_[5];
+        state_.velocity = qd[5];
         state_.safety = map_safety(safety_mode);
     }
 

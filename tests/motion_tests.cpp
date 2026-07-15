@@ -18,17 +18,17 @@
 namespace {
 
 constexpr robonode::AxisLimits kLimits{
-    .position_min_mm = 0.0,
-    .position_max_mm = 1450.0,
-    .velocity_max_mm_s = 1200.0,
-    .acceleration_max_mm_s2 = 8000.0,
-    .jerk_max_mm_s3 = 120000.0,
+    .position_min = 0.0,
+    .position_max = 1450.0,
+    .velocity_max = 1200.0,
+    .acceleration_max = 8000.0,
+    .jerk_max = 120000.0,
 };
 
 constexpr robonode::MotionProfile kScurveProfile{
-    .velocity = kLimits.velocity_max_mm_s,
-    .acceleration = kLimits.acceleration_max_mm_s2,
-    .jerk = kLimits.jerk_max_mm_s3,
+    .velocity = kLimits.velocity_max,
+    .acceleration = kLimits.acceleration_max,
+    .jerk = kLimits.jerk_max,
 };
 
 void test_governor_holds_position_envelope() {
@@ -39,19 +39,19 @@ void test_governor_holds_position_envelope() {
     double p = 1449.0;
     for (int i = 0; i < 100; ++i) {
         const auto r = gov.apply(2000.0, 1e-3);
-        CHECK(r.position_mm <= kLimits.position_max_mm + 1e-9);
-        CHECK(r.position_mm - p <= kLimits.velocity_max_mm_s * 1e-3 + 1e-9);
-        p = r.position_mm;
+        CHECK(r.position <= kLimits.position_max + 1e-9);
+        CHECK(r.position - p <= kLimits.velocity_max * 1e-3 + 1e-9);
+        p = r.position;
     }
     CHECK(gov.position_clamps() > 0);
-    CHECK(std::abs(p - kLimits.position_max_mm) < 1e-6);
+    CHECK(std::abs(p - kLimits.position_max) < 1e-6);
 }
 
 void test_governor_rate_limits_jumps() {
     robonode::Governor gov{kLimits};
     gov.reset(0.0);
     const auto r = gov.apply(100.0, 1e-3);  // 100 mm jump in 1 ms = 100 m/s
-    CHECK(std::abs(r.position_mm - kLimits.velocity_max_mm_s * 1e-3) < 1e-6);
+    CHECK(std::abs(r.position - kLimits.velocity_max * 1e-3) < 1e-6);
     CHECK(gov.velocity_clamps() == 1);
 }
 
@@ -60,15 +60,15 @@ void test_governor_rejects_nonfinite_and_bad_dt() {
     gov.reset(100.0);
     const auto nan = gov.apply(std::nan(""), 1e-3);
     CHECK(nan.clamped);
-    CHECK(nan.position_mm == 100.0);  // holds previous, never propagates NaN
+    CHECK(nan.position == 100.0);  // holds previous, never propagates NaN
     const auto inf = gov.apply(std::numeric_limits<double>::infinity(), 1e-3);
-    CHECK(inf.position_mm == 100.0);
+    CHECK(inf.position == 100.0);
     const auto bad_dt = gov.apply(200.0, 0.0);
-    CHECK(bad_dt.position_mm == 100.0);
+    CHECK(bad_dt.position == 100.0);
     CHECK(gov.rejected_setpoints() == 3);
     // Recovers: next finite setpoint governed normally.
     const auto ok = gov.apply(100.5, 1e-3);
-    CHECK(std::abs(ok.position_mm - 100.5) < 1e-9);
+    CHECK(std::abs(ok.position - 100.5) < 1e-9);
 }
 
 void test_adapter_lifecycle_defaults() {
@@ -95,11 +95,11 @@ void test_executive_completes_scurve_move() {
     CHECK(gov.position_clamps() == 0);
     CHECK(gov.velocity_clamps() == 0);
     // Axis settled on target within 0.5 mm.
-    CHECK(std::abs(rows.back().actual_position_mm - 500.0) < 0.5);
+    CHECK(std::abs(rows.back().actual_position - 500.0) < 0.5);
     // Governed setpoints respect the velocity envelope cycle-to-cycle.
     for (std::size_t i = 1; i < rows.size(); ++i) {
-        const double dp = rows[i].governed_position_mm - rows[i - 1].governed_position_mm;
-        CHECK(std::abs(dp) <= kLimits.velocity_max_mm_s * 1e-3 + 1e-6);
+        const double dp = rows[i].governed_position - rows[i - 1].governed_position;
+        CHECK(std::abs(dp) <= kLimits.velocity_max * 1e-3 + 1e-6);
     }
 }
 
@@ -137,23 +137,23 @@ void test_executive_holds_on_protective_stop_and_recovers() {
     CHECK(stats.safety_hold_cycles == 200);
     // Command frozen across the whole hold window.
     for (std::size_t i = 101; i < 300; ++i) {
-        CHECK(rows[i].governed_position_mm == rows[100].governed_position_mm);
+        CHECK(rows[i].governed_position == rows[100].governed_position);
     }
     // Catch-up after recovery stays inside the velocity envelope...
     for (std::size_t i = 300; i < rows.size(); ++i) {
-        const double dp = rows[i].governed_position_mm - rows[i - 1].governed_position_mm;
-        CHECK(std::abs(dp) <= kLimits.velocity_max_mm_s * 1e-3 + 1e-6);
+        const double dp = rows[i].governed_position - rows[i - 1].governed_position;
+        CHECK(std::abs(dp) <= kLimits.velocity_max * 1e-3 + 1e-6);
     }
     // ...and the move still completes.
-    CHECK(std::abs(rows.back().actual_position_mm - 500.0) < 0.5);
+    CHECK(std::abs(rows.back().actual_position - 500.0) < 0.5);
 }
 
 constexpr robonode::AxisLimits kAuxLimits{
-    .position_min_mm = -10.0,
-    .position_max_mm = 100.0,
-    .velocity_max_mm_s = 300.0,
-    .acceleration_max_mm_s2 = 2000.0,
-    .jerk_max_mm_s3 = 0.0,
+    .position_min = -10.0,
+    .position_max = 100.0,
+    .velocity_max = 300.0,
+    .acceleration_max = 2000.0,
+    .jerk_max = 0.0,
 };
 
 // Monotonic waypoints: the true pass-through case — small corner cut,
@@ -169,8 +169,8 @@ void test_sync_plan_passes_through_monotonic_via() {
     for (double t = 0.0; t <= T; t += 1e-4) {
         for (std::size_t i = 0; i < 2; ++i) {
             const auto s = plan.sample(i, t);
-            CHECK(std::abs(s.velocity) <= lims[i].velocity_max_mm_s * 1.001);
-            CHECK(std::abs(s.acceleration) <= lims[i].acceleration_max_mm_s2 * 1.001);
+            CHECK(std::abs(s.velocity) <= lims[i].velocity_max * 1.001);
+            CHECK(std::abs(s.acceleration) <= lims[i].acceleration_max * 1.001);
             const double d = std::abs(s.position - wp[i][1]);
             if (d < best_d[i]) {
                 best_d[i] = d;
@@ -183,7 +183,7 @@ void test_sync_plan_passes_through_monotonic_via() {
         CHECK(std::abs(end.position - wp[i][2]) < 1e-6);      // exact arrival
         CHECK(std::abs(end.velocity) < 1e-9);                 // at rest
         CHECK(best_d[i] < 0.05 * std::abs(wp[i][1] - wp[i][0]));  // tight corner
-        CHECK(std::abs(v_at_best[i]) > 0.1 * lims[i].velocity_max_mm_s);  // moving
+        CHECK(std::abs(v_at_best[i]) > 0.1 * lims[i].velocity_max);  // moving
     }
 }
 
@@ -198,8 +198,8 @@ void test_sync_plan_reversal_corner_respects_limits() {
     for (double t = 0.0; t <= T; t += 1e-4) {
         for (std::size_t i = 0; i < 2; ++i) {
             const auto s = plan.sample(i, t);
-            CHECK(std::abs(s.velocity) <= lims[i].velocity_max_mm_s * 1.001);
-            CHECK(std::abs(s.acceleration) <= lims[i].acceleration_max_mm_s2 * 1.001);
+            CHECK(std::abs(s.velocity) <= lims[i].velocity_max * 1.001);
+            CHECK(std::abs(s.acceleration) <= lims[i].acceleration_max * 1.001);
         }
     }
     for (std::size_t i = 0; i < 2; ++i) {
@@ -218,10 +218,10 @@ void test_otg_reaches_target_jerk_limited() {
     int guard = 0;
     while (!otg.done() && guard++ < 5000) {
         const auto s = otg.next(t, dt);
-        CHECK(std::abs(s.velocity) <= kLimits.velocity_max_mm_s * 1.001);
-        CHECK(std::abs(s.acceleration) <= kLimits.acceleration_max_mm_s2 * 1.001);
+        CHECK(std::abs(s.velocity) <= kLimits.velocity_max * 1.001);
+        CHECK(std::abs(s.acceleration) <= kLimits.acceleration_max * 1.001);
         // Jerk-limited: acceleration changes at most jerk·dt per cycle.
-        CHECK(std::abs(s.acceleration - prev_a) <= kLimits.jerk_max_mm_s3 * dt * 1.01);
+        CHECK(std::abs(s.acceleration - prev_a) <= kLimits.jerk_max * dt * 1.01);
         prev_a = s.acceleration;
         t += dt;
     }
@@ -245,7 +245,7 @@ void test_otg_retargets_mid_flight_smoothly() {
     const auto after = otg.next(t, dt);
     // Continuity across the retarget: velocity cannot jump more than a·dt.
     CHECK(std::abs(after.velocity - before.velocity) <=
-          kLimits.acceleration_max_mm_s2 * dt * 1.05);
+          kLimits.acceleration_max * dt * 1.05);
     int guard = 0;
     while (!otg.done() && guard++ < 10000) {
         otg.next(t, dt);
@@ -290,7 +290,7 @@ void test_executive_streams_retargeted_otg_through_governor() {
     // OTG output respects the same limits the governor enforces → silent.
     CHECK(gov.position_clamps() == 0);
     CHECK(gov.velocity_clamps() == 0);
-    CHECK(std::abs(rows.back().actual_position_mm - 800.0) < 0.5);
+    CHECK(std::abs(rows.back().actual_position - 800.0) < 0.5);
 }
 
 void test_sync_executive_two_axes_settle_together() {
@@ -310,8 +310,8 @@ void test_sync_executive_two_axes_settle_together() {
     // In-envelope plan: governors silent.
     CHECK(g0.position_clamps() == 0 && g0.velocity_clamps() == 0);
     CHECK(g1.position_clamps() == 0 && g1.velocity_clamps() == 0);
-    CHECK(std::abs(rows[0].back().actual_position_mm - 300.0) < 0.5);
-    CHECK(std::abs(rows[1].back().actual_position_mm - 45.0) < 0.5);
+    CHECK(std::abs(rows[0].back().actual_position - 300.0) < 0.5);
+    CHECK(std::abs(rows[1].back().actual_position - 45.0) < 0.5);
 }
 
 // Cell-coherent safety (FR-8.2): when ANY axis in a synchronized group goes
@@ -331,11 +331,11 @@ void test_sync_executive_coherent_hold() {
     CHECK(stats.safety_hold_cycles == 200);  // whole trip window
     // The NORMAL axis freezes too during the fault window — coherence.
     for (std::size_t i = 101; i < 300; ++i) {
-        CHECK(rows[0][i].governed_position_mm == rows[0][100].governed_position_mm);
+        CHECK(rows[0][i].governed_position == rows[0][100].governed_position);
     }
     // Both still complete after recovery.
-    CHECK(std::abs(rows[0].back().actual_position_mm - 500.0) < 0.5);
-    CHECK(std::abs(rows[1].back().actual_position_mm - 500.0) < 0.5);
+    CHECK(std::abs(rows[0].back().actual_position - 500.0) < 0.5);
+    CHECK(std::abs(rows[1].back().actual_position - 500.0) < 0.5);
 }
 
 void test_joint_planner_produces_reaching_waypoints() {

@@ -43,9 +43,9 @@ int main(int argc, char** argv) {
         if (const auto st = cell.add_node(d); !st.ok()) return die(st);
         rate_hz = d.command_rate_hz;  // v0: one clock, last descriptor wins
         std::printf("node %-10s driver=%s pos[%g, %g] vel %g acc %g jerk %g\n", d.id.c_str(),
-                    d.driver.c_str(), d.limits.position_min_mm, d.limits.position_max_mm,
-                    d.limits.velocity_max_mm_s, d.limits.acceleration_max_mm_s2,
-                    d.limits.jerk_max_mm_s3);
+                    d.driver.c_str(), d.limits.position_min, d.limits.position_max,
+                    d.limits.velocity_max, d.limits.acceleration_max,
+                    d.limits.jerk_max);
     }
 
     if (const auto st = cell.configure_all(); !st.ok()) return die(st);
@@ -58,8 +58,8 @@ int main(int argc, char** argv) {
     std::vector<std::string> topics;
     for (const auto& n : cell.nodes()) {
         const auto& l = n.descriptor.limits;
-        const double lo = l.position_min_mm;
-        const double span = l.position_max_mm - l.position_min_mm;
+        const double lo = l.position_min;
+        const double span = l.position_max - l.position_min;
         waypoints.push_back({lo, lo + 0.6 * span, lo + 0.4 * span});
         topics.push_back("rn/dev-cell/" + n.id + "/MotionAxis/telemetry");
     }
@@ -71,7 +71,7 @@ int main(int argc, char** argv) {
     }
     for (std::size_t i = 0; i < cell.nodes().size(); ++i) {
         std::printf("%-10s end %.3f (target %.3f) — %llu cycles, one clock\n",
-                    cell.nodes()[i].id.c_str(), rows[i].back().actual_position_mm,
+                    cell.nodes()[i].id.c_str(), rows[i].back().actual_position,
                     waypoints[i].back(), static_cast<unsigned long long>(stats.cycles));
     }
     std::printf("jitter mean %.1f us | p99 %.1f | max %.1f | safety holds %llu\n",

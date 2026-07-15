@@ -23,7 +23,7 @@ namespace robonode {
 // cycles self-heal).
 class AxisAdapter : public LifecycleParticipant {
 public:
-    virtual void write_setpoint(double position_mm) noexcept = 0;
+    virtual void write_setpoint(double position) noexcept = 0;
     [[nodiscard]] virtual AxisState read() const noexcept = 0;
 
     // Advance the device by one cycle. Fieldbus adapters exchange frames

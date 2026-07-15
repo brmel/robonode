@@ -44,11 +44,14 @@ inline Status load_descriptor(const std::string& path, Descriptor& out) {
         }
         out.command_rate_hz = cap.at("command_rate_hz").get<double>();
         const auto& lim = cap.at("limits");
-        out.limits.position_min_mm = lim.at("position_min_mm").get<double>();
-        out.limits.position_max_mm = lim.at("position_max_mm").get<double>();
-        out.limits.velocity_max_mm_s = lim.at("velocity_max_mm_s").get<double>();
-        out.limits.acceleration_max_mm_s2 = lim.at("acceleration_max_mm_s2").get<double>();
-        out.limits.jerk_max_mm_s3 = lim.value("jerk_max_mm_s3", 0.0);
+        // The in-memory AxisLimits is unitless (a joint's fields hold radians);
+        // the DESCRIPTOR keys keep the shop unit hint (mm) — units live in the
+        // descriptor, not the type (FR-1.3, ADR/#53).
+        out.limits.position_min = lim.at("position_min_mm").get<double>();
+        out.limits.position_max = lim.at("position_max_mm").get<double>();
+        out.limits.velocity_max = lim.at("velocity_max_mm_s").get<double>();
+        out.limits.acceleration_max = lim.at("acceleration_max_mm_s2").get<double>();
+        out.limits.jerk_max = lim.value("jerk_max_mm_s3", 0.0);
         // Optional driver config: string values as-is, others stringified.
         if (auto it = j.find("config"); it != j.end() && it->is_object()) {
             for (const auto& [k, v] : it->items()) {
@@ -58,8 +61,8 @@ inline Status load_descriptor(const std::string& path, Descriptor& out) {
     } catch (const nlohmann::json::exception& e) {
         return Status::failure(path + ": " + e.what());
     }
-    if (out.limits.velocity_max_mm_s <= 0.0 || out.limits.acceleration_max_mm_s2 <= 0.0 ||
-        out.limits.position_max_mm <= out.limits.position_min_mm || out.command_rate_hz <= 0.0) {
+    if (out.limits.velocity_max <= 0.0 || out.limits.acceleration_max <= 0.0 ||
+        out.limits.position_max <= out.limits.position_min || out.command_rate_hz <= 0.0) {
         return Status::failure(path + ": non-physical limits");
     }
     return Status::success();

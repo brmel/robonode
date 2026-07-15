@@ -83,7 +83,7 @@ public:
             }
         }
         for (std::size_t i = 0; i < n; ++i) {
-            governors_[i]->reset(adapters_[i]->read().position_mm);
+            governors_[i]->reset(adapters_[i]->read().position);
         }
 
         CycleStats stats{};
@@ -116,7 +116,7 @@ public:
                     tgt_[i] = State{cmd_[i], 0.0, 0.0};
                 } else {
                     tgt_[i] = plan.sample(i, std::min(t, plan_duration_s));
-                    cmd_[i] = governors_[i]->apply(tgt_[i].position, dt_s).position_mm;
+                    cmd_[i] = governors_[i]->apply(tgt_[i].position, dt_s).position;
                 }
                 adapters_[i]->write_setpoint(cmd_[i]);
             }
@@ -128,8 +128,8 @@ public:
             // Phase 3: read state, record telemetry.
             for (std::size_t i = 0; i < n; ++i) {
                 const AxisState st = adapters_[i]->read();
-                rows[i].push_back({t, tgt_[i].position, tgt_[i].velocity, cmd_[i], st.position_mm,
-                                   st.velocity_mm_s, cmd_[i] - st.position_mm});
+                rows[i].push_back({t, tgt_[i].position, tgt_[i].velocity, cmd_[i], st.position,
+                                   st.velocity, cmd_[i] - st.position});
             }
             if (hook) hook(t, rows);
         }

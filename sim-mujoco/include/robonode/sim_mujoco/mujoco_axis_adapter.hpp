@@ -60,8 +60,8 @@ public:
     [[nodiscard]] AxisState read() const noexcept override {
         AxisState s;
         if (qadr_ >= 0) {
-            s.position_mm = world_->qpos(qadr_) * scale_;
-            s.velocity_mm_s = world_->qvel(vadr_) * scale_;
+            s.position = world_->qpos(qadr_) * scale_;
+            s.velocity = world_->qvel(vadr_) * scale_;
         }
         s.safety = SafetyState::kNormal;  // sim: certified chain modelled later
         return s;

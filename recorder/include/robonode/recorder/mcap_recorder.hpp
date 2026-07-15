@@ -63,9 +63,9 @@ public:
                     R"({"t_s":%.4f,"target_position_mm":%.3f,"target_velocity_mm_s":%.3f,)"
                     R"("governed_position_mm":%.3f,"actual_position_mm":%.3f,)"
                     R"("actual_velocity_mm_s":%.3f,"following_error_mm":%.4f})",
-                    r.t_s, r.target_position_mm, r.target_velocity_mm_s,
-                    r.governed_position_mm, r.actual_position_mm, r.actual_velocity_mm_s,
-                    r.following_error_mm);
+                    r.t_s, r.target_position, r.target_velocity,
+                    r.governed_position, r.actual_position, r.actual_velocity,
+                    r.following_error);
                 if (len <= 0 || len >= static_cast<int>(sizeof buf)) continue;
                 mcap::Message msg;
                 msg.channelId = ch.id;
