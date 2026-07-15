@@ -296,8 +296,8 @@ if (pickBtn) pickBtn.onclick = () =>
 
 // Application library (#57/#59): saved apps come from the store (GET /apps),
 // so the catalog is data-driven, not hardcoded. Deploying an app runs its
-// program (v0: physics family → coordinated move). Bin picking / palletizing /
-// machine tending arrive as real apps (#61-#63).
+// program on the worker (#61/#64) — bin picking is a real app now (vision →
+// pick → place). Palletizing / machine tending arrive next (#62/#63).
 async function loadApps() {
   const el = document.getElementById('apps');
   if (!el) return;
@@ -305,14 +305,10 @@ async function loadApps() {
   try { saved = await (await fetch('/apps')).json(); } catch { /* offline */ }
   const cards = saved.map(a =>
     `<div class="ncard app" data-file="${a.file}"><h3>🎯 ${a.name}</h3><div class="st">ready · click to run</div></div>`);
-  cards.push('<div class="ncard"><h3>🗑 Bin picking</h3><div class="st soon">▶ #61</div></div>');
   cards.push('<div class="ncard"><h3>🧱 Palletizing</h3><div class="st soon">▶ #62</div></div>');
   cards.push('<div class="ncard"><h3>🏭 Machine tending</h3><div class="st soon">▶ #63</div></div>');
   el.innerHTML = cards.join('');
-  el.querySelectorAll('.ncard.app').forEach(c => c.onclick = async () => {
-    await cmd({ cmd: 'driver', family: 'physics' });
-    await cmd({ cmd: 'run' });
-  });
+  el.querySelectorAll('.ncard.app').forEach(c => c.onclick = () => cmd({ cmd: 'run_app', file: c.dataset.file }));
 }
 loadApps();
 for (const b of document.querySelectorAll('#family button'))

@@ -36,6 +36,7 @@ Each row is a user/agent journey. ✅ verified & guarded · ▶ planned (issue) 
 | J7 | Bring-your-own node appears + drives | ✅ | ✅ | ▶#43 | **✅** |
 | J8 | Node inspector: capability/limits + live in/out/Δfollow | — | ✅ | ▶#43 | **✅** |
 | J9 | Vision → pose → target reached (toy detector → pick) | ✅ | ✅ | ✅ | **✅** |
+| J10 | Bin-picking app: deploy → pick (vision) → place, one program | ✅ | ✅ | ✅ | **✅** |
 | J10 | Tier-B sandboxed algo drives a node | ▶#26 | ▶#26 | ▶#43 | ▶ |
 | J11 | Real robot model (menagerie UR10e) renders + moves | ▶#20 | ▶#20 | ▶#43 | ▶ |
 | J12 | Logs/traces/telemetry followable from one surface (UI panel + CLI) | ✅ | ✅ | ✅ | **✅** |

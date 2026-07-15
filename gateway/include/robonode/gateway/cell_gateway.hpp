@@ -2,6 +2,7 @@
 
 #include <atomic>
 #include <condition_variable>
+#include <cstdlib>
 #include <deque>
 #include <memory>
 #include <mutex>
@@ -11,6 +12,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include "robonode/celld/app_descriptor.hpp"
 #include "robonode/celld/cell.hpp"
 #include "robonode/celld/cell_descriptor.hpp"
 #include "robonode/log.hpp"
@@ -121,16 +123,35 @@ public:
             enqueue(std::move(c));
             return R"({"ok":true})";
         }
+        if (cmd == "run_app") {
+            if (!j.contains("program")) return R"({"ok":false,"error":"empty program"})";
+            Command c;
+            c.kind = Command::kRunApp;
+            for (const auto& s : j.at("program")) {
+                AppStep step;
+                step.verb = s.value("verb", "");
+                if (const auto a = s.find("args"); a != s.end() && a->is_object()) {
+                    for (const auto& [k, v] : a->items()) {
+                        step.args[k] = v.is_string() ? v.get<std::string>() : v.dump();
+                    }
+                }
+                c.program.push_back(std::move(step));
+            }
+            if (c.program.empty()) return R"({"ok":false,"error":"empty program"})";
+            enqueue(std::move(c));
+            return R"({"ok":true})";
+        }
         return R"({"ok":false,"error":"unknown cmd"})";
     }
 
 private:
     struct Command {
-        enum Kind { kRun, kSwap, kSetNodeDriver, kMoveL } kind;
-        std::string family;    // kSwap
-        std::string node;      // kSetNodeDriver
-        std::string driver;    // kSetNodeDriver
-        double x{}, y{}, z{};  // kMoveL (TCP target, metres)
+        enum Kind { kRun, kSwap, kSetNodeDriver, kMoveL, kRunApp } kind;
+        std::string family;            // kSwap
+        std::string node;              // kSetNodeDriver
+        std::string driver;            // kSetNodeDriver
+        double x{}, y{}, z{};          // kMoveL (TCP target, metres)
+        std::vector<AppStep> program;  // kRunApp (#61/#64)
     };
     struct NodeInfo {
         std::string id, unit;
@@ -155,6 +176,7 @@ private:
                 c = std::move(cmds_.front());
                 cmds_.pop_front();
             }
+            running_.store(true);  // held across the whole command (a program is one)
             if (c.kind == Command::kRun) {
                 RN_LOG_INFO("run: coordinated move");
                 run_move();
@@ -164,6 +186,8 @@ private:
                 build_cell(c.family);
             } else if (c.kind == Command::kMoveL) {
                 run_move_l(c.x, c.y, c.z);
+            } else if (c.kind == Command::kRunApp) {
+                run_program(c.program);
             } else {  // kSetNodeDriver
                 {
                     std::lock_guard<std::mutex> lk{cell_mtx_};
@@ -176,8 +200,9 @@ private:
                     }
                 }
                 publish_nodes();
-                publish_telemetry(0.0);
             }
+            running_.store(false);
+            publish_telemetry(0.0);  // resting snapshot marks the command done (running=false)
         }
     }
 
@@ -268,6 +293,34 @@ private:
         RN_LOG_INFO("move_l complete");
     }
 
+    // The program engine (#64): run an app's steps in order on the worker. Each
+    // verb reuses a sub-runner that takes cell_mtx_ itself, so steps run one at
+    // a time with no lock held here. "pick" is the vision→motion primitive (#61)
+    // — move the TCP onto the detected part. The bin-picking app is just data:
+    // family → pick → move_l(place).
+    void run_program(const std::vector<AppStep>& program) {
+        auto num = [](const AppStep& s, const char* k) {
+            const auto it = s.args.find(k);
+            return it == s.args.end() ? 0.0 : std::strtod(it->second.c_str(), nullptr);
+        };
+        RN_LOG_INFO("app: {} step(s)", program.size());
+        for (const auto& s : program) {
+            if (s.verb == "family") {
+                const auto it = s.args.find("family");
+                build_cell(it == s.args.end() ? "physics" : it->second);
+            } else if (s.verb == "run") {
+                run_move();
+            } else if (s.verb == "move_l") {
+                run_move_l(num(s, "x"), num(s, "y"), num(s, "z"));
+            } else if (s.verb == "pick") {
+                run_move_l(part_pose_.x, part_pose_.y, part_pose_.z);
+            } else {
+                RN_LOG_WARN("app: unknown verb '{}'", s.verb);
+            }
+        }
+        RN_LOG_INFO("app: complete");
+    }
+
     // Worker-thread only (reads cell_). Advertises the driver versions a node
     // can be swapped to (registry_.names()) and each node's current driver.
     void publish_nodes() {
@@ -307,6 +360,7 @@ private:
         }
         add_tcp(j, arm_joints(rws));
         j["vision"]["part"] = {part_pose_.x, part_pose_.y, part_pose_.z};
+        j["running"] = running_.load();
         std::lock_guard<std::mutex> lk{snap_mtx_};
         telem_snap_ = j.dump();
     }
@@ -330,6 +384,7 @@ private:
         }
         if (q.size() >= 7) add_tcp(j, {q.begin() + 1, q.begin() + 7});  // arm joints 1..6
         j["vision"]["part"] = {part_pose_.x, part_pose_.y, part_pose_.z};
+        j["running"] = running_.load();
         std::lock_guard<std::mutex> lk{snap_mtx_};
         telem_snap_ = j.dump();
     }
@@ -361,6 +416,7 @@ private:
     std::condition_variable cmd_cv_;
     std::deque<Command> cmds_;
     std::atomic<bool> stop_{false};
+    std::atomic<bool> running_{false};  // a command (incl. a whole app program) is executing
 
     std::mutex snap_mtx_;
     std::string nodes_snap_{R"({"family":"physics","nodes":[]})"};

@@ -1,0 +1,9 @@
+{
+  "name": "Bin picking",
+  "cell": "ur10e.cell.json",
+  "program": [
+    {"verb": "family", "args": {"family": "physics"}},
+    {"verb": "pick"},
+    {"verb": "move_l", "args": {"x": 0.15, "y": 0.2, "z": 1.15}}
+  ]
+}

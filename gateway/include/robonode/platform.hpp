@@ -33,6 +33,14 @@ public:
     Status move_l(double x, double y, double z) {
         return apply({{"cmd", "move_l"}, {"x", x}, {"y", y}, {"z", z}});
     }
+    // Deploy a saved app (#61): load its program and run it on the worker (#64).
+    Status run_app(const std::string& file) {
+        std::string body;
+        if (const auto st = store_.load(file, body); !st.ok()) return st;
+        const auto app = nlohmann::json::parse(body, nullptr, false);
+        if (app.is_discarded() || !app.contains("program")) return Status::failure("bad app");
+        return apply({{"cmd", "run_app"}, {"program", app.at("program")}});
+    }
 
     // --- observation surface (the same JSON every surface renders) ---
     std::string nodes_json() { return gw_.nodes_json(); }
@@ -48,8 +56,18 @@ public:
     }
 
     // Transport escape hatch: the HTTP layer forwards raw command bodies here so
-    // the wire contract lives in one place.
-    std::string submit_command(const std::string& body) { return gw_.submit_command(body); }
+    // the wire contract lives in one place. Deploying an app arrives as
+    // {"cmd":"run_app","file":X} — resolve it through the same run_app the CLI
+    // uses (load the program from the store), so both surfaces share one path.
+    std::string submit_command(const std::string& body) {
+        const auto j = nlohmann::json::parse(body, nullptr, false);
+        if (!j.is_discarded() && j.value("cmd", "") == "run_app" && j.contains("file")) {
+            const auto st = run_app(j.at("file").get<std::string>());
+            return st.ok() ? std::string{R"({"ok":true})"}
+                           : nlohmann::json{{"ok", false}, {"error", st.message()}}.dump();
+        }
+        return gw_.submit_command(body);
+    }
 
 private:
     Status apply(const nlohmann::json& cmd) {

@@ -214,6 +214,25 @@ void test_gateway_vision_detects_part() {
     CHECK(std::abs(double(p[2]) - 1.2) < 0.02);
 }
 
+// #61/#64: the program engine deploys a real saved app end to end. The
+// bin-picking program is family → pick (vision → part) → move_l (place); the
+// TCP must finish at the place target — the vision→pick→place primitive.
+void test_gateway_bin_picking_app_places_part() {
+    robonode::Platform p{kWorld, kCell, ROBONODE_APPS};
+    CHECK(p.run_app("bin-picking.app.json").ok());
+    const bool placed = poll_until(
+        [&] { return p.telemetry_json(); },
+        [](const json& j) {
+            if (!j.contains("tcp") || j.value("running", true)) return false;  // program done
+            const auto& t = j.at("tcp");
+            const double dx = double(t[0]) - 0.15, dy = double(t[1]) - 0.2, dz = double(t[2]) - 1.15;
+            return dx * dx + dy * dy + dz * dz < 0.12 * 0.12;  // near place; sequencing, not
+                                                               // servo precision (that is #22)
+        },
+        40s);
+    CHECK(placed);
+}
+
 // The forced interface refuses what it does not know — bad commands and
 // unregistered driver families fail closed, never corrupt the cell.
 void test_gateway_rejects_bad_commands() {
@@ -254,6 +273,7 @@ int main() {
     test_gateway_logs_surface_records_events();
     test_gateway_cartesian_move_reaches_target();
     test_gateway_vision_detects_part();
+    test_gateway_bin_picking_app_places_part();
     test_gateway_rejects_bad_commands();
     std::puts("robonode gateway integration: all tests passed");
     return 0;
