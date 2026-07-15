@@ -132,7 +132,23 @@ let errVals = [];
 let liveIn = [];        // governed setpoint (in), per node
 let selected = 0;       // inspected node index
 const inspectorEl = document.getElementById('inspector');
+const versionsEl = document.getElementById('versions');
 const physFollowEl = document.getElementById('physFollow');
+
+// Version manager (#47): every registered version of the selected node as a
+// chip — active highlighted, click to swap live, plus a bring-your-own slot.
+function renderVersions() {
+  if (!versionsEl) return;
+  const n = nodeMeta[selected];
+  if (!n) { versionsEl.innerHTML = ''; return; }
+  const chips = available.map(v =>
+    `<span class="chip${v === n.driver ? ' on' : ''}" data-v="${v}">${v.replace('robonode.', '')}</span>`);
+  chips.push('<span class="chip byo" title="Bring your own: copy motion/byo_axis.hpp (#23)">＋ your own</span>');
+  versionsEl.innerHTML = chips.join('');
+  versionsEl.querySelectorAll('.chip[data-v]').forEach(c => {
+    c.onclick = () => cmd({ cmd: 'set_driver', node: n.id, driver: c.dataset.v });
+  });
+}
 
 // Dashboard Physics card: peak |following error| across the joints (rad) — a
 // live read of how hard the physics is working vs the commanded setpoints.
@@ -208,6 +224,7 @@ function renderInspector() {
   inspectorEl.innerHTML =
     `<div class="kv"><span class="k">node</span><span class="v">${n.id}</span></div>` +
     rows.map(([k, v]) => `<div class="kv"><span class="k">${k}</span><span class="v">${v}</span></div>`).join('');
+  renderVersions();
 }
 function updatePositions() {
   nodeMeta.forEach((n, i) => {

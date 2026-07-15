@@ -66,6 +66,15 @@ test.describe('RoboNode live cell', () => {
     await expect(page.getByRole('heading', { name: /joints \(internal\)/ })).toBeVisible();
   });
 
+  test('version manager — chips list versions, click swaps live (#47)', async ({ page }) => {
+    await page.locator('table tbody tr', { hasText: 'j3' }).locator('td').first().click();
+    const chips = page.locator('#versions .chip');
+    await expect(chips.filter({ hasText: 'mujoco-axis' })).toBeVisible();
+    await expect(chips.filter({ hasText: 'your own' })).toBeVisible();
+    await chips.filter({ hasText: 'sim-axis-soft' }).click();
+    await expect(page.locator('#versions .chip.on')).toHaveText('sim-axis-soft');
+  });
+
   test('node inspector shows capability/limits + live in/out (#24)', async ({ page }) => {
     await page.locator('table tbody tr', { hasText: 'j3' }).locator('td').first().click();
     const insp = page.locator('#inspector');

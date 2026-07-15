@@ -73,6 +73,12 @@
   .insp .kv:last-child { border-bottom:0; }
   .insp .k { color:var(--dim); }
   .insp .v { font-variant-numeric:tabular-nums; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:9px; }
+  .chip { font-size:11px; padding:3px 9px; border:1px solid var(--line); border-radius:999px;
+    cursor:pointer; background:var(--btn); }
+  .chip:hover { border-color:var(--accent); }
+  .chip.on { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
+  .chip.byo { border-style:dashed; color:var(--dim); cursor:default; }
   tr.sel td { box-shadow:inset 2px 0 0 var(--accent); }
   tbody tr { cursor:pointer; }
   .nodes { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
@@ -175,6 +181,7 @@
     <div class="sec">
       <h2>Robot node · inspector</h2>
       <div id="inspector" class="insp"><span class="drv">select a joint…</span></div>
+      <div id="versions" class="chips"></div>
     </div>
 
     <div class="sec" style="flex:1">

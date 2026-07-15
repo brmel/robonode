@@ -42,8 +42,9 @@ Each row is a user/agent journey. ✅ verified & guarded · ▶ planned (issue) 
 | J13 | Theme toggle flips light/dark and persists | — | ✅ | ▶#43 | **✅** |
 | J14 | Dashboard overlay (robot 3D + live physics · env · camera) | — | ✅ | — | **✅** |
 | J15 | Application library — deploy a ready app (Pick demo) | — | ✅ | ✅ | **✅** |
+| J16 | Version manager — chips list versions, click swaps live | ✅ | ✅ | ✅ | **✅** |
 
-**Green: 12/15 journeys (J1–J4, J7, J8, J12, J13, J14, J15, +CLI parity).** When you add a capability, add its integration + e2e cell here and flip its row.
+**Green: 13/16 journeys (J1–J4, J7, J8, J12, J13, J14, J15, J16, +CLI parity).** When you add a capability, add its integration + e2e cell here and flip its row.
 
 ## Running the layers
 
