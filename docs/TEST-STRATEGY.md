@@ -10,7 +10,7 @@
 | **Integration** | Cross-module through a seam we own — the contract CLI + UI both bind to | `tests/gateway_integration_tests.cpp` | `mujoco` CI |
 | **Service** | The Python kinematics service self-checks the mature library | `services/rtb-kinematics/test_service.py` | `rtb-service` CI |
 | **E2E / browser** | The real user (or agent) journey in the live web app | `e2e/*.spec.ts` (Playwright) | `e2e` CI (+ Playwright MCP live) |
-| **CLI e2e** | Same journeys headless, `--json` — agent parity with the UI | (▶ arrives with #43) | `e2e` CI |
+| **CLI e2e** | Same journeys headless, `--json` — agent parity with the UI | `robonode` CLI (#43) + robonode_cli_nodes ctest | `mujoco` CI |
 
 **Discipline (ADR-8):** the browser e2e and the CLI e2e assert the **same journeys** — because both surfaces are thin clients of one facade, a journey that passes in one must pass in the other. That parity is the anti-divergence guard.
 
@@ -27,10 +27,10 @@ Each row is a user/agent journey. ✅ verified & guarded · ▶ planned (issue) 
 
 | # | Journey | Integration | Browser e2e | CLI e2e | Status |
 |---|---|---|---|---|---|
-| J1 | Boot cell → 7 nodes, driver versions listed | ✅ | ✅ | ▶#43 | **✅ live** |
-| J2 | Run coordinated move → telemetry leaves home (physics) | ✅ | ✅ | ▶#43 | **✅ live** |
-| J3 | Per-node driver swap, live (try each version; incl. clock-owner swap #50) | ✅ | ✅ | ▶#43 | **✅ live** |
-| J4 | Bad command / unknown driver fails closed | ✅ | — | ▶#43 | **✅** |
+| J1 | Boot cell → 7 nodes, driver versions listed | ✅ | ✅ | ✅ | **✅ live** |
+| J2 | Run coordinated move → telemetry leaves home (physics) | ✅ | ✅ | ✅ | **✅ live** |
+| J3 | Per-node driver swap, live (try each version; incl. clock-owner swap #50) | ✅ | ✅ | ✅ | **✅ live** |
+| J4 | Bad command / unknown driver fails closed | ✅ | — | ✅ | **✅** |
 | J5 | Physics vs Sim family toggle rebuilds the cell | ▶ | ▶ | ▶#43 | ▶ |
 | J6 | Cartesian goal → IK → TCP arrives (in-process) | ▶#34 | ▶#22 | ▶#43 | ▶ |
 | J7 | Bring-your-own node appears + drives | ✅ | ✅ | ▶#43 | **✅** |
