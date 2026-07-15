@@ -32,6 +32,19 @@ gh issue view <n> --json body --jq .body     # read acceptance criteria + blocke
 
 If the top pick is blocked, skip to the next unblocked one. If nothing is `agent-ready`, stop and report.
 
+## Per-issue loop playbook
+
+Every open issue carries a **🔁 Loop playbook** comment with the specifics for an independent cold pickup, so you never start blind. It fills the *what/where* the generic loop leaves open:
+
+- **Analyze/design** — files to read, the seam to extend, the approach (small units, self-documenting).
+- **Implement** — concrete steps.
+- **Test** — which layer (unit · integration · e2e) + what to assert.
+- **Analyze-after** — failure modes to re-check; boundary/RT invariants touched.
+- **Browser/CLI** — the exact journey to drive (Playwright MCP + the `robonode` CLI once #43 lands), or why N/A.
+- **DoD** — `scripts/verify.sh` [`--e2e`], flip the scenario-matrix row, close with evidence, commit.
+
+If you open an issue that lacks one, write it before starting.
+
 ## Definition of Done — non-negotiable, executable
 
 A slice is done only when **`scripts/verify.sh` exits 0** (design invariants + build + every C++ suite) — add `--e2e` when you touched the UI or gateway (browser journeys). Then:
