@@ -14,7 +14,7 @@ Platform where every robot and each of its modules is a **node** you can see, co
 | [docs/SPEC.md](docs/SPEC.md) | System spec: three-plane architecture, node/capability model, motion core, algorithm tiers A/B/C, data plane, safety, milestones M0–M4 |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | **Architecture + stack in one file**: system map (components, nodes/versions, control flow), enforced principles, and every open-source building block we reuse (exact pins + the modularity seam each hides behind). The file to hand external reviewers. |
 | [docs/DECISIONS.md](docs/DECISIONS.md) | ADR-1…4: x86+PREEMPT_RT reference hardware, Zenoh-native data plane, dual Tier B sandbox, MVP safety posture |
-| [docs/ROADMAP-MODULARITY.md](docs/ROADMAP-MODULARITY.md) | Prioritized modularity iterations (try each node version, bring your own) — each ends with a browser check |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Modular Docker deployment — one capability per container, topology, and the "add a capability = add a service" pattern |
 | [docs/REAL-ROBOTS.md](docs/REAL-ROBOTS.md) | Real-robot kinematics via Robotics Toolbox behind our seams (branch `UsingRealRobot`) |
 | [docs/TEST-STRATEGY.md](docs/TEST-STRATEGY.md) | Test layers (unit → integration → browser e2e) + the **scenario matrix** that flips ▶→✅ as the system grows — the visible progress metric |
 | [AGENTS.md](AGENTS.md) | **Autonomous operating manual** — the loop an unsupervised agent runs (pick → build → test → verify → record), the design-drift gates, and the tools (gh · ctest · Playwright · CLI · logging) |

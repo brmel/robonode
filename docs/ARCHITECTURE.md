@@ -2,7 +2,7 @@
 
 > **Goal.** An open-source, modular platform for testing robotics algorithms in a real physics environment. In a web app, users see and manipulate robots **and stations** (moving deck, pallet, conveyor) in a real physics engine, and swap or bring their own **module** — path/trajectory, robot control, vision, learning — behind **one clean interface that hides the complexity** (in the spirit of the Matrox Imaging Library). Every node is a typed capability with interchangeable versions and a bring-your-own slot, run safely in a sandbox. We **reuse mature engines** (MuJoCo, Robotics Toolbox, OpenCV/DL, Ruckig, MCAP/Foxglove) and never reinvent them; the platform is the clean, modular glue and the swap/test experience.
 >
-> *This file is the single source of truth for the system design + the open-source stack, written for external review (feed it to Codex/Gemini to critique).* Companion docs: [REQUIREMENTS.md](REQUIREMENTS.md) (FR-x), [SPEC.md](SPEC.md), [DECISIONS.md](DECISIONS.md) (ADRs), [ROADMAP-MODULARITY.md](ROADMAP-MODULARITY.md), [REAL-ROBOTS.md](REAL-ROBOTS.md).
+> *This file is the single source of truth for the system design + the open-source stack, written for external review (feed it to Codex/Gemini to critique).* Companion docs: [REQUIREMENTS.md](REQUIREMENTS.md) (FR-x), [SPEC.md](SPEC.md), [DECISIONS.md](DECISIONS.md) (ADRs), [REAL-ROBOTS.md](REAL-ROBOTS.md), [DEPLOYMENT.md](DEPLOYMENT.md). Roadmap = tracker issue #19.
 
 ---
 

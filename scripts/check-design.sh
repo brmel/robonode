@@ -55,12 +55,12 @@ if [ "$fail" -eq 0 ]; then
 fi
 
 # Pending gates — enabled (moved above) as their issue closes, so the guard
-# hardens over time instead of failing prematurely:
+# hardens over time instead of failing prematurely. Still open:
 #   #34 → forbid rtb-service calls from motion/celld (RT path Python-free at call level)
 #   #35 → forbid std::mutex / new / malloc on the executive step path
 #   #36 → forbid `throw` across any seam; require std::expected returns
-#   #42/#44 → forbid printf/std::cout/std::cerr in product code (spdlog only)
-#   #32 → anti-hardcoding for pure modules is ENABLED above; the de-duplication
-#          pass (apps' triplicated cell setup) lands with #28 (descriptor-driven)
-echo "pending gates (enable as #32/#34/#35/#36/#42/#44 close): see script footer"
+# Done: #28/#32 (descriptor-driven + anti-hardcoding, enabled above) · #42/#44
+# (spdlog logging seam — the no-printf rule stays OFF: apps print CLI output by
+# design; the seam is for events, not stdout).
+echo "pending gates (enable as #34/#35/#36 close): see script footer"
 exit "$fail"
