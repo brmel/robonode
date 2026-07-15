@@ -75,6 +75,12 @@
   .insp .v { font-variant-numeric:tabular-nums; }
   tr.sel td { box-shadow:inset 2px 0 0 var(--accent); }
   tbody tr { cursor:pointer; }
+  .nodes { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .ncard { border:1px solid var(--line); border-radius:var(--radius); padding:9px 10px; background:var(--bg); }
+  .ncard.on { border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent); }
+  .ncard h3 { margin:0 0 3px; font-size:12.5px; font-weight:600; }
+  .ncard .st { font-size:10.5px; color:var(--dim); }
+  .ncard .soon { color:var(--warn); }
   @media (max-width:720px) { #side { width:100%; flex-basis:auto; } #app { flex-direction:column; } }
 </style>
 <script>
@@ -133,12 +139,22 @@
     </div>
 
     <div class="sec">
-      <h2>Node inspector</h2>
-      <div id="inspector" class="insp"><span class="drv">select a node…</span></div>
+      <h2>Nodes — capability modules</h2>
+      <div class="nodes">
+        <div class="ncard on"><h3>🦾 Robot</h3><div class="st">UR10e · 6-DoF on rail · <span id="robotDrv">physics</span></div></div>
+        <div class="ncard"><h3>📷 Camera</h3><div class="st soon">▶ coming · #6</div></div>
+        <div class="ncard"><h3>👁 Vision / Tracking</h3><div class="st soon">▶ coming · #6 / #38</div></div>
+        <div class="ncard"><h3>📦 Station</h3><div class="st soon">▶ coming · #31</div></div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <h2>Robot node · inspector</h2>
+      <div id="inspector" class="insp"><span class="drv">select a joint…</span></div>
     </div>
 
     <div class="sec" style="flex:1">
-      <h2>Nodes — try each version per node</h2>
+      <h2>Robot node · joints (internal) — try each version</h2>
       <table>
         <thead><tr><th>node</th><th>driver (version)</th><th>out · Δfollow</th></tr></thead>
         <tbody id="nodes"></tbody>

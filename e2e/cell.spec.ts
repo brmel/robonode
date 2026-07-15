@@ -39,6 +39,17 @@ test.describe('RoboNode live cell', () => {
     await expect(j3.locator('select')).toHaveValue('sim-axis');
   });
 
+  test('nodes are capability modules — Robot/Camera/Vision/Station cards (#55)', async ({ page }) => {
+    await expect(page.locator('.ncard h3')).toHaveText([
+      '🦾 Robot',
+      '📷 Camera',
+      '👁 Vision / Tracking',
+      '📦 Station',
+    ]);
+    // joints are internal to the Robot node, not top-level nodes
+    await expect(page.getByRole('heading', { name: /joints \(internal\)/ })).toBeVisible();
+  });
+
   test('node inspector shows capability/limits + live in/out (#24)', async ({ page }) => {
     await page.locator('table tbody tr', { hasText: 'j3' }).locator('td').first().click();
     const insp = page.locator('#inspector');

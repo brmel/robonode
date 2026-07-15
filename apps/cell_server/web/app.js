@@ -141,6 +141,8 @@ function renderNodes(tree) {
   available = tree.available || [];
   famBadge.textContent = tree.family;
   famBadge.className = 'badge ' + tree.family;
+  const robotDrv = document.getElementById('robotDrv');
+  if (robotDrv) robotDrv.textContent = tree.family;
   for (const b of document.querySelectorAll('#family button'))
     b.classList.toggle('on', b.dataset.fam === tree.family);
 
