@@ -44,7 +44,9 @@ if(ROBONODE_BUILD_MUJOCO)
   if(TARGET robonode::gateway)
     add_executable(gateway_integration_tests gateway_integration_tests.cpp)
     target_link_libraries(gateway_integration_tests PRIVATE robonode::gateway robonode::warnings)
-    target_compile_definitions(gateway_integration_tests PRIVATE ROBONODE_WORLDS="${ROBONODE_WORLDS}")
+    target_compile_definitions(gateway_integration_tests PRIVATE
+        ROBONODE_WORLDS="${ROBONODE_WORLDS}"
+        ROBONODE_CELL="${CMAKE_SOURCE_DIR}/apps/cell_server/cells/ur10e.cell.json")
     add_test(NAME gateway_integration_tests COMMAND gateway_integration_tests)
   endif()
 endif()

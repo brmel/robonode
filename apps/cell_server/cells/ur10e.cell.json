@@ -1,0 +1,19 @@
+{
+  "cell": "ur10e-on-rail",
+  "nodes": [
+    {"id": "rail-x", "joint": "rail", "actuator": "rail_servo", "unit": "mm", "units_per_m": 1000,
+     "limits": {"position_min": 0, "position_max": 1450, "velocity_max": 1200, "acceleration_max": 8000, "jerk_max": 120000}},
+    {"id": "j1", "joint": "j1", "actuator": "j1_servo", "unit": "rad", "units_per_m": 1,
+     "limits": {"position_min": -6.28, "position_max": 6.28, "velocity_max": 3, "acceleration_max": 15, "jerk_max": 150}},
+    {"id": "j2", "joint": "j2", "actuator": "j2_servo", "unit": "rad", "units_per_m": 1,
+     "limits": {"position_min": -6.28, "position_max": 6.28, "velocity_max": 3, "acceleration_max": 15, "jerk_max": 150}},
+    {"id": "j3", "joint": "j3", "actuator": "j3_servo", "unit": "rad", "units_per_m": 1,
+     "limits": {"position_min": -3.14, "position_max": 3.14, "velocity_max": 3, "acceleration_max": 15, "jerk_max": 150}},
+    {"id": "j4", "joint": "j4", "actuator": "j4_servo", "unit": "rad", "units_per_m": 1,
+     "limits": {"position_min": -6.28, "position_max": 6.28, "velocity_max": 3, "acceleration_max": 15, "jerk_max": 150}},
+    {"id": "j5", "joint": "j5", "actuator": "j5_servo", "unit": "rad", "units_per_m": 1,
+     "limits": {"position_min": -6.28, "position_max": 6.28, "velocity_max": 3, "acceleration_max": 15, "jerk_max": 150}},
+    {"id": "j6", "joint": "j6", "actuator": "j6_servo", "unit": "rad", "units_per_m": 1,
+     "limits": {"position_min": -6.28, "position_max": 6.28, "velocity_max": 3, "acceleration_max": 15, "jerk_max": 150}}
+  ]
+}

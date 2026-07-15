@@ -23,6 +23,7 @@
 namespace {
 
 const std::string kWorld = std::string{ROBONODE_WORLDS} + "/rail_ur10e.xml";
+const std::string kCell = ROBONODE_CELL;
 
 using nlohmann::json;
 using namespace std::chrono_literals;
@@ -42,7 +43,7 @@ bool poll_until(Getter get, Pred pred, std::chrono::milliseconds timeout) {
 // The cell boots with 7 nodes under the physics family, each advertising the
 // three swappable driver versions — the node tree the UI/CLI render.
 void test_gateway_boots_seven_nodes_with_driver_versions() {
-    robonode::CellGateway gw{kWorld};
+    robonode::CellGateway gw{kWorld, kCell};
     const auto j = json::parse(gw.nodes_json());
     CHECK(j.at("family") == "physics");
     CHECK(j.at("nodes").size() == 7);
@@ -62,7 +63,7 @@ void test_gateway_boots_seven_nodes_with_driver_versions() {
 // Command in → coordinated move → telemetry out: the rail traverses to its
 // final waypoint (400 mm) under real physics, proving the whole loop streamed.
 void test_gateway_run_moves_the_cell_and_streams_telemetry() {
-    robonode::CellGateway gw{kWorld};
+    robonode::CellGateway gw{kWorld, kCell};
     CHECK(json::parse(gw.submit_command(R"({"cmd":"run"})")).at("ok") == true);
 
     // rail-x (pos[0]) must reach its final waypoint (400 mm) within the run.
@@ -79,7 +80,7 @@ void test_gateway_run_moves_the_cell_and_streams_telemetry() {
 // A single node's implementation is swapped live through the registry — the
 // per-node "try each version" contract. The published tree reflects it.
 void test_gateway_swaps_one_node_driver_live() {
-    robonode::CellGateway gw{kWorld};
+    robonode::CellGateway gw{kWorld, kCell};
     CHECK(json::parse(gw.submit_command(R"({"cmd":"set_driver","node":"j3","driver":"robonode.sim-axis"})"))
               .at("ok") == true);
 
@@ -100,7 +101,7 @@ void test_gateway_swaps_one_node_driver_live() {
 // shared world — the remaining physics joints still move. World-stepping is
 // the executive's job now, not any adapter's identity.
 void test_gateway_swap_clock_owner_keeps_physics_alive() {
-    robonode::CellGateway gw{kWorld};
+    robonode::CellGateway gw{kWorld, kCell};
     CHECK(json::parse(gw.submit_command(
                           R"({"cmd":"set_driver","node":"rail-x","driver":"robonode.sim-axis"})"))
               .at("ok") == true);
@@ -130,7 +131,7 @@ void test_gateway_swap_clock_owner_keeps_physics_alive() {
 // every node's version list, and drives a node when selected — proving a
 // third-party AxisAdapter needs nothing but the seam.
 void test_gateway_byo_example_driver_selectable_and_drives() {
-    robonode::CellGateway gw{kWorld};
+    robonode::CellGateway gw{kWorld, kCell};
     const auto avail = json::parse(gw.nodes_json()).at("available");
     bool has_byo = false;
     for (const auto& d : avail) has_byo |= d == "robonode.byo-example";
@@ -163,7 +164,7 @@ void test_gateway_byo_example_driver_selectable_and_drives() {
 // The forced interface refuses what it does not know — bad commands and
 // unregistered driver families fail closed, never corrupt the cell.
 void test_gateway_rejects_bad_commands() {
-    robonode::CellGateway gw{kWorld};
+    robonode::CellGateway gw{kWorld, kCell};
     CHECK(json::parse(gw.submit_command(R"({"cmd":"nonsense"})")).at("ok") == false);
     CHECK(json::parse(gw.submit_command(R"({"cmd":"driver","family":"warp"})")).at("ok") == false);
     CHECK(json::parse(gw.submit_command("not json at all")).at("ok") == false);

@@ -12,6 +12,7 @@
 #include <nlohmann/json.hpp>
 
 #include "robonode/celld/cell.hpp"
+#include "robonode/celld/cell_descriptor.hpp"
 #include "robonode/motion/byo_axis.hpp"
 #include "robonode/motion/sim_driver.hpp"
 #include "robonode/sim_mujoco/mujoco_driver.hpp"
@@ -31,11 +32,15 @@ namespace robonode {
 // is simply refused.
 class CellGateway {
 public:
-    explicit CellGateway(std::string world_path) : world_{std::move(world_path)} {
+    // world_path = the MJCF the physics driver loads; cell_path = the node tree
+    // as data (#28). The cell is descriptor-driven — no node specs in code.
+    CellGateway(std::string world_path, const std::string& cell_path)
+        : world_{std::move(world_path)} {
         register_sim_axis(registry_);       // robonode.sim-axis  (filter, fast)
         register_sim_axis_soft(registry_);  // robonode.sim-axis-soft (sluggish)
         register_mujoco_axis(registry_);    // robonode.mujoco-axis (physics)
         register_byo_axis(registry_);       // robonode.byo-example (bring-your-own template, #23)
+        (void)load_cell_descriptor(cell_path, cell_desc_);  // empty on failure → empty cell
         build_cell("physics");
         worker_ = std::thread([this] { worker_loop(); });
     }
@@ -137,44 +142,30 @@ private:
         }
     }
 
-    // (Re)build the 7-node cell under a driver family. Worker thread only.
+    // (Re)build the cell from the descriptor under a driver family. Worker
+    // thread only. The node tree is data (cell_desc_), not code (#28).
     void build_cell(const std::string& family) {
         const std::string driver = family == "sim" ? "robonode.sim-axis" : "robonode.mujoco-axis";
         auto cell = std::make_unique<Cell>(registry_);
         infos_.clear();
 
-        struct Spec {
-            const char* id;
-            const char* joint;
-            const char* act;
-            double lo, hi, v, a, jk;
-            const char* unit;
-            const char* units_per_m;
-        };
-        static const Spec specs[] = {
-            {"rail-x", "rail", "rail_servo", 0, 1450, 1200, 8000, 120000, "mm", "1000"},
-            {"j1", "j1", "j1_servo", -6.28, 6.28, 3, 15, 150, "rad", "1"},
-            {"j2", "j2", "j2_servo", -6.28, 6.28, 3, 15, 150, "rad", "1"},
-            {"j3", "j3", "j3_servo", -3.14, 3.14, 3, 15, 150, "rad", "1"},
-            {"j4", "j4", "j4_servo", -6.28, 6.28, 3, 15, 150, "rad", "1"},
-            {"j5", "j5", "j5_servo", -6.28, 6.28, 3, 15, 150, "rad", "1"},
-            {"j6", "j6", "j6_servo", -6.28, 6.28, 3, 15, 150, "rad", "1"},
-        };
-        for (const auto& s : specs) {
+        for (const auto& s : cell_desc_.nodes) {
             Descriptor d;
             d.id = s.id;
             d.driver = driver;
-            d.limits = {s.lo, s.hi, s.v, s.a, s.jk};
+            d.limits = s.limits;
             d.command_rate_hz = 1000;
             // Always carry the MuJoCo config so ANY node can later be swapped
             // to the physics driver (sim drivers ignore it). This is what lets
             // per-node version-swapping work in both directions.
-            d.config = {{"world", world_}, {"joint", s.joint}, {"actuator", s.act},
-                        {"units_per_m", s.units_per_m}};
+            d.config = {{"world", world_}, {"joint", s.joint}, {"actuator", s.actuator},
+                        {"units_per_m", std::to_string(s.units_per_m)}};
             if (const auto st = cell->add_node(d); !st.ok()) return;  // leaves old cell
-            infos_.push_back({s.id, s.unit, s.lo, s.hi});
+            infos_.push_back({s.id, s.unit, s.limits.position_min, s.limits.position_max});
         }
-        if (!cell->configure_all().ok() || !cell->activate_all().ok()) return;
+        if (cell_desc_.nodes.empty() || !cell->configure_all().ok() || !cell->activate_all().ok()) {
+            return;
+        }
 
         {
             std::lock_guard<std::mutex> lk{cell_mtx_};
@@ -265,6 +256,7 @@ private:
     }
 
     std::string world_;
+    CellDescriptor cell_desc_;
     DriverRegistry registry_;
     std::mutex cell_mtx_;
     std::unique_ptr<Cell> cell_;

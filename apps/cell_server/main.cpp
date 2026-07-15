@@ -25,6 +25,9 @@
 #ifndef ROBONODE_WEB
 #error "ROBONODE_WEB must point at the cell_server web dir"
 #endif
+#ifndef ROBONODE_CELL
+#error "ROBONODE_CELL must point at the cell descriptor JSON"
+#endif
 
 namespace {
 // Compile-time paths are the default; env vars override so the same binary
@@ -38,8 +41,9 @@ std::string env_or(const char* var, const char* fallback) {
 int main() {
     const std::string worlds = env_or("ROBONODE_WORLDS_DIR", ROBONODE_WORLDS);
     const std::string web = env_or("ROBONODE_WEB_DIR", ROBONODE_WEB);
+    const std::string cell = env_or("ROBONODE_CELL_FILE", ROBONODE_CELL);
 
-    robonode::CellGateway gateway{worlds + "/rail_ur10e.xml"};
+    robonode::CellGateway gateway{worlds + "/rail_ur10e.xml", cell};
     httplib::Server svr;
 
     // Live stream: node tree once, then telemetry frames ~50 Hz; re-send the
