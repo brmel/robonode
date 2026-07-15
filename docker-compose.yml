@@ -1,8 +1,34 @@
-# One command to build + run the live cell server:
-#   docker compose up --build      →  http://localhost:8080
+# RoboNode — modular deployment. Each capability is its own container behind a
+# shared network; the seam is the boundary, the container is the unit of deploy
+# and scale. Add a vision / planner service the same way and the cell-server
+# reaches it by name.
+#
+#   docker compose up --build        →  http://localhost:8080
+#   docker compose ps                 (health of each service)
 services:
+  # The live cell: physics twin (MuJoCo) + web app + the Platform facade.
   cell-server:
     build: .
-    image: robonode
+    image: robonode/cell-server
     ports:
       - "8080:8080"
+    environment:
+      # Where the real-robot kinematics service lives (used by the RTB bridge).
+      RTB_HOST: rtb-kinematics
+      RTB_PORT: "8091"
+    restart: unless-stopped
+    networks: [robonode]
+
+  # Real-robot kinematics (Robotics Toolbox) behind the Kinematics/Planner seam.
+  # Independent service — scales and redeploys without touching the RT core.
+  rtb-kinematics:
+    build: ./services/rtb-kinematics
+    image: robonode/rtb-kinematics
+    ports:
+      - "8091:8091"
+    restart: unless-stopped
+    networks: [robonode]
+
+networks:
+  robonode:
+    name: robonode

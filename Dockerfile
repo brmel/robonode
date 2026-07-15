@@ -23,11 +23,13 @@ RUN cmake -B build -DCMAKE_BUILD_TYPE=Release \
 # ---- runtime stage -------------------------------------------------------
 FROM ubuntu:24.04 AS runtime
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      libstdc++6 ca-certificates \
+      libstdc++6 ca-certificates curl \
     && rm -rf /var/lib/apt/lists/*
 # Same path as the build stage so the binary's RPATH to libmujoco stays valid.
 COPY --from=build /src /src
 ENV ROBONODE_WORLDS_DIR=/src/sim-mujoco/worlds \
     ROBONODE_WEB_DIR=/src/apps/cell_server/web
 EXPOSE 8080
+HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=5 \
+  CMD curl -fsS http://localhost:8080/ >/dev/null || exit 1
 CMD ["/src/build/apps/cell_server/cell_server"]
