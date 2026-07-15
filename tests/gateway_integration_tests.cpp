@@ -126,6 +126,40 @@ void test_gateway_swap_clock_owner_keeps_physics_alive() {
     CHECK(j1_moved);
 }
 
+// Bring-your-own (#23): the user example driver is registered, shows up in
+// every node's version list, and drives a node when selected — proving a
+// third-party AxisAdapter needs nothing but the seam.
+void test_gateway_byo_example_driver_selectable_and_drives() {
+    robonode::CellGateway gw{kWorld};
+    const auto avail = json::parse(gw.nodes_json()).at("available");
+    bool has_byo = false;
+    for (const auto& d : avail) has_byo |= d == "robonode.byo-example";
+    CHECK(has_byo);
+
+    CHECK(json::parse(gw.submit_command(
+                          R"({"cmd":"set_driver","node":"j2","driver":"robonode.byo-example"})"))
+              .at("ok") == true);
+    CHECK(poll_until(
+        [&] { return gw.nodes_json(); },
+        [](const json& j) {
+            for (const auto& n : j.at("nodes")) {
+                if (n.at("id") == "j2") return n.at("driver") == "robonode.byo-example";
+            }
+            return false;
+        },
+        5s));
+
+    CHECK(json::parse(gw.submit_command(R"({"cmd":"run"})")).at("ok") == true);
+    const bool j2_moved = poll_until(
+        [&] { return gw.telemetry_json(); },
+        [](const json& j) {
+            const auto& pos = j.at("pos");
+            return pos.size() > 2 && std::abs(double(pos[2])) > 0.05;
+        },
+        20s);
+    CHECK(j2_moved);
+}
+
 // The forced interface refuses what it does not know — bad commands and
 // unregistered driver families fail closed, never corrupt the cell.
 void test_gateway_rejects_bad_commands() {
@@ -144,6 +178,7 @@ int main() {
     test_gateway_run_moves_the_cell_and_streams_telemetry();
     test_gateway_swaps_one_node_driver_live();
     test_gateway_swap_clock_owner_keeps_physics_alive();
+    test_gateway_byo_example_driver_selectable_and_drives();
     test_gateway_rejects_bad_commands();
     std::puts("robonode gateway integration: all tests passed");
     return 0;

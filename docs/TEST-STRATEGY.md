@@ -33,7 +33,7 @@ Each row is a user/agent journey. ✅ verified & guarded · ▶ planned (issue) 
 | J4 | Bad command / unknown driver fails closed | ✅ | — | ▶#43 | **✅** |
 | J5 | Physics vs Sim family toggle rebuilds the cell | ▶ | ▶ | ▶#43 | ▶ |
 | J6 | Cartesian goal → IK → TCP arrives (in-process) | ▶#34 | ▶#22 | ▶#43 | ▶ |
-| J7 | Bring-your-own node appears + drives | ▶#23 | ▶#23 | ▶#43 | ▶ |
+| J7 | Bring-your-own node appears + drives | ✅ | ✅ | ▶#43 | **✅** |
 | J8 | Node inspector: live in/out/Δfollow per node | — | ▶#24 | ▶#43 | ▶ |
 | J9 | Vision → pose → target reached | ▶#38 | ▶#6 | ▶#43 | ▶ |
 | J10 | Tier-B sandboxed algo drives a node | ▶#26 | ▶#26 | ▶#43 | ▶ |
@@ -41,7 +41,7 @@ Each row is a user/agent journey. ✅ verified & guarded · ▶ planned (issue) 
 | J12 | Logs/traces/telemetry followable from one surface | ▶#44 | ▶#44 | ▶#44 | ▶ |
 | J13 | Theme toggle flips light/dark and persists | — | ✅ | ▶#43 | **✅** |
 
-**Green: 5/13 journeys (J1–J4, J13).** When you add a capability, add its integration + e2e cell here and flip its row.
+**Green: 6/13 journeys (J1–J4, J7, J13).** When you add a capability, add its integration + e2e cell here and flip its row.
 
 ## Running the layers
 

@@ -12,6 +12,7 @@
 #include <nlohmann/json.hpp>
 
 #include "robonode/celld/cell.hpp"
+#include "robonode/motion/byo_axis.hpp"
 #include "robonode/motion/sim_driver.hpp"
 #include "robonode/sim_mujoco/mujoco_driver.hpp"
 
@@ -34,6 +35,7 @@ public:
         register_sim_axis(registry_);       // robonode.sim-axis  (filter, fast)
         register_sim_axis_soft(registry_);  // robonode.sim-axis-soft (sluggish)
         register_mujoco_axis(registry_);    // robonode.mujoco-axis (physics)
+        register_byo_axis(registry_);       // robonode.byo-example (bring-your-own template, #23)
         build_cell("physics");
         worker_ = std::thread([this] { worker_loop(); });
     }
