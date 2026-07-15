@@ -12,6 +12,7 @@ An **open-source, modular platform for testing robotics algorithms in real physi
 2. **Modular, MIL-style — one clean interface, everything behind a seam.** The seams we own: `AxisAdapter`, `Kinematics`, `Planner`, `DriverRegistry`, `SetpointSource`, `CellGateway`, the Platform facade (#33). Any engine above is swappable without touching product logic. **Extend a seam, never bypass it.** Enforced by `scripts/check-boundaries.sh`.
 3. **Real-time correct + descriptor-driven.** The 1 kHz path has no Python, no heap alloc, no locks, no blocking I/O (ADR-5/6/7). Tree/limits/ports/robot/programs are **data, not code** — no hardcoding. One error model (`std::expected` at seams). One logging stack (spdlog, structured/async; no printf/iostream in product code).
 4. **One contract, many surfaces.** Web UI, CLI (`--json`, agent-complete), and SDK are thin clients of the **same facade** — a capability in one but not another is a bug (ADR-8).
+5. **Self-documenting code.** Small, single-purpose functions and classes with intention-revealing names, so the code reads without narration. Comments explain **why** (rationale, trade-offs, non-obvious constraints), never **what** — if a block needs a comment to say what it does, extract and name it instead. Prefer composition of small units over long methods; a function that does one thing needs no section headers.
 
 ## Follow the architecture — AND improve it
 
