@@ -39,6 +39,22 @@ test.describe('RoboNode live cell', () => {
     await expect(j3.locator('select')).toHaveValue('sim-axis');
   });
 
+  test('theme toggle flips light/dark and persists (#48)', async ({ page }) => {
+    const panelBg = () =>
+      page.evaluate(() => getComputedStyle(document.getElementById('side')!).backgroundColor);
+    await page.locator('#themeToggle').click();
+    const first = await panelBg();
+    await page.locator('#themeToggle').click();
+    const second = await panelBg();
+    expect(first).not.toEqual(second); // the two themes render different panels
+    // Choice persists across reload.
+    const theme = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
+    await page.reload();
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.getAttribute('data-theme')))
+      .toEqual(theme);
+  });
+
   test('no console errors during the session', async ({ page }) => {
     const errors: string[] = [];
     page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));

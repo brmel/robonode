@@ -6,54 +6,103 @@
 <link rel="icon" href="data:," />
 <title>RoboNode — live cell</title>
 <style>
-  :root {
+  /* Design tokens — one source of truth. Dark is the default; light overrides
+     below. The viewer's toggle stamps data-theme on <html> and wins both ways. */
+  :root, :root[data-theme="dark"] {
     --bg:#0e1116; --panel:#171b22; --line:#262c36; --ink:#e6eaf0; --dim:#8b94a3;
-    --accent:#4c8dff; --ok:#39d98a; --warn:#ffb454;
+    --accent:#4c8dff; --accent-ink:#00122e; --ok:#39d98a; --warn:#ffb454;
+    --btn:#222835; --pill:#1e2430; --badge-phys-bg:#12324a; --badge-phys-ink:#7cc4ff;
+    --badge-sim-bg:#3a2f14; --badge-sim-ink:#ffb454;
+    --sp1:6px; --sp2:10px; --sp3:14px; --sp4:18px; --radius:8px;
+  }
+  :root[data-theme="light"] {
+    --bg:#f6f7f9; --panel:#ffffff; --line:#e2e5ea; --ink:#1a1f27; --dim:#5b636f;
+    --accent:#2563eb; --accent-ink:#ffffff; --ok:#16a34a; --warn:#b45309;
+    --btn:#eef1f5; --pill:#eef1f5; --badge-phys-bg:#dbeafe; --badge-phys-ink:#1d4ed8;
+    --badge-sim-bg:#fef3c7; --badge-sim-ink:#b45309;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme]) {
+      --bg:#f6f7f9; --panel:#ffffff; --line:#e2e5ea; --ink:#1a1f27; --dim:#5b636f;
+      --accent:#2563eb; --accent-ink:#ffffff; --ok:#16a34a; --warn:#b45309;
+      --btn:#eef1f5; --pill:#eef1f5; --badge-phys-bg:#dbeafe; --badge-phys-ink:#1d4ed8;
+      --badge-sim-bg:#fef3c7; --badge-sim-ink:#b45309;
+    }
   }
   * { box-sizing:border-box; }
   html,body { margin:0; height:100%; background:var(--bg); color:var(--ink);
-    font:14px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto; }
+    font:14px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto;
+    transition:background .15s,color .15s; }
   #app { display:flex; height:100%; }
   #side { width:340px; flex:0 0 340px; background:var(--panel); border-right:1px solid var(--line);
     display:flex; flex-direction:column; overflow:auto; }
-  #view { flex:1; position:relative; }
+  #view { flex:1; position:relative; background:var(--bg); }
   canvas { display:block; }
-  header { padding:16px 18px; border-bottom:1px solid var(--line); }
+  header { padding:var(--sp4); border-bottom:1px solid var(--line); }
   header h1 { margin:0; font-size:15px; letter-spacing:.02em; }
   header p { margin:4px 0 0; color:var(--dim); font-size:12px; }
-  .sec { padding:14px 18px; border-bottom:1px solid var(--line); }
-  .sec h2 { margin:0 0 10px; font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--dim); }
-  button { font:inherit; color:var(--ink); background:#222835; border:1px solid var(--line);
-    border-radius:8px; padding:9px 14px; cursor:pointer; }
+  .sec { padding:var(--sp3) var(--sp4); border-bottom:1px solid var(--line); }
+  .sec h2 { margin:0 0 var(--sp2); font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--dim); }
+  button { font:inherit; color:var(--ink); background:var(--btn); border:1px solid var(--line);
+    border-radius:var(--radius); padding:9px 14px; cursor:pointer; transition:border-color .12s; }
   button:hover { border-color:var(--accent); }
-  button.primary { background:var(--accent); border-color:var(--accent); color:#00122e; font-weight:600; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:var(--accent-ink); font-weight:600; }
+  #themeToggle { background:transparent; border:1px solid var(--line); border-radius:var(--radius);
+    padding:5px 9px; font-size:13px; line-height:1; }
   .row { display:flex; gap:8px; align-items:center; }
-  .seg { display:inline-flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  .seg { display:inline-flex; border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; }
   .seg button { border:0; border-radius:0; background:transparent; padding:7px 12px; }
-  .seg button.on { background:var(--accent); color:#00122e; font-weight:600; }
+  .seg button.on { background:var(--accent); color:var(--accent-ink); font-weight:600; }
   table { width:100%; border-collapse:collapse; font-size:12.5px; }
-  th,td { text-align:left; padding:6px 6px; border-bottom:1px solid var(--line); }
+  th,td { text-align:left; padding:var(--sp1); border-bottom:1px solid var(--line); }
   th { color:var(--dim); font-weight:500; font-size:11px; }
   td.val { font-variant-numeric:tabular-nums; color:var(--dim); }
-  td select { font:inherit; font-size:11.5px; color:var(--ink); background:#222835;
+  td select { font:inherit; font-size:11.5px; color:var(--ink); background:var(--btn);
     border:1px solid var(--line); border-radius:6px; padding:3px 5px; max-width:150px; }
   td select:hover { border-color:var(--accent); }
   .gap { color:var(--warn); font-size:10.5px; margin-left:4px; }
-  .pill { font-size:11px; padding:1px 7px; border-radius:999px; background:#1e2430; color:var(--ok);
+  .pill { font-size:11px; padding:1px 7px; border-radius:999px; background:var(--pill); color:var(--ok);
     border:1px solid var(--line); }
   .drv { color:var(--dim); font-size:11px; }
   #status { color:var(--dim); font-size:12px; }
   .badge { display:inline-block; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:600; }
-  .badge.physics { background:#12324a; color:#7cc4ff; }
-  .badge.sim { background:#3a2f14; color:var(--warn); }
+  .badge.physics { background:var(--badge-phys-bg); color:var(--badge-phys-ink); }
+  .badge.sim { background:var(--badge-sim-bg); color:var(--badge-sim-ink); }
+  @media (max-width:720px) { #side { width:100%; flex-basis:auto; } #app { flex-direction:column; } }
 </style>
+<script>
+  // Theme: apply the saved choice before paint (no flash); default follows the
+  // OS via prefers-color-scheme. The toggle stamps data-theme + persists.
+  (function () {
+    const KEY = "robonode-theme";
+    const saved = localStorage.getItem(KEY);
+    if (saved) document.documentElement.setAttribute("data-theme", saved);
+    const current = () =>
+      document.documentElement.getAttribute("data-theme") ||
+      (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+    addEventListener("DOMContentLoaded", () => {
+      const btn = document.getElementById("themeToggle");
+      if (!btn) return;
+      btn.onclick = () => {
+        const next = current() === "dark" ? "light" : "dark";
+        document.documentElement.setAttribute("data-theme", next);
+        localStorage.setItem(KEY, next);
+      };
+    });
+  })();
+</script>
 </head>
 <body>
 <div id="app">
   <aside id="side">
     <header>
-      <h1>RoboNode — live cell</h1>
-      <p>UR10e on a 7th axis · one clock · <span id="status">connecting…</span></p>
+      <div class="row" style="justify-content:space-between; align-items:flex-start">
+        <div>
+          <h1>RoboNode — live cell</h1>
+          <p>UR10e on a 7th axis · one clock · <span id="status">connecting…</span></p>
+        </div>
+        <button id="themeToggle" title="Toggle light / dark" aria-label="Toggle theme">◐</button>
+      </div>
     </header>
 
     <div class="sec">
