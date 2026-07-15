@@ -18,6 +18,7 @@ Platform where every robot and each of its modules is a **node** you can see, co
 | [docs/REAL-ROBOTS.md](docs/REAL-ROBOTS.md) | Real-robot kinematics via Robotics Toolbox behind our seams (branch `UsingRealRobot`) |
 | [docs/TEST-STRATEGY.md](docs/TEST-STRATEGY.md) | Test layers (unit → integration → browser e2e) + the **scenario matrix** that flips ▶→✅ as the system grows — the visible progress metric |
 | [AGENTS.md](AGENTS.md) | **Autonomous operating manual** — the loop an unsupervised agent runs (pick → build → test → verify → record), the design-drift gates, and the tools (gh · ctest · Playwright · CLI · logging) |
+| [docs/AUDIT-2026-07.md](docs/AUDIT-2026-07.md) | Pre-implementation architecture audit — seams, classes, sync/async, one bug (#50), and the interface-first reorder (#51–#54) to do before the engines land |
 
 Read order: REQUIREMENTS → SPEC → ARCHITECTURE → DECISIONS.
 
