@@ -18,7 +18,8 @@ add_executable(celld_tests celld_tests.cpp)
 target_link_libraries(celld_tests PRIVATE robonode::celld robonode::warnings)
 target_compile_definitions(celld_tests PRIVATE
     ROBONODE_IDL_EXAMPLES="${CMAKE_SOURCE_DIR}/robonode-idl/examples"
-    ROBONODE_CELL="${CMAKE_SOURCE_DIR}/apps/cell_server/cells/ur10e.cell.json")
+    ROBONODE_CELL="${CMAKE_SOURCE_DIR}/apps/cell_server/cells/ur10e.cell.json"
+    ROBONODE_APP="${CMAKE_SOURCE_DIR}/apps/cell_server/apps/pick-demo.app.json")
 add_test(NAME celld_tests COMMAND celld_tests)
 
 if(ROBONODE_BUILD_MUJOCO)

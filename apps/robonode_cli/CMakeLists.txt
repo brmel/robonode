@@ -17,3 +17,7 @@ target_compile_definitions(robonode_cli PRIVATE
 # Agent-parity smoke: `robonode nodes` boots the cell and prints the tree.
 add_test(NAME robonode_cli_nodes COMMAND robonode_cli nodes)
 set_tests_properties(robonode_cli_nodes PROPERTIES PASS_REGULAR_EXPRESSION "rail-x")
+
+# App runner (#56): `robonode app <file>` runs a program to completion (exit 0).
+add_test(NAME robonode_cli_app
+  COMMAND robonode_cli app "${CMAKE_SOURCE_DIR}/apps/cell_server/apps/pick-demo.app.json")

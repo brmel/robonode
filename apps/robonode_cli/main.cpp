@@ -19,6 +19,7 @@
 #include <CLI/CLI.hpp>
 #include <nlohmann/json.hpp>
 
+#include "robonode/celld/app_descriptor.hpp"
 #include "robonode/platform.hpp"
 
 #ifndef ROBONODE_WORLDS
@@ -56,6 +57,36 @@ bool node_has_driver(const nlohmann::json& tree, const std::string& id, const st
     return false;
 }
 
+// Run one application step over the facade (#56), waiting for it to land.
+bool run_step(robonode::Platform& p, const robonode::AppStep& s) {
+    using namespace std::chrono_literals;
+    if (s.verb == "run") {
+        if (!p.run().ok()) return false;
+        return wait_until([&] { return p.telemetry_json(); },
+                          [](const nlohmann::json& j) {
+                              const auto& pos = j.at("pos");
+                              return !pos.empty() && std::abs(double(pos[0]) - 400.0) < 20.0;
+                          },
+                          20s);
+    }
+    if (s.verb == "family") {
+        const auto it = s.args.find("family");
+        if (it == s.args.end() || !p.set_family(it->second).ok()) return false;
+        return wait_until([&] { return p.nodes_json(); },
+                          [&](const nlohmann::json& j) { return j.at("family") == it->second; }, 5s);
+    }
+    if (s.verb == "swap") {
+        const auto n = s.args.find("node"), d = s.args.find("driver");
+        if (n == s.args.end() || d == s.args.end()) return false;
+        if (!p.set_node_driver(n->second, d->second).ok()) return false;
+        return wait_until([&] { return p.nodes_json(); },
+                          [&](const nlohmann::json& j) { return node_has_driver(j, n->second, d->second); },
+                          5s);
+    }
+    std::fprintf(stderr, "unknown program verb: %s\n", s.verb.c_str());
+    return false;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -76,6 +107,10 @@ int main(int argc, char** argv) {
     std::string family;
     auto* c_family = app.add_subcommand("family", "rebuild the cell under a driver family");
     c_family->add_option("family", family, "physics | sim")->required();
+
+    std::string appfile;
+    auto* c_app = app.add_subcommand("app", "run an application (a program of steps, #56)");
+    c_app->add_option("file", appfile, "app descriptor JSON")->required();
 
     CLI11_PARSE(app, argc, argv);
 
@@ -110,6 +145,18 @@ int main(int argc, char** argv) {
         wait_until([&] { return p.nodes_json(); },
                    [&](const nlohmann::json& j) { return j.at("family") == family; }, 5s);
         std::printf("%s\n", p.nodes_json().c_str());
+    } else if (*c_app) {
+        robonode::AppDescriptor ad;
+        if (const auto st = robonode::load_app_descriptor(appfile, ad); !st.ok()) return fail(st);
+        std::fprintf(stderr, "app: %s — %zu step(s) on cell %s\n", ad.name.c_str(),
+                     ad.program.size(), ad.cell.c_str());
+        for (const auto& step : ad.program) {
+            if (!run_step(p, step)) {
+                std::fprintf(stderr, "error: step '%s' failed\n", step.verb.c_str());
+                return 1;
+            }
+        }
+        std::printf("%s\n", p.telemetry_json().c_str());
     }
     (void)json;  // outputs are JSON today; --no-json reserved for a human mode
     return 0;

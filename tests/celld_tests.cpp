@@ -5,6 +5,7 @@
 #include <cstdio>
 
 #include "check.hpp"
+#include "robonode/celld/app_descriptor.hpp"
 #include "robonode/celld/cell.hpp"
 #include "robonode/celld/cell_descriptor.hpp"
 #include "robonode/motion/sim_axis.hpp"
@@ -129,6 +130,18 @@ void test_cell_descriptor_loads_nodes_and_stations() {
     CHECK(cd.stations[0].config.at("speed_mm_s") == "150");
 }
 
+// #56: an Application is data — name + target cell + a program of task steps.
+void test_app_descriptor_loads_program() {
+    robonode::AppDescriptor ad;
+    CHECK(robonode::load_app_descriptor(ROBONODE_APP, ad).ok());
+    CHECK(ad.name == "Pick demo");
+    CHECK(ad.cell == "ur10e.cell.json");
+    CHECK(ad.program.size() == 2);
+    CHECK(ad.program[0].verb == "family");
+    CHECK(ad.program[0].args.at("family") == "physics");
+    CHECK(ad.program[1].verb == "run");
+}
+
 }  // namespace
 
 int main() {
@@ -138,6 +151,7 @@ int main() {
     test_cell_rejects_unknown_driver();
     test_registry_dispatches_custom_driver();
     test_cell_descriptor_loads_nodes_and_stations();
+    test_app_descriptor_loads_program();
     std::puts("robonode celld: all tests passed");
     return 0;
 }
