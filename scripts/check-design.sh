@@ -33,11 +33,14 @@ for s in "${SEAMS[@]}"; do
   [ -f "$s" ] || bad "seam missing: $s (a seam is a contract, not disposable)"
 done
 
-# 3) RT-loop purity (ADR-5): no Python, no model/config file literals baked into
-#    the pure-logic modules. Kinematics/config come THROUGH the seam as data,
-#    never hardcoded. core/motion/celld are the audited pure modules.
-hits=$(grep -rnE '<Python\.h>|^import |\.xml"' core motion celld 2>/dev/null | grep -v _deps || true)
-[ -n "$hits" ] && { bad "RT/pure modules must stay Python-free and config-literal-free (ADR-5, descriptor-driven):"; echo "$hits" | sed 's/^/    /'; }
+# 3) RT-loop purity + anti-hardcoding (ADR-5, #32): the pure-logic modules
+#    carry no Python, and no baked-in config — model/config file paths, IPs, or
+#    URLs. Everything comes THROUGH the seam as descriptor data. core/motion/
+#    celld are the audited pure modules (apps/services may hold their defaults).
+hits=$(grep -rnE --include='*.hpp' --include='*.cpp' \
+  '<Python\.h>|^import |\.(xml|json)"|https?://|([0-9]{1,3}\.){3}[0-9]{1,3}' \
+  core motion celld 2>/dev/null | grep -v _deps || true)
+[ -n "$hits" ] && { bad "pure modules must stay Python-free + hardcoding-free (paths/IPs/URLs are descriptor data — ADR-5/#32):"; echo "$hits" | sed 's/^/    /'; }
 
 # 4) One error model at the seams (ADR-7): no exceptions thrown across a seam.
 #    Guard the obvious regression — throwing out of a public seam header.
@@ -56,6 +59,7 @@ fi
 #   #35 → forbid std::mutex / new / malloc on the executive step path
 #   #36 → forbid `throw` across any seam; require std::expected returns
 #   #42/#44 → forbid printf/std::cout/std::cerr in product code (spdlog only)
-#   #32 → anti-hardcoding: no magic limits/ports/paths outside descriptors
+#   #32 → anti-hardcoding for pure modules is ENABLED above; the de-duplication
+#          pass (apps' triplicated cell setup) lands with #28 (descriptor-driven)
 echo "pending gates (enable as #32/#34/#35/#36/#42/#44 close): see script footer"
 exit "$fail"
