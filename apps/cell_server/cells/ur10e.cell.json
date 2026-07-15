@@ -15,5 +15,8 @@
      "limits": {"position_min": -6.28, "position_max": 6.28, "velocity_max": 3, "acceleration_max": 15, "jerk_max": 150}},
     {"id": "j6", "joint": "j6", "actuator": "j6_servo", "unit": "rad", "units_per_m": 1,
      "limits": {"position_min": -6.28, "position_max": 6.28, "velocity_max": 3, "acceleration_max": 15, "jerk_max": 150}}
+  ],
+  "stations": [
+    {"id": "conveyor-1", "type": "conveyor", "config": {"speed_mm_s": "150", "axis": "x"}}
   ]
 }

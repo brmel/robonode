@@ -6,6 +6,7 @@
 
 #include "check.hpp"
 #include "robonode/celld/cell.hpp"
+#include "robonode/celld/cell_descriptor.hpp"
 #include "robonode/motion/sim_axis.hpp"
 #include "robonode/motion/sim_driver.hpp"
 
@@ -115,6 +116,19 @@ void test_registry_dispatches_custom_driver() {
     CHECK(cell.configure_all().ok());        // built adapter is a real node
 }
 
+// #29: a cell is data — robot joints AND stations (conveyor/deck/pallet) load
+// from one descriptor file, no ids or config in code.
+void test_cell_descriptor_loads_nodes_and_stations() {
+    robonode::CellDescriptor cd;
+    CHECK(robonode::load_cell_descriptor(ROBONODE_CELL, cd).ok());
+    CHECK(cd.nodes.size() == 7);
+    CHECK(cd.nodes[0].id == "rail-x");
+    CHECK(cd.stations.size() == 1);
+    CHECK(cd.stations[0].id == "conveyor-1");
+    CHECK(cd.stations[0].type == "conveyor");
+    CHECK(cd.stations[0].config.at("speed_mm_s") == "150");
+}
+
 }  // namespace
 
 int main() {
@@ -123,6 +137,7 @@ int main() {
     test_cell_lifecycle_and_coherent_run();
     test_cell_rejects_unknown_driver();
     test_registry_dispatches_custom_driver();
+    test_cell_descriptor_loads_nodes_and_stations();
     std::puts("robonode celld: all tests passed");
     return 0;
 }

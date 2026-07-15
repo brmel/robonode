@@ -1,6 +1,7 @@
 #pragma once
 
 #include <fstream>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -21,10 +22,20 @@ struct CellNodeSpec {
     AxisLimits limits{};
 };
 
-// A whole cell as data (#28): the node tree the gateway builds, loaded from a
-// file instead of a hardcoded array. No limits, ids, or placement live in code.
+// A station node in the cell (#29): a moving fixture the robot works with —
+// conveyor / deck / pallet. A capability MODULE like any node (its physics +
+// versions come with #31); here it is data alongside the robot's joints.
+struct StationSpec {
+    std::string id, type;                          // type: conveyor | deck | pallet
+    std::map<std::string, std::string> config;     // e.g. speed, joint, actuator
+};
+
+// A whole cell as data (#28/#29): the node tree the gateway builds, loaded from
+// a file instead of a hardcoded array — robot joints AND stations. No ids,
+// limits, or placement live in code.
 struct CellDescriptor {
     std::vector<CellNodeSpec> nodes;
+    std::vector<StationSpec> stations;
 };
 
 namespace detail {
@@ -51,6 +62,19 @@ inline Status load_cell_descriptor(const std::string& path, CellDescriptor& out)
             s.units_per_m = n.value("units_per_m", 1.0);
             s.limits = detail::parse_limits(n.at("limits"));
             out.nodes.push_back(std::move(s));
+        }
+        if (auto it = j.find("stations"); it != j.end() && it->is_array()) {
+            for (const auto& s : *it) {
+                StationSpec st;
+                st.id = s.at("id").get<std::string>();
+                st.type = s.at("type").get<std::string>();
+                if (auto c = s.find("config"); c != s.end() && c->is_object()) {
+                    for (const auto& [k, v] : c->items()) {
+                        st.config[k] = v.is_string() ? v.get<std::string>() : v.dump();
+                    }
+                }
+                out.stations.push_back(std::move(st));
+            }
         }
     } catch (const nlohmann::json::exception& e) {
         return Status::failure(std::string{path} + ": " + e.what());
