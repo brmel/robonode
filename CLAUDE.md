@@ -6,6 +6,8 @@ Loaded every session. The vision, the non-negotiables, and where the truth lives
 
 An **open-source, modular platform for testing robotics algorithms in real physics.** In a web app (and headless via CLI), users **and agents** see + manipulate robots **and stations** in a real physics engine, and swap or bring their own **module** — path/trajectory, robot control, vision, learning — behind **one clean interface that hides the complexity** (Matrox-Imaging-Library style). Every node is a typed capability with interchangeable versions and a bring-your-own slot, run safely in a sandbox.
 
+**A "node" is a capability MODULE, not a joint.** Nodes are the top-level modules — **Robot** node (a whole arm; its joints are internal to it), **Camera** node, **Vision/Tracking** node, **Station** node (conveyor/deck/pallet), Planner node, … — each swappable with versions (MIL). The joint list (rail-x, j1–j6) is the **Robot node's internal inspector**, not the node list. The UI must be a **beautiful dashboard** — robot 3D · physics · environment · camera feed · per-node cards — **not a junction table**. Reuse mature 3D/vision/robot libraries (don't reinvent) and converge toward a mature system.
+
 ## The four principles (do not violate; improve within them)
 
 1. **Reuse mature engines — never reinvent.** Physics = MuJoCo. Kinematics = Pinocchio (RT) / Robotics Toolbox (offline). OTG = Ruckig. Planning = cuRobo/OMPL. Vision = OpenCV/ONNX. Telemetry = MCAP/Foxglove. Logging = spdlog/fmt. CLI = CLI11. The full catalogue with exact pins + the seam each hides behind is **ARCHITECTURE.md Part 2**. Adding a dependency without a seam we own is drift.

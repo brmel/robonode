@@ -62,6 +62,8 @@ flowchart TB
 
 Every node is a **Module** exposing a typed **Capability** with a clean I/O contract (in: setpoint/command · out: state/telemetry · lifecycle: configure/activate/deactivate). A user picks a version per node in the UI, or **authors their own** version satisfying the interface — it appears in the same dropdown.
 
+**Node granularity — a node is a capability module, not a joint.** The user-facing nodes are the top-level modules: a **Robot** node (its kinematics + N internal joints), a **Camera** node, a **Vision/Tracking** node, a **Station** node (conveyor/deck/pallet). A joint (`MotionAxis`) is *internal to a Robot node*, surfaced in that node's inspector — it is **not** a top-level node. Accordingly the UI is a **dashboard** of these capability nodes (robot 3D · physics · environment · camera feed · per-node cards), never a bare joint/junction table.
+
 ```mermaid
 flowchart LR
   subgraph MotionAxis["Capability: MotionAxis@1 ✅ (rail + each joint)"]
