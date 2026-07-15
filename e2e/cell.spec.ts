@@ -39,11 +39,12 @@ test.describe('RoboNode live cell', () => {
     await expect(j3.locator('select')).toHaveValue('sim-axis');
   });
 
-  test('application library — ready apps, deploy Pick demo runs it (#57)', async ({ page }) => {
-    const apps = page.locator('.ncard h3');
-    await expect(apps.filter({ hasText: 'Pick demo' })).toBeVisible();
-    await expect(apps.filter({ hasText: 'Bin picking' })).toBeVisible();
-    await page.locator('#app-pick').click();
+  test('application library — data-driven from store, deploy runs it (#57/#59)', async ({ page }) => {
+    // the Pick demo card comes from the store (GET /apps), not hardcoded
+    const pick = page.locator('#apps .ncard.app[data-file="pick-demo.app.json"]');
+    await expect(pick).toBeVisible();
+    await expect(page.locator('#apps .ncard', { hasText: 'Bin picking' })).toBeVisible();
+    await pick.click();
     const railOut = page.locator('table tbody tr', { hasText: 'rail-x' }).locator('td').last();
     await expect(railOut).toContainText('400 mm', { timeout: 20_000 });
   });

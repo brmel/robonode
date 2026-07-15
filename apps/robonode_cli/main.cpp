@@ -99,6 +99,7 @@ int main(int argc, char** argv) {
     auto* c_run = app.add_subcommand("run", "run the coordinated move");
     auto* c_telem = app.add_subcommand("telemetry", "print the live I/O snapshot");
     auto* c_logs = app.add_subcommand("logs", "print recent log records");
+    auto* c_apps = app.add_subcommand("apps", "list saved applications");
 
     std::string node, driver;
     auto* c_swap = app.add_subcommand("swap", "swap one node's driver version");
@@ -116,7 +117,8 @@ int main(int argc, char** argv) {
     CLI11_PARSE(app, argc, argv);
 
     using namespace std::chrono_literals;
-    robonode::Platform p{std::string{ROBONODE_WORLDS} + "/rail_ur10e.xml", ROBONODE_CELL};
+    robonode::Platform p{std::string{ROBONODE_WORLDS} + "/rail_ur10e.xml", ROBONODE_CELL,
+                         ROBONODE_APPS};
 
     if (*c_nodes) {
         std::printf("%s\n", p.nodes_json().c_str());
@@ -127,6 +129,8 @@ int main(int argc, char** argv) {
         if (!arr.is_discarded()) {
             for (const auto& l : arr) std::printf("%s\n", l.get<std::string>().c_str());
         }
+    } else if (*c_apps) {
+        std::printf("%s\n", p.apps_json().c_str());
     } else if (*c_run) {
         if (const auto st = p.run(); !st.ok()) return fail(st);
         wait_until([&] { return p.telemetry_json(); },

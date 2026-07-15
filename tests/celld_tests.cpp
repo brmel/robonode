@@ -6,6 +6,7 @@
 
 #include "check.hpp"
 #include "robonode/celld/app_descriptor.hpp"
+#include "robonode/celld/app_store.hpp"
 #include "robonode/celld/cell.hpp"
 #include "robonode/celld/cell_descriptor.hpp"
 #include "robonode/motion/sim_axis.hpp"
@@ -142,10 +143,28 @@ void test_app_descriptor_loads_program() {
     CHECK(ad.program[1].verb == "run");
 }
 
+// #59: the app store lists + loads saved applications (filesystem backend).
+void test_app_store_lists_and_loads() {
+    robonode::AppStore store{ROBONODE_APPS};
+    const auto apps = store.list();
+    CHECK(!apps.empty());
+    bool has_pick = false;
+    std::string pick_file;
+    for (const auto& a : apps) {
+        if (a.name == "Pick demo") { has_pick = true; pick_file = a.file; }
+    }
+    CHECK(has_pick);
+    std::string body;
+    CHECK(store.load(pick_file, body).ok());
+    CHECK(body.find("Pick demo") != std::string::npos);
+    CHECK(!store.load("nope.json", body).ok());  // missing fails closed
+}
+
 }  // namespace
 
 int main() {
     test_descriptor_load_matches_canonical_example();
+    test_app_store_lists_and_loads();
     test_descriptor_load_rejects_garbage();
     test_cell_lifecycle_and_coherent_run();
     test_cell_rejects_unknown_driver();

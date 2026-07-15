@@ -38,8 +38,10 @@ done
 #    carry no Python, and no baked-in config — model/config file paths, IPs, or
 #    URLs. Everything comes THROUGH the seam as descriptor data. core/motion/
 #    celld are the audited pure modules (apps/services may hold their defaults).
+# A config path has a NAME before the extension (world.xml, cells/x.json); a
+# bare ".json" is a file-extension check (persistence code), not hardcoding.
 hits=$(grep -rnE --include='*.hpp' --include='*.cpp' \
-  '<Python\.h>|^import |\.(xml|json)"|https?://|([0-9]{1,3}\.){3}[0-9]{1,3}' \
+  '<Python\.h>|^import |[[:alnum:]_/]\.(xml|json)"|https?://|([0-9]{1,3}\.){3}[0-9]{1,3}' \
   core motion celld 2>/dev/null | grep -v _deps || true)
 [ -n "$hits" ] && { bad "pure modules must stay Python-free + hardcoding-free (paths/IPs/URLs are descriptor data — ADR-5/#32):"; echo "$hits" | sed 's/^/    /'; }
 

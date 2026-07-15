@@ -28,6 +28,9 @@
 #ifndef ROBONODE_CELL
 #error "ROBONODE_CELL must point at the cell descriptor JSON"
 #endif
+#ifndef ROBONODE_APPS
+#error "ROBONODE_APPS must point at the applications dir"
+#endif
 
 namespace {
 // Compile-time paths are the default; env vars override so the same binary
@@ -42,9 +45,10 @@ int main() {
     const std::string worlds = env_or("ROBONODE_WORLDS_DIR", ROBONODE_WORLDS);
     const std::string web = env_or("ROBONODE_WEB_DIR", ROBONODE_WEB);
     const std::string cell = env_or("ROBONODE_CELL_FILE", ROBONODE_CELL);
+    const std::string apps = env_or("ROBONODE_APPS_DIR", ROBONODE_APPS);
 
     // The one facade every surface binds to (#33). HTTP is just transport.
-    robonode::Platform platform{worlds + "/rail_ur10e.xml", cell};
+    robonode::Platform platform{worlds + "/rail_ur10e.xml", cell, apps};
     httplib::Server svr;
 
     // Live stream: node tree once, then telemetry frames ~50 Hz; re-send the
@@ -80,6 +84,12 @@ int main() {
     svr.Post("/command", [&platform](const httplib::Request& req, httplib::Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");
         res.set_content(platform.submit_command(req.body), "application/json");
+    });
+
+    // Saved applications the library lists (#59).
+    svr.Get("/apps", [&platform](const httplib::Request&, httplib::Response& res) {
+        res.set_header("Access-Control-Allow-Origin", "*");
+        res.set_content(platform.apps_json(), "application/json");
     });
 
     svr.set_mount_point("/", web);

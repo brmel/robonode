@@ -269,14 +269,26 @@ async function cmd(body) {
 }
 document.getElementById('run').onclick = () => cmd({ cmd: 'run' });
 
-// Application library (#57): a ready app is a saved program of facade verbs.
-// Deploying "Pick demo" runs its program (physics family → coordinated move) —
-// the Vention MachineApps browse-and-run experience. Bin picking / palletizing
-// / machine tending arrive as real apps (#61-#63).
-const appPick = document.getElementById('app-pick');
-if (appPick) appPick.onclick = async () => {
-  await cmd({ cmd: 'driver', family: 'physics' });
-  await cmd({ cmd: 'run' });
-};
+// Application library (#57/#59): saved apps come from the store (GET /apps),
+// so the catalog is data-driven, not hardcoded. Deploying an app runs its
+// program (v0: physics family → coordinated move). Bin picking / palletizing /
+// machine tending arrive as real apps (#61-#63).
+async function loadApps() {
+  const el = document.getElementById('apps');
+  if (!el) return;
+  let saved = [];
+  try { saved = await (await fetch('/apps')).json(); } catch { /* offline */ }
+  const cards = saved.map(a =>
+    `<div class="ncard app" data-file="${a.file}"><h3>🎯 ${a.name}</h3><div class="st">ready · click to run</div></div>`);
+  cards.push('<div class="ncard"><h3>🗑 Bin picking</h3><div class="st soon">▶ #61</div></div>');
+  cards.push('<div class="ncard"><h3>🧱 Palletizing</h3><div class="st soon">▶ #62</div></div>');
+  cards.push('<div class="ncard"><h3>🏭 Machine tending</h3><div class="st soon">▶ #63</div></div>');
+  el.innerHTML = cards.join('');
+  el.querySelectorAll('.ncard.app').forEach(c => c.onclick = async () => {
+    await cmd({ cmd: 'driver', family: 'physics' });
+    await cmd({ cmd: 'run' });
+  });
+}
+loadApps();
 for (const b of document.querySelectorAll('#family button'))
   b.onclick = () => cmd({ cmd: 'driver', family: b.dataset.fam });

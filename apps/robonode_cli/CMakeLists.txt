@@ -12,7 +12,8 @@ add_executable(robonode_cli main.cpp)
 target_link_libraries(robonode_cli PRIVATE robonode::gateway robonode::warnings CLI11::CLI11)
 target_compile_definitions(robonode_cli PRIVATE
     ROBONODE_WORLDS="${ROBONODE_WORLDS}"
-    ROBONODE_CELL="${CMAKE_SOURCE_DIR}/apps/cell_server/cells/ur10e.cell.json")
+    ROBONODE_CELL="${CMAKE_SOURCE_DIR}/apps/cell_server/cells/ur10e.cell.json"
+    ROBONODE_APPS="${CMAKE_SOURCE_DIR}/apps/cell_server/apps")
 
 # Agent-parity smoke: `robonode nodes` boots the cell and prints the tree.
 add_test(NAME robonode_cli_nodes COMMAND robonode_cli nodes)

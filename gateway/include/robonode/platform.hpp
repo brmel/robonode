@@ -5,6 +5,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include "robonode/celld/app_store.hpp"
 #include "robonode/core/status.hpp"
 #include "robonode/gateway/cell_gateway.hpp"
 
@@ -17,8 +18,8 @@ namespace robonode {
 // definition of what the platform can do (ADR-8).
 class Platform {
 public:
-    Platform(std::string world_path, const std::string& cell_path)
-        : gw_{std::move(world_path), cell_path} {}
+    Platform(std::string world_path, const std::string& cell_path, std::string apps_dir = "")
+        : gw_{std::move(world_path), cell_path}, store_{std::move(apps_dir)} {}
 
     // --- action verbs (typed) ---
     Status run() { return apply({{"cmd", "run"}}); }
@@ -34,6 +35,13 @@ public:
     std::string telemetry_json() { return gw_.telemetry_json(); }
     std::string logs_json() { return gw_.logs_json(); }
 
+    // Application store (#59): the saved apps a user can deploy or edit.
+    std::string apps_json() { return store_.list_json(); }
+    Status load_app(const std::string& file, std::string& out) { return store_.load(file, out); }
+    Status save_app(const std::string& file, const std::string& json) {
+        return store_.save(file, json);
+    }
+
     // Transport escape hatch: the HTTP layer forwards raw command bodies here so
     // the wire contract lives in one place.
     std::string submit_command(const std::string& body) { return gw_.submit_command(body); }
@@ -47,6 +55,7 @@ private:
     }
 
     CellGateway gw_;
+    AppStore store_;
 };
 
 }  // namespace robonode
