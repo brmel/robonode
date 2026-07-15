@@ -305,8 +305,6 @@ async function loadApps() {
   try { saved = await (await fetch('/apps')).json(); } catch { /* offline */ }
   const cards = saved.map(a =>
     `<div class="ncard app" data-file="${a.file}"><h3>🎯 ${a.name}</h3><div class="st">ready · click to run</div></div>`);
-  cards.push('<div class="ncard"><h3>🧱 Palletizing</h3><div class="st soon">▶ #62</div></div>');
-  cards.push('<div class="ncard"><h3>🏭 Machine tending</h3><div class="st soon">▶ #63</div></div>');
   el.innerHTML = cards.join('');
   el.querySelectorAll('.ncard.app').forEach(c => c.onclick = () => cmd({ cmd: 'run_app', file: c.dataset.file }));
 }

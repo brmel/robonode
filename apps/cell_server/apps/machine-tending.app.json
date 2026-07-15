@@ -1,0 +1,12 @@
+{
+  "name": "Machine tending",
+  "cell": "ur10e.cell.json",
+  "program": [
+    {"verb": "family", "args": {"family": "physics"}},
+    {"verb": "pick"},
+    {"verb": "move_l", "args": {"x": 0.25, "y": 0.10, "z": 1.20}},
+    {"verb": "move_l", "args": {"x": 0.10, "y": 0.22, "z": 1.15}},
+    {"verb": "pick"},
+    {"verb": "move_l", "args": {"x": 0.18, "y": 0.15, "z": 1.12}}
+  ]
+}
