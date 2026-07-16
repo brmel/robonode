@@ -104,6 +104,10 @@
   .logs div { white-space:pre-wrap; }
   .logs .warn { color:var(--warn); }
   .logs .err { color:#ff6b6b; }
+  #hint { position:absolute; left:50%; bottom:14px; transform:translateX(-50%); z-index:5;
+    font-size:11px; color:var(--dim); background:color-mix(in srgb, var(--panel) 70%, transparent);
+    backdrop-filter:blur(6px); border:1px solid var(--line); border-radius:999px; padding:5px 12px;
+    pointer-events:none; opacity:.85; }
   @media (max-width:720px) { #side { width:100%; flex-basis:auto; } #app { flex-direction:column; } }
 </style>
 <script>
@@ -178,8 +182,8 @@
       <h2>Nodes — capability modules</h2>
       <div class="nodes">
         <div class="ncard on"><h3>🦾 Robot</h3><div class="st">UR10e · 6-DoF on rail · <span id="robotDrv">physics</span></div></div>
-        <div class="ncard"><h3>📷 Camera</h3><div class="st soon">▶ coming · #6</div></div>
-        <div class="ncard"><h3>👁 Vision / Tracking</h3><div class="st soon">▶ coming · #6 / #38</div></div>
+        <div class="ncard"><h3>👁 Vision / Tracking</h3><div class="st"><span style="color:var(--ok)">● active</span> · toy detector</div></div>
+        <div class="ncard"><h3>📷 Camera</h3><div class="st soon">▶ real feed · #38</div></div>
         <div class="ncard"><h3>📦 Station</h3><div class="st soon">▶ coming · #31</div></div>
       </div>
     </div>
@@ -203,6 +207,7 @@
     </div>
   </aside>
   <main id="view">
+    <div id="hint">drag to orbit · scroll to zoom · right-drag to pan</div>
     <div id="dash">
       <div class="dcard">
         <div class="dt">⚙ Physics</div>

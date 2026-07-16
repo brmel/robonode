@@ -1,26 +1,67 @@
 import * as THREE from './three.module.min.js';
 
+// Drag to orbit, wheel to zoom, right/shift-drag to pan. A tiny self-contained
+// orbit camera so the scene is yours to inspect — no external controls module.
+class Orbit {
+  constructor(camera, dom, target, radius) {
+    this.cam = camera; this.target = target.clone();
+    this.r = radius; this.theta = 0.7; this.phi = 1.05; this.drag = null;
+    dom.addEventListener('contextmenu', e => e.preventDefault());
+    dom.addEventListener('pointerdown', e => { this.drag = { x: e.clientX, y: e.clientY, pan: e.button === 2 || e.shiftKey }; });
+    addEventListener('pointerup', () => { this.drag = null; });
+    addEventListener('pointermove', e => this.move(e));
+    dom.addEventListener('wheel', e => { e.preventDefault(); this.r = THREE.MathUtils.clamp(this.r * (1 + Math.sign(e.deltaY) * 0.1), 0.6, 12); }, { passive: false });
+    this.update();
+  }
+  move(e) {
+    if (!this.drag) return;
+    const dx = e.clientX - this.drag.x, dy = e.clientY - this.drag.y;
+    this.drag.x = e.clientX; this.drag.y = e.clientY;
+    if (this.drag.pan) {
+      const s = this.r * 0.0016, right = new THREE.Vector3().setFromMatrixColumn(this.cam.matrix, 0);
+      this.target.addScaledVector(right, -dx * s).addScaledVector(new THREE.Vector3().setFromMatrixColumn(this.cam.matrix, 1), dy * s);
+    } else {
+      this.theta -= dx * 0.006;
+      this.phi = THREE.MathUtils.clamp(this.phi - dy * 0.006, 0.15, Math.PI / 2 - 0.02);
+    }
+    this.update();
+  }
+  update() {
+    const sp = Math.sin(this.phi);
+    this.cam.position.set(this.target.x + this.r * sp * Math.sin(this.theta), this.target.y + this.r * Math.cos(this.phi), this.target.z + this.r * sp * Math.cos(this.theta));
+    this.cam.lookAt(this.target);
+  }
+}
+
 // ---- scene ---------------------------------------------------------------
 const view = document.getElementById('view');
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0e1116);
 
 const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 100);
-camera.position.set(1.6, 1.35, 2.1);
-camera.lookAt(0.4, 0.5, 0);
-
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(devicePixelRatio);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 view.appendChild(renderer.domElement);
 
-scene.add(new THREE.HemisphereLight(0xbcd0ff, 0x202028, 0.9));
-const key = new THREE.DirectionalLight(0xffffff, 1.4);
-key.position.set(2, 4, 3);
-scene.add(key);
+const orbit = new Orbit(camera, renderer.domElement, new THREE.Vector3(0.4, 0.55, 0), 3.0);
 
-// floor grid
-const grid = new THREE.GridHelper(6, 24, 0x33404f, 0x222a34);
-grid.position.y = 0;
+scene.add(new THREE.HemisphereLight(0xbcd0ff, 0x0c0e12, 0.85));
+const key = new THREE.DirectionalLight(0xffffff, 1.6);
+key.position.set(2.5, 4.5, 3);
+key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+Object.assign(key.shadow.camera, { left: -3, right: 3, top: 3, bottom: -3, near: 0.5, far: 14 });
+scene.add(key);
+scene.add(new THREE.DirectionalLight(0x4c6a99, 0.4).translateX(-3));
+
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(12, 12),
+  new THREE.MeshStandardMaterial({ color: 0x14181f, metalness: 0.1, roughness: 0.95 }));
+floor.rotation.x = -Math.PI / 2;
+floor.receiveShadow = true;
+scene.add(floor);
+const grid = new THREE.GridHelper(12, 48, 0x2b3644, 0x1c232d);
 scene.add(grid);
 
 // rail track (0..1.45 m along X)
@@ -42,6 +83,7 @@ const orange = new THREE.MeshStandardMaterial({ color: 0xcf8a3a, metalness: 0.3,
 function box(w, h, d, mat, y = 0) {
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
   m.position.y = y;
+  m.castShadow = true;
   return m;
 }
 // carriage block
@@ -66,14 +108,14 @@ let parent = base;
 for (const seg of chain) {
   const g = new THREE.Group();
   parent.add(g);
-  // link cylinder from origin to +len along Y
-  const link = new THREE.Mesh(new THREE.CylinderGeometry(seg.r, seg.r, seg.len, 20), seg.mat);
+  const link = new THREE.Mesh(new THREE.CylinderGeometry(seg.r, seg.r, seg.len, 24), seg.mat);
   link.position.y = seg.len / 2;
+  link.castShadow = true;
   g.add(link);
-  // joint collar
-  const collar = new THREE.Mesh(new THREE.CylinderGeometry(seg.r * 1.25, seg.r * 1.25, seg.r * 1.1, 20),
-    new THREE.MeshStandardMaterial({ color: 0x39d98a, metalness: 0.2, roughness: 0.4 }));
+  const collar = new THREE.Mesh(new THREE.CylinderGeometry(seg.r * 1.28, seg.r * 1.28, seg.r * 1.15, 24),
+    new THREE.MeshStandardMaterial({ color: 0x2f3a49, metalness: 0.55, roughness: 0.4 }));
   collar.rotation.z = seg.axis === 'y' ? 0 : Math.PI / 2;
+  collar.castShadow = true;
   g.add(collar);
   const next = new THREE.Group();
   next.position.y = seg.len;
@@ -108,14 +150,8 @@ function resize() {
 addEventListener('resize', resize);
 resize();
 
-let spin = 0;
 function loop() {
   applyPose();
-  spin += 0.0015;
-  camera.position.x = 0.4 + 1.9 * Math.cos(spin);
-  camera.position.z = 1.9 * Math.sin(spin);
-  camera.position.y = 1.35;
-  camera.lookAt(0.4, 0.55, 0);
   renderer.render(scene, camera);
   requestAnimationFrame(loop);
 }
