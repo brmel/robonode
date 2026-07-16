@@ -28,3 +28,6 @@ __pycache__/
 *.pyc
 .venv/
 .mypy_cache/
+
+# scratch screenshots from browser tests
+/v1-*.png
