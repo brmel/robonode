@@ -92,6 +92,12 @@ int main() {
         res.set_content(platform.apps_json(), "application/json");
     });
 
+    // Cell stations (#31): conveyor / deck / pallet modules from the descriptor.
+    svr.Get("/stations", [&platform](const httplib::Request&, httplib::Response& res) {
+        res.set_header("Access-Control-Allow-Origin", "*");
+        res.set_content(platform.stations_json(), "application/json");
+    });
+
     // REST reads (handy for scripts/tests; the UI uses the SSE stream).
     svr.Get("/telemetry", [&platform](const httplib::Request&, httplib::Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");

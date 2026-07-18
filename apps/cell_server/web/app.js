@@ -371,5 +371,19 @@ async function loadApps() {
   el.querySelectorAll('.ncard.app').forEach(c => c.onclick = () => cmd({ cmd: 'run_app', file: c.dataset.file }));
 }
 loadApps();
+
+// Stations (#31): conveyor / deck / pallet capability modules, from /stations.
+async function loadStations() {
+  const el = document.getElementById('stationCard');
+  if (!el) return;
+  try {
+    const st = await (await fetch('/stations')).json();
+    if (!st.length) return;
+    const s = st[0];
+    const detail = Object.entries(s.config || {}).map(([k, v]) => `${k} ${v}`).join(' · ');
+    el.innerHTML = `<h3>📦 Station</h3><div class="st"><span style="color:var(--ok)">● ${s.type}</span> · ${s.id}${detail ? ' · ' + detail : ''}</div>`;
+  } catch { /* offline */ }
+}
+loadStations();
 for (const b of document.querySelectorAll('#family button'))
   b.onclick = () => cmd({ cmd: 'driver', family: b.dataset.fam });

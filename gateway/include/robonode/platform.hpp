@@ -47,6 +47,7 @@ public:
     std::string telemetry_json() { return gw_.telemetry_json(); }
     std::string logs_json() { return gw_.logs_json(); }
     std::string vision_json() { return gw_.vision_json(); }
+    std::string stations_json() { return gw_.stations_json(); }
 
     // Application store (#59): the saved apps a user can deploy or edit.
     std::string apps_json() { return store_.list_json(); }

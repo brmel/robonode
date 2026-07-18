@@ -83,6 +83,15 @@ public:
     std::string vision_json() {
         return nlohmann::json{{"part", {part_pose_.x, part_pose_.y, part_pose_.z}}}.dump();
     }
+    // The cell's stations (#31) as data — conveyor / deck / pallet capability
+    // modules the robot works with, from the descriptor (not code).
+    std::string stations_json() {
+        auto arr = nlohmann::json::array();
+        for (const auto& s : cell_desc_.stations) {
+            arr.push_back({{"id", s.id}, {"type", s.type}, {"config", s.config}});
+        }
+        return arr.dump();
+    }
 
     // Parse a command body and enqueue it. Returns a JSON result (accepted /
     // error). Recognised: {"cmd":"run"} and {"cmd":"driver","family":"sim"|"physics"}.
