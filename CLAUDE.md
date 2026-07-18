@@ -37,7 +37,7 @@ The architecture is **living, not frozen.** When you find a better modular appro
 
 Branch: `UsingRealRobot`. Order (tracker #19): **Phase R** RT correctness (#34 Pinocchio, #35 SPSC, #36 expected — the P0 external-review fixes) · **Phase 0** cleanup + surfaces (#28 descriptors, #30 ontology, #33 facade, #43 CLI) · **Phase 1** real robot (#20 model) · **Phase 2** UX (#46 unified view, #47 version manager, #48 theme) · **Phase 3** capabilities (#6 vision, #26 Tier-B, #39 cuRobo) · **Phase 4** platform surface · **Phase 5** release.
 
-Done: motion spine · MuJoCo twin · 7-DOF arm · Cartesian FK/IK · RTB kinematics behind seams · per-node driver swap · web app + live e2e · integration test · autonomy harness. **Next P0: #34 (Pinocchio, kill Python-in-loop).**
+Done: motion spine · MuJoCo twin · **real UR10e (Menagerie mesh, ready pose, moveL ~0.4 cm — #20/#65)** · Cartesian FK/IK · per-node driver swap · **vision → pick (#6)** · **program engine + ready apps: bin-pick / palletize / machine-tend (#61-64)** · **station as data (#31)** · web dashboard (orbit, real mesh, live e2e) · **modular Docker stack (cell-server + rtb-kinematics, healthy)** · autonomy harness. **Next: v0.3.0 release · then #34 (Pinocchio) · #38 (real vision) · #66 (gateway split).**
 
 ## Hard rules (every change)
 
