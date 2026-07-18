@@ -4,9 +4,9 @@
   "program": [
     {"verb": "family", "args": {"family": "physics"}},
     {"verb": "pick"},
-    {"verb": "move_l", "args": {"x": 0.25, "y": 0.10, "z": 1.20}},
-    {"verb": "move_l", "args": {"x": 0.10, "y": 0.22, "z": 1.15}},
+    {"verb": "move_l", "args": {"x": 1.00, "y": 0.10, "z": 0.50}},
+    {"verb": "move_l", "args": {"x": 0.50, "y": 0.40, "z": 0.60}},
     {"verb": "pick"},
-    {"verb": "move_l", "args": {"x": 0.18, "y": 0.15, "z": 1.12}}
+    {"verb": "move_l", "args": {"x": 0.55, "y": -0.30, "z": 0.45}}
   ]
 }

@@ -198,7 +198,7 @@ void test_gateway_cartesian_move_reaches_target() {
             if (!j.contains("tcp")) return false;
             const auto& t = j.at("tcp");
             const double dx = double(t[0]) - tx, dy = double(t[1]) - ty, dz = double(t[2]) - tz;
-            return dx * dx + dy * dy + dz * dz < 0.08 * 0.08;  // within 8 cm (physics servo lag)
+            return dx * dx + dy * dy + dz * dz < 0.03 * 0.03;  // real UR10e servos reach ~cm
         },
         20s);
     CHECK(arrived);
@@ -210,8 +210,8 @@ void test_gateway_vision_detects_part() {
     const auto v = json::parse(gw.vision_json());
     CHECK(v.contains("part"));
     const auto& p = v.at("part");
-    CHECK(std::abs(double(p[0]) - 0.2) < 0.02);
-    CHECK(std::abs(double(p[2]) - 1.2) < 0.02);
+    CHECK(std::abs(double(p[0]) - 0.9) < 0.02);
+    CHECK(std::abs(double(p[2]) - 0.35) < 0.02);
 }
 
 // #61/#64: the program engine deploys a real saved app end to end. The
@@ -225,9 +225,8 @@ void test_gateway_bin_picking_app_places_part() {
         [](const json& j) {
             if (!j.contains("tcp") || j.value("running", true)) return false;  // program done
             const auto& t = j.at("tcp");
-            const double dx = double(t[0]) - 0.15, dy = double(t[1]) - 0.2, dz = double(t[2]) - 1.15;
-            return dx * dx + dy * dy + dz * dz < 0.12 * 0.12;  // near place; sequencing, not
-                                                               // servo precision (that is #22)
+            const double dx = double(t[0]) - 0.5, dy = double(t[1]) + 0.3, dz = double(t[2]) - 0.5;
+            return dx * dx + dy * dy + dz * dz < 0.05 * 0.05;  // at the place target
         },
         40s);
     CHECK(placed);

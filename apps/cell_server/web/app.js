@@ -45,7 +45,7 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 view.appendChild(renderer.domElement);
 
-const orbit = new Orbit(camera, renderer.domElement, new THREE.Vector3(0.4, 0.55, 0), 3.0);
+const orbit = new Orbit(camera, renderer.domElement, new THREE.Vector3(0.6, 0.5, -0.2), 2.6);
 
 scene.add(new THREE.HemisphereLight(0xbcd0ff, 0x0c0e12, 0.85));
 const key = new THREE.DirectionalLight(0xffffff, 1.6);
@@ -64,81 +64,108 @@ scene.add(floor);
 const grid = new THREE.GridHelper(12, 48, 0x2b3644, 0x1c232d);
 scene.add(grid);
 
-// rail track (0..1.45 m along X)
-const rail = new THREE.Mesh(
-  new THREE.BoxGeometry(1.45, 0.03, 0.24),
-  new THREE.MeshStandardMaterial({ color: 0x2a3340, metalness: 0.3, roughness: 0.7 }));
-rail.position.set(1.45 / 2, 0.015, 0);
-scene.add(rail);
+// MuJoCo is Z-up, the viewer Y-up: everything physical lives under this group so
+// the menagerie offsets (Z-up, metres) render upright and sit on the floor.
+const zup = new THREE.Group();
+zup.rotation.x = -Math.PI / 2;
+scene.add(zup);
 
-// ---- robot chain ---------------------------------------------------------
-// carriage rides the rail (X, metres); base + UR-style 6R arm on top.
+const railMesh = new THREE.Mesh(new THREE.BoxGeometry(1.65, 0.26, 0.05),
+  new THREE.MeshStandardMaterial({ color: 0x2a3340, metalness: 0.4, roughness: 0.6 }));
+railMesh.position.set(0.5, 0, 0.03);
+railMesh.receiveShadow = true;
+zup.add(railMesh);
+
 const carriage = new THREE.Group();
-scene.add(carriage);
+carriage.position.z = 0.1;
+zup.add(carriage);
+const carBox = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.22, 0.12),
+  new THREE.MeshStandardMaterial({ color: 0xcf8a3a, metalness: 0.3, roughness: 0.6 }));
+carBox.castShadow = true;
+carriage.add(carBox);
 
-const steel = new THREE.MeshStandardMaterial({ color: 0x8894a6, metalness: 0.4, roughness: 0.5 });
-const blue = new THREE.MeshStandardMaterial({ color: 0x4c8dff, metalness: 0.3, roughness: 0.45 });
-const orange = new THREE.MeshStandardMaterial({ color: 0xcf8a3a, metalness: 0.3, roughness: 0.6 });
+const MAT = {
+  black: new THREE.MeshStandardMaterial({ color: 0x0b0b0b, metalness: 0.4, roughness: 0.5 }),
+  jointgray: new THREE.MeshStandardMaterial({ color: 0x474747, metalness: 0.5, roughness: 0.45 }),
+  linkgray: new THREE.MeshStandardMaterial({ color: 0xd1d1d1, metalness: 0.3, roughness: 0.5 }),
+  urblue: new THREE.MeshStandardMaterial({ color: 0x7dadcc, metalness: 0.25, roughness: 0.45 }),
+};
 
-function box(w, h, d, mat, y = 0) {
-  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
-  m.position.y = y;
-  m.castShadow = true;
-  return m;
+// Minimal OBJ → BufferGeometry (v / vn / f, triangulated) — no loader addon.
+async function loadOBJ(name, material, parent) {
+  try {
+    const txt = await (await fetch(`./assets/${name}.obj`)).text();
+    const V = [], N = [], P = [], No = [];
+    for (const ln of txt.split('\n')) {
+      const t = ln.split(/\s+/);
+      if (t[0] === 'v') V.push([+t[1], +t[2], +t[3]]);
+      else if (t[0] === 'vn') N.push([+t[1], +t[2], +t[3]]);
+      else if (t[0] === 'f') {
+        const f = t.slice(1).map(s => s.split('/').map(x => (x ? +x - 1 : -1)));
+        for (let i = 1; i < f.length - 1; i++) for (const v of [f[0], f[i], f[i + 1]]) {
+          P.push(...V[v[0]]);
+          if (v[2] >= 0 && N[v[2]]) No.push(...N[v[2]]);
+        }
+      }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
+    if (No.length === P.length) g.setAttribute('normal', new THREE.Float32BufferAttribute(No, 3));
+    else g.computeVertexNormals();
+    const m = new THREE.Mesh(g, material);
+    m.castShadow = true;
+    parent.add(m);
+  } catch { /* mesh missing → hierarchy still poses */ }
 }
-// carriage block
-carriage.add(box(0.18, 0.1, 0.18, orange, 0.08));
-const base = new THREE.Group();
-base.position.y = 0.13;
-carriage.add(base);
-base.add(new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 0.08, 24), steel));
 
-// Joint chain: each entry rotates about `axis`, then a link of `len` extends
-// along +Y to the next joint. Believable UR10e proportions (visual twin).
-const chain = [
-  { axis: 'y', len: 0.10, r: 0.062, mat: steel },  // j1 base yaw
-  { axis: 'z', len: 0.61, r: 0.055, mat: blue },   // j2 shoulder
-  { axis: 'z', len: 0.57, r: 0.045, mat: blue },   // j3 elbow
-  { axis: 'z', len: 0.12, r: 0.040, mat: steel },  // j4 wrist1
-  { axis: 'y', len: 0.12, r: 0.040, mat: steel },  // j5 wrist2
-  { axis: 'z', len: 0.09, r: 0.032, mat: blue },   // j6 wrist3
+// UR10e chain, verbatim from the menagerie model: body offset (pos), fixed
+// orientation (quat [w,x,y,z]), joint axis, and the meshes on that link.
+const UR = [
+  { pos: [0, 0, 0], quat: [0, 0, 0, -1], meshes: [['base_0', 'black'], ['base_1', 'jointgray']] },
+  { pos: [0, 0, 0.181], axis: [0, 0, 1], meshes: [['shoulder_0', 'urblue'], ['shoulder_1', 'black'], ['shoulder_2', 'jointgray']] },
+  { pos: [0, 0.176, 0], quat: [1, 0, 1, 0], axis: [0, 1, 0], meshes: [['upperarm_0', 'black'], ['upperarm_1', 'jointgray'], ['upperarm_2', 'urblue'], ['upperarm_3', 'linkgray']] },
+  { pos: [0, -0.137, 0.613], axis: [0, 1, 0], meshes: [['forearm_0', 'urblue'], ['forearm_1', 'black'], ['forearm_2', 'jointgray'], ['forearm_3', 'linkgray']] },
+  { pos: [0, 0, 0.571], quat: [1, 0, 1, 0], axis: [0, 1, 0], meshes: [['wrist1_0', 'black'], ['wrist1_1', 'urblue'], ['wrist1_2', 'jointgray']] },
+  { pos: [0, 0.135, 0], axis: [0, 0, 1], meshes: [['wrist2_0', 'black'], ['wrist2_1', 'urblue'], ['wrist2_2', 'jointgray']] },
+  { pos: [0, 0, 0.12], axis: [0, 1, 0], meshes: [['wrist3', 'linkgray']] },
 ];
-const joints = [];
-let parent = base;
-for (const seg of chain) {
-  const g = new THREE.Group();
-  parent.add(g);
-  const link = new THREE.Mesh(new THREE.CylinderGeometry(seg.r, seg.r, seg.len, 24), seg.mat);
-  link.position.y = seg.len / 2;
-  link.castShadow = true;
-  g.add(link);
-  const collar = new THREE.Mesh(new THREE.CylinderGeometry(seg.r * 1.28, seg.r * 1.28, seg.r * 1.15, 24),
-    new THREE.MeshStandardMaterial({ color: 0x2f3a49, metalness: 0.55, roughness: 0.4 }));
-  collar.rotation.z = seg.axis === 'y' ? 0 : Math.PI / 2;
-  collar.castShadow = true;
-  g.add(collar);
-  const next = new THREE.Group();
-  next.position.y = seg.len;
-  g.add(next);
-  joints.push({ group: g, axis: seg.axis });
-  parent = next;
+const joints = [];  // {group, axis} for j1..j6, in order
+let parent = new THREE.Group();
+parent.position.set(0, 0, 0.06);  // UR base on the carriage
+carriage.add(parent);
+for (const b of UR) {
+  const fixed = new THREE.Group();
+  fixed.position.set(...b.pos);
+  if (b.quat) { const [w, x, y, z] = b.quat; fixed.quaternion.set(x, y, z, w).normalize(); }
+  parent.add(fixed);
+  const joint = new THREE.Group();
+  fixed.add(joint);
+  for (const [name, mat] of b.meshes) loadOBJ(name, MAT[mat], joint);
+  if (b.axis) joints.push({ group: joint, axis: new THREE.Vector3(...b.axis) });
+  parent = joint;
 }
-// TCP marker
-parent.add(new THREE.Mesh(new THREE.SphereGeometry(0.02, 16, 16),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x224466 })));
+const tcpMark = new THREE.Mesh(new THREE.SphereGeometry(0.012, 12, 12),
+  new THREE.MeshStandardMaterial({ color: 0x39d98a, emissive: 0x145036 }));
+tcpMark.position.set(0, 0.1, 0);
+parent.add(tcpMark);
 
-const AX = { x: new THREE.Vector3(1, 0, 0), y: new THREE.Vector3(0, 1, 0), z: new THREE.Vector3(0, 0, 1) };
+const partMesh = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.06),
+  new THREE.MeshStandardMaterial({ color: 0xe23b3b, emissive: 0x330606 }));
+partMesh.castShadow = true;
+zup.add(partMesh);
 
 // ---- live pose (lerp toward latest telemetry) ----------------------------
 let target = [0, 0, 0, 0, 0, 0, 0];   // [rail_mm, j1..j6 rad]
 let shown = [0, 0, 0, 0, 0, 0, 0];
+let partPose = null;                  // vision target (MuJoCo x,y,z), live
 
 function applyPose() {
   for (let i = 0; i < 7; i++) shown[i] += (target[i] - shown[i]) * 0.25;
-  carriage.position.x = shown[0] / 1000;      // mm → m
+  carriage.position.x = shown[0] / 1000;      // mm → m (MuJoCo X)
   for (let i = 0; i < 6; i++) {
-    joints[i].group.quaternion.setFromAxisAngle(AX[joints[i].axis], shown[i + 1]);
+    joints[i].group.quaternion.setFromAxisAngle(joints[i].axis, shown[i + 1]);
   }
+  if (partPose) partMesh.position.set(partPose[0], partPose[1], partPose[2]);
 }
 
 function resize() {
@@ -325,7 +352,6 @@ if (movelBtn) movelBtn.onclick = () =>
 
 // Vision (#6): the toy detector reports a part's pose; Pick moves the TCP to it.
 const visionPartEl = document.getElementById('visionPart');
-let partPose = null;
 const pickBtn = document.getElementById('pick');
 if (pickBtn) pickBtn.onclick = () =>
   partPose && cmd({ cmd: 'move_l', x: partPose[0], y: partPose[1], z: partPose[2] });

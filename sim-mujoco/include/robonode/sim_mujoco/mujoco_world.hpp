@@ -87,7 +87,12 @@ public:
     }
 
 private:
-    explicit MujocoWorld(mjModel* m) : model_{m}, data_{mj_makeData(m)} {}
+    // Wake in the model's "home" keyframe when it defines one — it sets qpos AND
+    // ctrl to a natural ready pose, so the servos hold that posture at rest (a
+    // real robot at rest, not a vertical mast) and moves start from it.
+    explicit MujocoWorld(mjModel* m) : model_{m}, data_{mj_makeData(m)} {
+        if (model_->nkey > 0) mj_resetDataKeyframe(model_, data_, 0);
+    }
     mjModel* model_;
     mjData* data_;
     double accum_{0.0};

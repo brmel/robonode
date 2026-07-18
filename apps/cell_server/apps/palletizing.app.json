@@ -4,12 +4,12 @@
   "program": [
     {"verb": "family", "args": {"family": "physics"}},
     {"verb": "pick"},
-    {"verb": "move_l", "args": {"x": 0.12, "y": 0.12, "z": 1.15}},
+    {"verb": "move_l", "args": {"x": 0.45, "y": -0.30, "z": 0.45}},
     {"verb": "pick"},
-    {"verb": "move_l", "args": {"x": 0.12, "y": 0.22, "z": 1.15}},
+    {"verb": "move_l", "args": {"x": 0.45, "y": -0.30, "z": 0.60}},
     {"verb": "pick"},
-    {"verb": "move_l", "args": {"x": 0.22, "y": 0.12, "z": 1.15}},
+    {"verb": "move_l", "args": {"x": 0.60, "y": -0.30, "z": 0.45}},
     {"verb": "pick"},
-    {"verb": "move_l", "args": {"x": 0.22, "y": 0.22, "z": 1.15}}
+    {"verb": "move_l", "args": {"x": 0.60, "y": -0.30, "z": 0.60}}
   ]
 }

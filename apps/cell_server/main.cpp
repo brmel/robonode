@@ -102,6 +102,7 @@ int main() {
         res.set_content(platform.nodes_json(), "application/json");
     });
 
+    svr.set_mount_point("/assets", worlds + "/assets");  // UR10e meshes for the 3D view
     svr.set_mount_point("/", web);
 
     std::printf("cell_server on http://localhost:8080  (web: %s)\n", web.c_str());
