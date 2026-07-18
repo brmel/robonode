@@ -214,6 +214,26 @@ void test_gateway_vision_detects_part() {
     CHECK(std::abs(double(p[2]) - 0.35) < 0.02);
 }
 
+// ADR-11: vision is a swappable capability — set_version rebuilds the detector
+// and the reported part pose moves (a different algorithm, same Detector seam).
+void test_gateway_vision_version_swap() {
+    robonode::CellGateway gw{kWorld, kCell};
+    const auto v0 = json::parse(gw.vision_json());
+    CHECK(v0.at("version") == "robonode.toy-detector");
+    CHECK(v0.at("available").size() >= 2);
+    const double z0 = double(v0.at("part")[2]);
+    CHECK(json::parse(gw.submit_command(
+                          R"({"cmd":"set_version","capability":"vision","version":"robonode.toy-top-grasp"})"))
+              .at("ok") == true);
+    CHECK(poll_until(
+        [&] { return gw.vision_json(); },
+        [&](const json& j) {
+            return j.at("version") == "robonode.toy-top-grasp" &&
+                   std::abs(double(j.at("part")[2]) - (z0 + 0.05)) < 1e-6;
+        },
+        5s));
+}
+
 // #61/#64: the program engine deploys a real saved app end to end. The
 // bin-picking program is family → pick (vision → part) → move_l (place); the
 // TCP must finish at the place target — the vision→pick→place primitive.
@@ -272,6 +292,7 @@ int main() {
     test_gateway_logs_surface_records_events();
     test_gateway_cartesian_move_reaches_target();
     test_gateway_vision_detects_part();
+    test_gateway_vision_version_swap();
     test_gateway_bin_picking_app_places_part();
     test_gateway_rejects_bad_commands();
     std::puts("robonode gateway integration: all tests passed");

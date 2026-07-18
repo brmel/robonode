@@ -35,6 +35,7 @@ add_subdirectory(core)
 add_subdirectory(motion)
 add_subdirectory(recorder)
 add_subdirectory(celld)
+add_subdirectory(vision)
 # sim-mujoco before apps/tests that link it (also exports ROBONODE_WORLDS).
 if(ROBONODE_BUILD_MUJOCO)
   add_subdirectory(sim-mujoco)

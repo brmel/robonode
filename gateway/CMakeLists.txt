@@ -21,4 +21,4 @@ add_library(robonode_gateway INTERFACE)
 add_library(robonode::gateway ALIAS robonode_gateway)
 target_include_directories(robonode_gateway INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(robonode_gateway INTERFACE
-    robonode::celld robonode::sim_mujoco httplib::httplib spdlog::spdlog_header_only)
+    robonode::celld robonode::sim_mujoco robonode::vision httplib::httplib spdlog::spdlog_header_only)

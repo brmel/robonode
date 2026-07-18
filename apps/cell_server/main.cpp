@@ -98,6 +98,12 @@ int main() {
         res.set_content(platform.stations_json(), "application/json");
     });
 
+    // Vision capability (ADR-11): chosen version, swappable versions, detections.
+    svr.Get("/vision", [&platform](const httplib::Request&, httplib::Response& res) {
+        res.set_header("Access-Control-Allow-Origin", "*");
+        res.set_content(platform.vision_json(), "application/json");
+    });
+
     // REST reads (handy for scripts/tests; the UI uses the SSE stream).
     svr.Get("/telemetry", [&platform](const httplib::Request&, httplib::Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");

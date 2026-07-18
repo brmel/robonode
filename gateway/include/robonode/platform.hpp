@@ -29,6 +29,11 @@ public:
     Status set_node_driver(const std::string& node, const std::string& driver) {
         return apply({{"cmd", "set_driver"}, {"node", node}, {"driver", driver}});
     }
+    // Swap the algorithm version of a capability (vision / planner / control) —
+    // the same verb across every capability (ADR-11).
+    Status set_version(const std::string& capability, const std::string& version) {
+        return apply({{"cmd", "set_version"}, {"capability", capability}, {"version", version}});
+    }
     // Cartesian move to a TCP target (x,y,z in metres) — real IK behind the seam.
     Status move_l(double x, double y, double z) {
         return apply({{"cmd", "move_l"}, {"x", x}, {"y", y}, {"z", z}});

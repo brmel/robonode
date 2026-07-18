@@ -85,6 +85,25 @@ Format: one entry per decision; status Accepted unless noted. Context/options li
 
 **Consequences:** every issue is a tracer slice with executable acceptance criteria + `blocked-by`; the tracker (#19) and scenario matrix (`docs/TEST-STRATEGY.md`) are the single source of truth the agent updates as Done; CI runs `check-design.sh` (`design` job) + `verify.sh`'s suites; the harness itself is tracked by #49 (label automation, next-issue helper, roadmap-consistency check, and enabling the pending `check-design` gates as #32/#34/#35/#36/#42/#44 land).
 
+## ADR-11 — Every algorithm capability is one shape: interface + ModuleRegistry + sandbox
+
+**Decision (2026-07-18):** the platform's purpose is to **try different algorithms on different parts of the system** — trajectory, vision, control — each with a **basic version** the user can **replace with their own code, written and run from the web app**. To make that real without coupling exploding, every algorithm-bearing capability has the **exact same shape**, and no other pattern is introduced:
+
+```
+Capability<I> = interface I  +  ModuleRegistry<I, Ctx>  +  a selected version
+```
+
+- **The seam is an interface, nothing else.** `Planner` (trajectory), `Detector` (vision), `Controller` (control) — alongside the existing `AxisAdapter`, `Kinematics`. Product logic depends only on the interface; a concrete impl is never named above the seam.
+- **One registry mechanism** — `ModuleRegistry<T,Ctx>` (#30) — lists versions, builds one, swaps live, for *every* capability. `DriverRegistry` was the first; vision/planner/control reuse it verbatim. No bespoke registry per type.
+- **Capabilities never call each other.** The program/executive *composes* them (vision → planner → controller → axes) through their interfaces. A `Detector` does not know a `Controller` exists.
+- **Selection is data.** `Platform.set_version(capability, version)` — the same verb `set_driver` already is for axes. An App records the chosen version per capability; the wiring is not code.
+
+**Untrusted code runs behind a sandbox boundary.** A user version implements a capability interface but its body runs in **WebAssembly (Wasmtime, WASI off)**: no filesystem, network, or syscalls; memory + wall-clock limits. It sees only a **narrow typed ABI** (`frame → detections`, `poses → waypoints`) and **cannot touch the cell, driver, or hardware**. The **1 kHz path never calls user code** — perception/planning run async off the RT loop (#38), and only a **host-validated** trajectory (bounds/limits checked) crosses into control. A sandbox breach/timeout/limit trip trips the existing cell-coherent safety hold. So the worst a malicious algorithm does is get its output rejected — never slam a joint.
+
+**Why:** the alternative — each capability growing its own classes, wiring, and lifecycle — is exactly the coupling the platform can't afford. One repeated shape means adding a capability (or a user algorithm) changes nothing else, and the dangerous part (running user code) is isolated at one owned seam rather than sprinkled through product logic.
+
+**Consequences:** `Detector`/`Planner`/`Controller` seams + their `register_*` helpers land as tracer slices (vision first — it already has a basic version); each capability leaves the gateway as it gains its seam (this is also the #66 de-godding); a `SandboxedModule<I>` wraps any interface over Wasmtime (#26/#37); `check-design.sh` gains a rule that product code above a seam never names a concrete version. The web editor (write → compile-to-WASM → register as a new version → run → compare) is the surface this ADR exists to enable.
+
 ## Open
 
 - **OQ-3 — open-core license boundary** (REQUIREMENTS NFR-12): needs counsel + business input before anything is published publicly. Interim rule: nothing leaves the private repo, so no boundary is being created implicitly.

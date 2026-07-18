@@ -385,5 +385,24 @@ async function loadStations() {
   } catch { /* offline */ }
 }
 loadStations();
+
+// Vision capability (ADR-11): show the chosen algorithm version + chips to swap
+// it live. The same shape trajectory/control get. Swapping changes detection —
+// and where Pick goes — with nothing else touched.
+async function loadVision() {
+  const el = document.getElementById('visionCap');
+  if (!el) return;
+  let v;
+  try { v = await (await fetch('/vision')).json(); } catch { return; }
+  const short = s => s.replace(/^robonode\./, '');
+  const chips = (v.available || []).map(name =>
+    `<span class="chip ${name === v.version ? 'on' : ''}" data-v="${name}">${short(name)}</span>`).join('');
+  el.innerHTML = `<h3>👁 Vision / Tracking</h3><div class="st"><span style="color:var(--ok)">● ${short(v.version)}</span> · swappable algorithm</div><div class="chips">${chips}</div>`;
+  el.querySelectorAll('.chip').forEach(c => c.onclick = async () => {
+    await cmd({ cmd: 'set_version', capability: 'vision', version: c.dataset.v });
+    setTimeout(loadVision, 300);
+  });
+}
+loadVision();
 for (const b of document.querySelectorAll('#family button'))
   b.onclick = () => cmd({ cmd: 'driver', family: b.dataset.fam });

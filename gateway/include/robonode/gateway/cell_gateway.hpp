@@ -21,6 +21,7 @@
 #include "robonode/motion/sim_driver.hpp"
 #include "robonode/sim_mujoco/mujoco_driver.hpp"
 #include "robonode/sim_mujoco/mujoco_kinematics.hpp"
+#include "robonode/vision/toy_detector.hpp"
 
 namespace robonode {
 
@@ -51,10 +52,12 @@ public:
         if (std::unique_ptr<MujocoKinematics> k;
             MujocoKinematics::create(world_, {"j1", "j2", "j3", "j4", "j5", "j6"}, "tcp", k).ok()) {
             kin_ = std::move(k);
-            part_pose_ = kin_->site_position("part");  // toy vision detection (real: #38)
         } else {
             RN_LOG_WARN("kinematics unavailable — Cartesian moves disabled");
         }
+        register_toy_detector(vision_reg_);  // basic vision version (ADR-11)
+        build_detector();
+        run_vision();  // seed the vision snapshot before the worker starts
         build_cell("physics");
         worker_ = std::thread([this] { worker_loop(); });
     }
@@ -80,8 +83,11 @@ public:
     }
     // Recent log records (newest last) — the followable surface the UI + CLI tail.
     std::string logs_json() { return Log::instance().recent_json(); }
+    // Cached vision snapshot (worker runs the detector; kin_ stays worker-only).
+    // Carries the chosen version, the versions you can swap to, and detections.
     std::string vision_json() {
-        return nlohmann::json{{"part", {part_pose_.x, part_pose_.y, part_pose_.z}}}.dump();
+        std::lock_guard<std::mutex> lk{snap_mtx_};
+        return vision_snap_;
     }
     // The cell's stations (#31) as data — conveyor / deck / pallet capability
     // modules the robot works with, from the descriptor (not code).
@@ -132,6 +138,16 @@ public:
             enqueue(std::move(c));
             return R"({"ok":true})";
         }
+        if (cmd == "set_version") {
+            const std::string cap = j.value("capability", ""), ver = j.value("version", "");
+            if (cap.empty() || ver.empty()) return R"({"ok":false,"error":"need capability+version"})";
+            Command c;
+            c.kind = Command::kSetVersion;
+            c.family = cap;
+            c.driver = ver;
+            enqueue(std::move(c));
+            return R"({"ok":true})";
+        }
         if (cmd == "run_app") {
             if (!j.contains("program")) return R"({"ok":false,"error":"empty program"})";
             Command c;
@@ -155,8 +171,8 @@ public:
 
 private:
     struct Command {
-        enum Kind { kRun, kSwap, kSetNodeDriver, kMoveL, kRunApp } kind;
-        std::string family;            // kSwap
+        enum Kind { kRun, kSwap, kSetNodeDriver, kMoveL, kRunApp, kSetVersion } kind;
+        std::string family;            // kSwap · capability name for kSetVersion
         std::string node;              // kSetNodeDriver
         std::string driver;            // kSetNodeDriver
         double x{}, y{}, z{};          // kMoveL (TCP target, metres)
@@ -197,6 +213,15 @@ private:
                 run_move_l(c.x, c.y, c.z);
             } else if (c.kind == Command::kRunApp) {
                 run_program(c.program);
+            } else if (c.kind == Command::kSetVersion) {
+                if (c.family == "vision") {
+                    vision_version_ = c.driver;
+                    build_detector();
+                    run_vision();
+                    RN_LOG_INFO("vision version -> {}", c.driver);
+                } else {
+                    RN_LOG_WARN("set_version: unknown capability '{}'", c.family);
+                }
             } else {  // kSetNodeDriver
                 {
                     std::lock_guard<std::mutex> lk{cell_mtx_};
@@ -322,12 +347,46 @@ private:
             } else if (s.verb == "move_l") {
                 run_move_l(num(s, "x"), num(s, "y"), num(s, "z"));
             } else if (s.verb == "pick") {
-                run_move_l(part_pose_.x, part_pose_.y, part_pose_.z);
+                const Vec3 p = run_vision();  // vision → the detected part
+                run_move_l(p.x, p.y, p.z);
             } else {
                 RN_LOG_WARN("app: unknown verb '{}'", s.verb);
             }
         }
         RN_LOG_INFO("app: complete");
+    }
+
+    // Build the selected vision detector (ADR-11). Its scene oracle is the sim's
+    // ground-truth site poses — the toy detector's stand-in for a camera; a real
+    // or user-sandboxed version swaps in through the registry, nothing above the
+    // Detector seam changes. Worker-thread only (kin_ scratch world is not shared).
+    void build_detector() {
+        VisionContext ctx;
+        if (kin_) {
+            auto* kin = kin_.get();
+            ctx.site_pose = [kin](const std::string& name) { return kin->site_position(name); };
+        }
+        ctx.config = {{"target", "part"}};
+        if (!vision_reg_.make(vision_version_, ctx, detector_).ok()) {
+            RN_LOG_WARN("vision version '{}' unavailable", vision_version_);
+        }
+    }
+
+    // Run the detector, cache the vision snapshot (version + swappable versions +
+    // detections), and return the primary part pose for telemetry. Worker-thread
+    // only; vision_json reads the cache.
+    Vec3 run_vision() {
+        const auto ds = detector_ ? detector_->detect() : std::vector<Detection>{};
+        const Vec3 part = ds.empty() ? Vec3{} : ds.front().position;
+        nlohmann::json j{{"version", vision_version_}, {"available", vision_reg_.names()}};
+        auto& arr = j["detections"] = nlohmann::json::array();
+        for (const auto& d : ds) {
+            arr.push_back({{"label", d.label}, {"pos", {d.position.x, d.position.y, d.position.z}}});
+        }
+        j["part"] = {part.x, part.y, part.z};
+        std::lock_guard<std::mutex> lk{snap_mtx_};
+        vision_snap_ = j.dump();
+        return part;
     }
 
     // Worker-thread only (reads cell_). Advertises the driver versions a node
@@ -383,8 +442,9 @@ private:
     // arm joints, #22), the vision target (#6), and whether a command is running.
     void write_telem(double t, const std::vector<double>& pos, const std::vector<double>& tgt,
                      const std::vector<double>& err, const std::vector<double>& arm_q) {
+        const Vec3 part = run_vision();  // worker-side detector, also caches vision_snap_
         nlohmann::json j{{"t", t}, {"family", family_}, {"pos", pos}, {"target", tgt}, {"err", err},
-                         {"vision", {{"part", {part_pose_.x, part_pose_.y, part_pose_.z}}}},
+                         {"vision", {{"part", {part.x, part.y, part.z}}}},
                          {"running", running_.load()}};
         if (kin_ && arm_q.size() == 6) {
             const auto p = kin_->tcp_position(arm_q);
@@ -402,7 +462,9 @@ private:
     std::string world_;
     CellDescriptor cell_desc_;
     std::unique_ptr<MujocoKinematics> kin_;  // arm kinematics for Cartesian moves (#22)
-    Vec3 part_pose_{};                       // vision target (#6)
+    VisionRegistry vision_reg_;              // swappable vision versions (ADR-11, #6)
+    std::unique_ptr<Detector> detector_;     // the selected version (worker-thread only)
+    std::string vision_version_{"robonode.toy-detector"};
     DriverRegistry registry_;
     std::mutex cell_mtx_;
     std::unique_ptr<Cell> cell_;
@@ -420,6 +482,7 @@ private:
     std::string telem_snap_{
         R"({"t":0,"family":"physics","pos":[0,0,0,0,0,0,0],)"
         R"("target":[0,0,0,0,0,0,0],"err":[0,0,0,0,0,0,0]})"};
+    std::string vision_snap_{R"({"version":"robonode.toy-detector","available":[],"detections":[],"part":[0,0,0]})"};
 
     std::thread worker_;
 };
