@@ -352,58 +352,46 @@ private:
         nodes_snap_ = j.dump();
     }
 
-    // Live per-node I/O during a run: actual (out), target (governed in), and
+    // Live per-node I/O during a run: actual (out), governed target (in), and
     // following error — the clean input/output the UI inspector shows.
     void publish_io(double t, const std::vector<std::vector<TelemetryRow>>& rws) {
-        nlohmann::json j;
-        j["t"] = t;
-        j["family"] = family_;
-        auto& pos = j["pos"] = nlohmann::json::array();
-        auto& tgt = j["target"] = nlohmann::json::array();
-        auto& err = j["err"] = nlohmann::json::array();
+        std::vector<double> pos, tgt, err;
         for (const auto& r : rws) {
             const auto& row = r.back();
             pos.push_back(row.actual_position);
             tgt.push_back(row.governed_position);
             err.push_back(row.following_error);
         }
-        add_tcp(j, arm_joints(rws));
-        j["vision"]["part"] = {part_pose_.x, part_pose_.y, part_pose_.z};
-        j["running"] = running_.load();
-        std::lock_guard<std::mutex> lk{snap_mtx_};
-        telem_snap_ = j.dump();
+        write_telem(t, pos, tgt, err, arm_joints(rws));
     }
 
-    // Home-pose telemetry (no run in progress): actual only, target = actual,
-    // error = 0.
+    // Resting telemetry (no run): actual only, target = actual, error = 0.
     void publish_telemetry(double t) {
-        nlohmann::json j;
-        j["t"] = t;
-        j["family"] = family_;
-        auto& pos = j["pos"] = nlohmann::json::array();
-        auto& tgt = j["target"] = nlohmann::json::array();
-        auto& err = j["err"] = nlohmann::json::array();
-        std::vector<double> q;
+        std::vector<double> pos, err, q;
         for (auto& n : cell_->nodes()) {
             const double p = n.adapter->read().position;
             pos.push_back(p);
-            tgt.push_back(p);
             err.push_back(0.0);
             q.push_back(p);
         }
-        if (q.size() >= 7) add_tcp(j, {q.begin() + 1, q.begin() + 7});  // arm joints 1..6
-        j["vision"]["part"] = {part_pose_.x, part_pose_.y, part_pose_.z};
-        j["running"] = running_.load();
-        std::lock_guard<std::mutex> lk{snap_mtx_};
-        telem_snap_ = j.dump();
+        std::vector<double> arm = q.size() >= 7 ? std::vector<double>{q.begin() + 1, q.begin() + 7}
+                                                : std::vector<double>{};
+        write_telem(t, pos, /*target=*/pos, err, arm);
     }
 
-    // FK of the arm joints → the current TCP (metres), so the UI shows where the
-    // tool is and defaults a Cartesian target near it (#22).
-    void add_tcp(nlohmann::json& j, const std::vector<double>& arm_q) {
-        if (!kin_ || arm_q.size() != 6) return;
-        const auto p = kin_->tcp_position(arm_q);
-        j["tcp"] = {p.x, p.y, p.z};
+    // Assemble + publish one telemetry snapshot: per-node I/O, the TCP (FK of the
+    // arm joints, #22), the vision target (#6), and whether a command is running.
+    void write_telem(double t, const std::vector<double>& pos, const std::vector<double>& tgt,
+                     const std::vector<double>& err, const std::vector<double>& arm_q) {
+        nlohmann::json j{{"t", t}, {"family", family_}, {"pos", pos}, {"target", tgt}, {"err", err},
+                         {"vision", {{"part", {part_pose_.x, part_pose_.y, part_pose_.z}}}},
+                         {"running", running_.load()}};
+        if (kin_ && arm_q.size() == 6) {
+            const auto p = kin_->tcp_position(arm_q);
+            j["tcp"] = {p.x, p.y, p.z};
+        }
+        std::lock_guard<std::mutex> lk{snap_mtx_};
+        telem_snap_ = j.dump();
     }
     static std::vector<double> arm_joints(const std::vector<std::vector<TelemetryRow>>& rws) {
         std::vector<double> q;
