@@ -104,6 +104,12 @@ int main() {
         res.set_content(platform.vision_json(), "application/json");
     });
 
+    // Trajectory capability (ADR-11): chosen planner version + swappable versions.
+    svr.Get("/planner", [&platform](const httplib::Request&, httplib::Response& res) {
+        res.set_header("Access-Control-Allow-Origin", "*");
+        res.set_content(platform.planner_json(), "application/json");
+    });
+
     // REST reads (handy for scripts/tests; the UI uses the SSE stream).
     svr.Get("/telemetry", [&platform](const httplib::Request&, httplib::Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");

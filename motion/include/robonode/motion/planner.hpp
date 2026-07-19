@@ -1,5 +1,8 @@
 #pragma once
 
+#include <map>
+#include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -7,6 +10,7 @@
 #include "robonode/core/status.hpp"
 #include "robonode/motion/cartesian.hpp"
 #include "robonode/motion/kinematics.hpp"
+#include "robonode/motion/module_registry.hpp"
 #include "robonode/motion/planned_trajectory.hpp"
 
 namespace robonode {
@@ -84,5 +88,50 @@ private:
     int n_steps_;
     IkOptions ik_;
 };
+
+// Point-to-point (moveJ): resolve the Cartesian goal to joints once, then a
+// direct joint-space move. Faster and always feasible where a straight TCP line
+// would clip a singularity — the TCP path curves. The classic moveL/moveJ
+// choice, now a swappable version.
+class JointReachPlanner final : public Planner {
+public:
+    explicit JointReachPlanner(const Kinematics& kin, IkOptions ik = {}) : kin_{kin}, ik_{ik} {}
+
+    Status plan(const std::vector<double>& start_q, const Goal& goal,
+                std::vector<std::vector<double>>& waypoints) const override {
+        if (goal.kind != Goal::kCartesianPosition) {
+            return Status::failure("JointReachPlanner: non-Cartesian goal");
+        }
+        std::vector<double> q_goal;
+        if (const auto st = ik_position(kin_, start_q, goal.cartesian, q_goal, ik_); !st.ok()) {
+            return st;
+        }
+        waypoints.assign(start_q.size(), {});
+        for (std::size_t k = 0; k < start_q.size(); ++k) waypoints[k] = {start_q[k], q_goal[k]};
+        return Status::success();
+    }
+
+private:
+    const Kinematics& kin_;
+    IkOptions ik_;
+};
+
+// The trajectory capability (ADR-11): what a planner version is built with (the
+// arm kinematics it solves against) + its registry. cuRobo/OMPL (#39) and user
+// planners register here; product code selects a version and calls Planner.
+struct PlannerContext {
+    const Kinematics* kin;
+    std::map<std::string, std::string> config;
+};
+using PlannerRegistry = ModuleRegistry<Planner, PlannerContext>;
+
+inline void register_basic_planners(PlannerRegistry& reg) {
+    reg.add("robonode.moveL", [](const PlannerContext& c) -> std::unique_ptr<Planner> {
+        return std::make_unique<CartesianLinePlanner>(*c.kin, 30);
+    });
+    reg.add("robonode.moveJ", [](const PlannerContext& c) -> std::unique_ptr<Planner> {
+        return std::make_unique<JointReachPlanner>(*c.kin);
+    });
+}
 
 }  // namespace robonode

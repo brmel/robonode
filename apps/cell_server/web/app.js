@@ -386,23 +386,24 @@ async function loadStations() {
 }
 loadStations();
 
-// Vision capability (ADR-11): show the chosen algorithm version + chips to swap
-// it live. The same shape trajectory/control get. Swapping changes detection —
-// and where Pick goes — with nothing else touched.
-async function loadVision() {
-  const el = document.getElementById('visionCap');
+// A swappable-algorithm capability card (ADR-11): show the chosen version +
+// chips to swap it live. One shape for every capability — vision, trajectory,
+// control — so adding one is a call, not a new pattern.
+async function loadCapability(elId, endpoint, capability, title) {
+  const el = document.getElementById(elId);
   if (!el) return;
   let v;
-  try { v = await (await fetch('/vision')).json(); } catch { return; }
+  try { v = await (await fetch(endpoint)).json(); } catch { return; }
   const short = s => s.replace(/^robonode\./, '');
   const chips = (v.available || []).map(name =>
     `<span class="chip ${name === v.version ? 'on' : ''}" data-v="${name}">${short(name)}</span>`).join('');
-  el.innerHTML = `<h3>👁 Vision / Tracking</h3><div class="st"><span style="color:var(--ok)">● ${short(v.version)}</span> · swappable algorithm</div><div class="chips">${chips}</div>`;
+  el.innerHTML = `<h3>${title}</h3><div class="st"><span style="color:var(--ok)">● ${short(v.version)}</span> · swappable algorithm</div><div class="chips">${chips}</div>`;
   el.querySelectorAll('.chip').forEach(c => c.onclick = async () => {
-    await cmd({ cmd: 'set_version', capability: 'vision', version: c.dataset.v });
-    setTimeout(loadVision, 300);
+    await cmd({ cmd: 'set_version', capability, version: c.dataset.v });
+    setTimeout(() => loadCapability(elId, endpoint, capability, title), 300);
   });
 }
-loadVision();
+loadCapability('visionCap', '/vision', 'vision', '👁 Vision / Tracking');
+loadCapability('plannerCap', '/planner', 'planner', '🧭 Trajectory');
 for (const b of document.querySelectorAll('#family button'))
   b.onclick = () => cmd({ cmd: 'driver', family: b.dataset.fam });

@@ -234,6 +234,29 @@ void test_gateway_vision_version_swap() {
         5s));
 }
 
+// ADR-11: trajectory is a swappable capability — moveL (straight line) and
+// moveJ (point-to-point) both reach; set_version selects, nothing else changes.
+void test_gateway_planner_version_swap() {
+    robonode::CellGateway gw{kWorld, kCell};
+    CHECK(json::parse(gw.planner_json()).at("version") == "robonode.moveL");
+    CHECK(json::parse(gw.submit_command(
+                          R"({"cmd":"set_version","capability":"planner","version":"robonode.moveJ"})"))
+              .at("ok") == true);
+    CHECK(poll_until([&] { return gw.planner_json(); },
+                     [](const json& j) { return j.at("version") == "robonode.moveJ"; }, 5s));
+    const json c = {{"cmd", "move_l"}, {"x", 0.9}, {"y", 0.25}, {"z", 0.35}};
+    CHECK(json::parse(gw.submit_command(c.dump())).at("ok") == true);
+    CHECK(poll_until(
+        [&] { return gw.telemetry_json(); },
+        [](const json& j) {
+            if (!j.contains("tcp")) return false;
+            const auto& t = j.at("tcp");
+            const double dx = double(t[0]) - 0.9, dy = double(t[1]) - 0.25, dz = double(t[2]) - 0.35;
+            return dx * dx + dy * dy + dz * dz < 0.03 * 0.03;  // moveJ reaches
+        },
+        20s));
+}
+
 // #61/#64: the program engine deploys a real saved app end to end. The
 // bin-picking program is family → pick (vision → part) → move_l (place); the
 // TCP must finish at the place target — the vision→pick→place primitive.
@@ -293,6 +316,7 @@ int main() {
     test_gateway_cartesian_move_reaches_target();
     test_gateway_vision_detects_part();
     test_gateway_vision_version_swap();
+    test_gateway_planner_version_swap();
     test_gateway_bin_picking_app_places_part();
     test_gateway_rejects_bad_commands();
     std::puts("robonode gateway integration: all tests passed");

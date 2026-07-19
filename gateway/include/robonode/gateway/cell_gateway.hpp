@@ -18,6 +18,7 @@
 #include "robonode/log.hpp"
 #include "robonode/motion/byo_axis.hpp"
 #include "robonode/motion/cartesian.hpp"
+#include "robonode/motion/planner.hpp"
 #include "robonode/motion/sim_driver.hpp"
 #include "robonode/sim_mujoco/mujoco_driver.hpp"
 #include "robonode/sim_mujoco/mujoco_kinematics.hpp"
@@ -55,9 +56,11 @@ public:
         } else {
             RN_LOG_WARN("kinematics unavailable — Cartesian moves disabled");
         }
-        register_toy_detector(vision_reg_);  // basic vision version (ADR-11)
+        register_toy_detector(vision_reg_);  // basic vision versions (ADR-11)
         build_detector();
         run_vision();  // seed the vision snapshot before the worker starts
+        register_basic_planners(planner_reg_);  // trajectory versions (ADR-11)
+        build_planner();
         build_cell("physics");
         worker_ = std::thread([this] { worker_loop(); });
     }
@@ -88,6 +91,11 @@ public:
     std::string vision_json() {
         std::lock_guard<std::mutex> lk{snap_mtx_};
         return vision_snap_;
+    }
+    // Trajectory capability (ADR-11): chosen planner version + swappable versions.
+    std::string planner_json() {
+        std::lock_guard<std::mutex> lk{snap_mtx_};
+        return planner_snap_;
     }
     // The cell's stations (#31) as data — conveyor / deck / pallet capability
     // modules the robot works with, from the descriptor (not code).
@@ -219,6 +227,10 @@ private:
                     build_detector();
                     run_vision();
                     RN_LOG_INFO("vision version -> {}", c.driver);
+                } else if (c.family == "planner") {
+                    planner_version_ = c.driver;
+                    build_planner();
+                    RN_LOG_INFO("planner version -> {}", c.driver);
                 } else {
                     RN_LOG_WARN("set_version: unknown capability '{}'", c.family);
                 }
@@ -294,18 +306,22 @@ private:
         cell_->run_waypoints(waypoints, 1000.0, rows, stats, /*settle_s=*/1.5, hook);
     }
 
-    // Cartesian move (#22): straight TCP line from the current arm pose to
-    // (x,y,z) in metres. moveL resolves the 6 arm joints (rail held); the plan
-    // flows through the same blend/governor/executive as everything else.
+    // Cartesian move (#22): drive the TCP to (x,y,z) in metres via the SELECTED
+    // trajectory version (moveL straight line / moveJ point-to-point / … #39).
+    // The planner resolves the 6 arm joints (rail held); the plan flows through
+    // the same blend/governor/executive as everything else.
     void run_move_l(double x, double y, double z) {
         std::lock_guard<std::mutex> lk{cell_mtx_};
-        if (!cell_ || !kin_) return;
+        if (!cell_ || !kin_ || !planner_) return;
         const auto& nodes = cell_->nodes();
         if (nodes.size() != 7) return;
         std::vector<double> q0(6);
         for (int i = 0; i < 6; ++i) q0[i] = nodes[i + 1].adapter->read().position;  // arm joints (rad)
-        std::vector<std::vector<double>> jwp;                                        // [joint][step]
-        if (const auto st = plan_move_l(*kin_, q0, {x, y, z}, 30, jwp); !st.ok()) {
+        Goal goal;
+        goal.kind = Goal::kCartesianPosition;
+        goal.cartesian = {x, y, z};
+        std::vector<std::vector<double>> jwp;  // [joint][step]
+        if (const auto st = planner_->plan(q0, goal, jwp); !st.ok()) {
             RN_LOG_WARN("move_l ({:.3f},{:.3f},{:.3f}) unreachable: {}", x, y, z, st.message());
             return;
         }
@@ -389,6 +405,19 @@ private:
         return part;
     }
 
+    // Build the selected trajectory planner (ADR-11) + cache its snapshot.
+    // Worker-thread only (planner_ is used from run_move_l under cell_mtx_).
+    void build_planner() {
+        PlannerContext ctx;
+        ctx.kin = kin_.get();
+        if (!planner_reg_.make(planner_version_, ctx, planner_).ok()) {
+            RN_LOG_WARN("planner version '{}' unavailable", planner_version_);
+        }
+        nlohmann::json j{{"version", planner_version_}, {"available", planner_reg_.names()}};
+        std::lock_guard<std::mutex> lk{snap_mtx_};
+        planner_snap_ = j.dump();
+    }
+
     // Worker-thread only (reads cell_). Advertises the driver versions a node
     // can be swapped to (registry_.names()) and each node's current driver.
     void publish_nodes() {
@@ -465,6 +494,9 @@ private:
     VisionRegistry vision_reg_;              // swappable vision versions (ADR-11, #6)
     std::unique_ptr<Detector> detector_;     // the selected version (worker-thread only)
     std::string vision_version_{"robonode.toy-detector"};
+    PlannerRegistry planner_reg_;            // swappable trajectory versions (ADR-11)
+    std::unique_ptr<Planner> planner_;       // the selected version (worker-thread only)
+    std::string planner_version_{"robonode.moveL"};
     DriverRegistry registry_;
     std::mutex cell_mtx_;
     std::unique_ptr<Cell> cell_;
@@ -483,6 +515,7 @@ private:
         R"({"t":0,"family":"physics","pos":[0,0,0,0,0,0,0],)"
         R"("target":[0,0,0,0,0,0,0],"err":[0,0,0,0,0,0,0]})"};
     std::string vision_snap_{R"({"version":"robonode.toy-detector","available":[],"detections":[],"part":[0,0,0]})"};
+    std::string planner_snap_{R"({"version":"robonode.moveL","available":[]})"};
 
     std::thread worker_;
 };
