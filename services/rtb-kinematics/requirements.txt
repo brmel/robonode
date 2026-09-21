@@ -4,3 +4,8 @@
 roboticstoolbox-python==1.1.1
 numpy==1.26.4
 spatialmath-python==1.1.10
+
+# Transitive, and pinned for the same reason: spatialgeometry 1.4.1 (2026-09-21)
+# changed SceneNode's signature and roboticstoolbox 1.1.1 (2024-05-11) calls the
+# old one. 1.1.0 is the release contemporary with it.
+spatialgeometry==1.1.0

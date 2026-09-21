@@ -42,6 +42,16 @@ Building from source instead: `scripts/setup.sh --deps` (or
 
 *Mid-place. The **Contacts** card is reading the physics — `pallet ↔ wrist_2_link · part ↔ wrist_2_link` — and every card on the right is an algorithm you can swap while it runs.*
 
+## What it looks like
+
+![A grasp closing on the part in the physics engine: the gripper has the workpiece and the constraint is on the body it actually caught](docs/images/grasp-in-physics.png)
+
+*A grasp is a constraint the model closes on the part it actually caught — not an animation of a successful pick.*
+
+![The same contract driving a real UR10e arm on a bench](docs/images/real-ur10e.png)
+
+*The same wire contract driving a real UR10e. The simulator is the safe half of the loop, not the whole of it.*
+
 ## Try it in five minutes
 
 | | |
