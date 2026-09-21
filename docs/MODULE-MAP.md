@@ -121,6 +121,3 @@ they meet over a JSON HTTP RPC behind the `Kinematics` seam.
   not a refactor.
 - **The RT path.** Anything reachable from the executive's cycle must not
   allocate, lock, or block (ADR-5/6/7).
-
-For the standing judgement on those boundaries — what is separated by design
-and what is only separated by luck — see [SYSTEM-REVIEW.md](SYSTEM-REVIEW.md).

@@ -153,7 +153,7 @@ matters — **it never emits a path it knows is blocked** — and when the lift 
 not enough it refuses, naming the clearance it tried, so the answer is
 something you can act on.
 
-That is the seam a real planner (cuRobo, OMPL — #39) drops into: one line in the
+That is the seam a real planner (cuRobo, OMPL — ) drops into: one line in the
 registry, every caller unchanged.
 
 ## Stacking: the contact decides, not the plan
@@ -216,7 +216,7 @@ robonode scene mine.scene.json --session me         # edit: move the crate, add 
 robonode use-scene mine.scene.json --session me     # live, no restart
 ```
 
-In the browser it is the **Scenes** tab: pick one, change a number, ▶ Run scene.
+In the browser it is the **Scenes** tab: pick one, change a number, Run scene.
 Writes land in your session, so the scenario everyone else started from stays
 intact — and a scene the composer cannot build is refused with the running
 world left alone.

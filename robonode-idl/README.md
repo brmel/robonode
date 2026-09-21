@@ -3,7 +3,7 @@
 > **Status: design document, not a live contract.** Nothing generates from
 > these protos yet. The contract the platform serves today is JSON over
 > HTTP+SSE, defined and *validated* in [`contracts/`](../contracts/). These
-> files describe the gRPC surface planned for the SDK (#8); when that lands
+> files describe the gRPC surface planned for the SDK; when that lands
 > they become the generated source of truth and the JSON schemas become their
 > projection. Until then, treat `contracts/` as authoritative.
 

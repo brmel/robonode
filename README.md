@@ -84,12 +84,12 @@ scenarios are the most useful things you can send.
 | [docs/DECISIONS.md](docs/DECISIONS.md) | ADR-1…15: reference hardware, data plane, sandbox, safety posture, RT-correctness, the one capability pattern, command identity, the node model, tuning-as-data, and what the software stop is *not* |
 | [docs/CHALLENGES.md](docs/CHALLENGES.md) | **The scenarios the platform poses** — hard problems where the naive algorithm genuinely fails, and the one seam that fixes each |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Running it: dev vs prod compose, the container topology, public instances, and the cloud options with their trade-offs |
-| [docs/REAL-ROBOTS.md](docs/REAL-ROBOTS.md) | Real-robot kinematics via Robotics Toolbox behind our seams  |
-| [docs/TEST-STRATEGY.md](docs/TEST-STRATEGY.md) | Test layers (unit → integration → browser e2e) + the **scenario matrix** that flips ▶→✅ as the system grows — the visible progress metric |
+| [docs/REAL-ROBOTS.md](docs/REAL-ROBOTS.md) | Real-robot kinematics via Robotics Toolbox behind our seams |
+| [docs/TEST-STRATEGY.md](docs/TEST-STRATEGY.md) | Test layers (unit → integration → browser e2e) + the **scenario matrix** that flips → as the system grows — the visible progress metric |
 | [docs/MODULE-MAP.md](docs/MODULE-MAP.md) | **Where a change belongs**: what each area owns, what it may depend on, which tests cover it, and the shortest loop that proves your change |
 | [AGENTS.md](AGENTS.md) | **Autonomous operating manual** — the loop an unsupervised agent runs (pick → build → test → verify → record), the design-drift gates, and the tools (gh · ctest · Playwright · CLI · logging) |
 
-Read order: **ARCHITECTURE** (what it is) → **DECISIONS** (why) → **MODULE-MAP** (where your change goes). The backlog is tracker [#19](https://github.com/brmel/robonode/issues/19).
+Read order: **ARCHITECTURE** (what it is) → **DECISIONS** (why) → **MODULE-MAP** (where your change goes). The backlog is tracker.
 
 ## Real robots
 
@@ -120,7 +120,7 @@ robonode --server http://localhost:8080 watch --for 20   # one line per change
 
 **`--server` points the CLI at a running cell** instead of booting one in-process. Without it an agent debugging the robot on screen would be answering questions about a different robot — so every verb (reads, task steps, capability swaps, scene swaps) goes over the same HTTP contract the web app uses.
 
-The `robonode` CLI ([#43](https://github.com/brmel/robonode/issues/43), [ADR-8](docs/DECISIONS.md)) is a **first-class surface, not an afterthought** — an agent drives the whole system headless: execute programs, swap modules, drive lifecycle, monitor state, tail logs/traces/telemetry, get feedback, all with `--json` machine output. The CLI and the web UI are **both thin clients of the one Platform facade** — the same contract, the same code path, no divergence; a capability in one surface but not the other is a bug. Built on [CLI11](https://github.com/CLIUtils/CLI11); logging is [spdlog](https://github.com/gabime/spdlog)/fmt structured + async ([#44](https://github.com/brmel/robonode/issues/44), [ADR-9](docs/DECISIONS.md)), with logs/traces/telemetry exposed as one followable stream both surfaces read.
+The `robonode` CLI (, [ADR-8](docs/DECISIONS.md)) is a **first-class surface, not an afterthought** — an agent drives the whole system headless: execute programs, swap modules, drive lifecycle, monitor state, tail logs/traces/telemetry, get feedback, all with `--json` machine output. The CLI and the web UI are **both thin clients of the one Platform facade** — the same contract, the same code path, no divergence; a capability in one surface but not the other is a bug. Built on [CLI11](https://github.com/CLIUtils/CLI11); logging is [spdlog](https://github.com/gabime/spdlog)/fmt structured + async (, [ADR-9](docs/DECISIONS.md)), with logs/traces/telemetry exposed as one followable stream both surfaces read.
 
 ## Autonomous development (launch an agent, walk away)
 
@@ -132,9 +132,9 @@ scripts/verify.sh --e2e    #   … plus the browser journeys (docker + Playwrigh
 scripts/check-design.sh    # design-drift gate (CI): the ADRs as greppable rules — seams, RT purity, no hardcoding
 ```
 
-An agent picks the next `agent-ready`, unblocked issue from the tracker ([#19](https://github.com/brmel/robonode/issues/19)), implements the thin slice, makes `verify.sh` pass, flips its row in the [scenario matrix](docs/TEST-STRATEGY.md), closes the issue with evidence, commits, and repeats — with `gh` (issues), `ctest` (unit/integration), Playwright (e2e + the MCP server for live checks), the `robonode` CLI (`--json`), and the observability stream as its hands. The gates catch drift so the human reviews closed issues instead of supervising steps.
+An agent picks the next `agent-ready`, unblocked issue from the tracker, implements the thin slice, makes `verify.sh` pass, flips its row in the [scenario matrix](docs/TEST-STRATEGY.md), closes the issue with evidence, commits, and repeats — with `gh` (issues), `ctest` (unit/integration), Playwright (e2e + the MCP server for live checks), the `robonode` CLI (`--json`), and the observability stream as its hands. The gates catch drift so the human reviews closed issues instead of supervising steps.
 
-## The package (one build, MIL-style modules)
+## How the repository is laid out
 
 ```sh
 cmake -B build && cmake --build build -j && ctest --test-dir build
@@ -142,33 +142,33 @@ bash scripts/verify.sh            # the definition of done: gates + build + ever
 bash scripts/verify.sh --e2e      # …plus the browser journeys
 ```
 
-| Component | What it is |
+| Folder | What lives there |
 |---|---|
-| [core/](core/) → `robonode::core` | Type vocabulary every module speaks: `State`, `AxisLimits`/`MotionProfile`, `Status` (one error model), `Lifecycle` verbs, `TelemetryRow`. Depends on nothing |
-| [motion/](motion/) → `robonode::motion` | Governor (NaN-proof, limits-as-data), plans (S-curve/trapezoid; **SyncBlendPlan** multi-axis pass-through blends), **OTG slot** (`SetpointSource`: Ruckig `Otg` retargetable mid-flight = FR-2.6, plans, later Tier C plugins — executive can't tell them apart), executives with per-cycle safety gate, `AxisAdapter` seam. trajlib + ruckig = private impl details |
-| [recorder/](recorder/) → `robonode::recorder` | Telemetry → MCAP (Foxglove-openable); owns the mcap dependency; knows only core |
-| [celld/](celld/) → `robonode::celld` | The cell as an object model: descriptors (nodes · robots · motions · stations) → node tree → lifecycle → cell-coherent runs. `RobotNode` binds a robot's carrier + joints **by name** and owns the unit conversion; `ToolNode` is the end-effector seam; `JsonDocStore` is the persistence seam. Vendor-blind (lint-enforced) |
-| [sandbox/](sandbox/) → `robonode::sandbox` | Untrusted user code: compiler + fuel-bounded VM with no host surface. Wasmtime is the same seam with a heavier engine (`-DROBONODE_BUILD_WASM=ON`) |
-| [vision/](vision/) → `robonode::vision` | Perception seams: `Detector` (toy · sandboxed · wasm · OpenCV), `Camera` + `CameraModel` (project / back-project), and `Tracker` — predicting where a moving workpiece will be |
-| [gateway/](gateway/) → `robonode::gateway` | Composition + the control plane: `Platform` facade · `CellRuntime` (owns the live cell and its lock) · `MotionService` · `ProgramRunner` · `CapabilityRegistry` · `CommandBus`/`CommandRouter`/`CellSupervisor` · `TelemetryPublisher` · `RunRecorder`. Nothing depends on it |
-| [engines/](engines/) | Vendor adapters behind a seam: `sim-mujoco` (physics · kinematics · live `Scene`), `opencv` (a real vision node), `rtb` (a second `Kinematics`), `wasm` |
-| [apps/](apps/) | Composition roots: `cell_server` (HTTP+SSE) and the `robonode` CLI. They choose which vendor drivers this build registers |
-| [examples/](examples/) | Runnable demos of one seam each — **not** product surface |
-| [adapters/ur/](adapters/ur/) → `robonode::adapter_ur` | UR wrist SERVOJ @500 Hz behind the seam; owns the urcl dependency; lifecycle-verified via `configure()` |
-| [contracts/](contracts/) | **The wire contract in force**: JSON Schemas for `/telemetry`, `/nodes`, `/capabilities` and command acks, validated against a live server by `e2e/contract.spec.ts` |
-| [robonode-idl/](robonode-idl/) | Protobuf design document for the planned gRPC surface (#8) — nothing generates from it yet; `contracts/` is authoritative |
-| [apps/cell_server/scenes/](apps/cell_server/scenes/) | The **scene library**: a world to start from plus the objects you place in it, as JSON. Fork one into your session and change it |
-| [config/](config/) | Every tunable as data: IK, motion, approach, queue, sandbox bounds, run recording. `ROBONODE_SETTINGS` overrides |
-| [tests/](tests/) | Per-module test binaries — each one's include set doubles as a dependency statement |
-| [e2e/](e2e/) | Browser journeys + the **contract tests** that validate a live server against `contracts/` |
-| [scripts/](scripts/) | The gates: `verify.sh` (definition of done), `check-design.sh` (ADRs as greppable rules), `check-boundaries.sh`, `smoke.sh` |
+| [core/](core/) | The vocabulary every other module speaks: state, limits, one error type, lifecycle verbs. Depends on nothing. |
+| [motion/](motion/) | Turning a goal into movement — trajectory planning, blending, and the per-cycle safety gate every command passes through. |
+| [celld/](celld/) | The cell as an object model: robots, tools, conveyors and pallets, all built from JSON descriptors rather than code. |
+| [vision/](vision/) | What sees — detectors, the camera model, and the tracker that predicts where a moving part will be. |
+| [sandbox/](sandbox/) | Where a stranger's algorithm runs: a compiler and a fuel-bounded VM with no access to the host. |
+| [gateway/](gateway/) | The control plane. Owns the live cell, routes commands, publishes telemetry. Nothing depends on it. |
+| [engines/](engines/) | The borrowed engines, each behind one of our interfaces: MuJoCo, OpenCV, Robotics Toolbox, Wasmtime. |
+| [adapters/](adapters/) | Real hardware behind that same interface — today a UR wrist driven at 500 Hz. |
+| [services/](services/) | Helpers that run out of process and are spoken to over HTTP. |
+| [recorder/](recorder/) | Telemetry written to MCAP, openable in Foxglove. |
+| [apps/](apps/) | The two things you actually run: the cell server and the `robonode` CLI. |
+| [contracts/](contracts/) | The wire contract as JSON Schemas, validated against a live server. |
+| [robonode-idl/](robonode-idl/) | A Protobuf sketch of a future gRPC surface. Nothing generates from it yet. |
+| [config/](config/) | Every tunable as data, so changing behaviour does not mean changing code. |
+| [examples/](examples/) | One runnable demo per interface. Not product surface. |
+| [tests/](tests/) · [e2e/](e2e/) | Unit and integration tests; browser journeys and the contract tests. |
+| [scripts/](scripts/) | The gates CI runs — `verify.sh` is the definition of done. |
+| [docs/](docs/) | How it is designed and why. Start with [ARCHITECTURE.md](docs/ARCHITECTURE.md). |
 
-Boundaries are structural: [scripts/check-boundaries.sh](scripts/check-boundaries.sh) fails CI on any cross-module include (core depends on nothing; recorder never sees motion; trajlib never escapes motion/).
+The boundaries are enforced, not just described: [scripts/check-boundaries.sh](scripts/check-boundaries.sh) fails CI on any cross-module include — `core` depends on nothing, `recorder` never sees `motion`, and `trajlib` never escapes `motion/`.
 
 ## Status & next
 
 **Now:** a cell you can drive from a browser, a CLI or an agent — real physics, swappable algorithms at every capability, user code in a sandbox, applications you deploy, and a control plane that can stop the robot. Every claim here is covered by `scripts/verify.sh` and the browser suite.
 
-**Next**, in order (tracker [#19](https://github.com/brmel/robonode/issues/19) has the full list): 6-DoF orientation ([#92](https://github.com/brmel/robonode/issues/92) — `Goal::kCartesianPose` still has no planner, the largest robotics gap), Pinocchio behind `Kinematics` ([#34](https://github.com/brmel/robonode/issues/34)), a planner that *avoids* the contacts the cell now reports ([#39](https://github.com/brmel/robonode/issues/39)), scene overrides ([#93](https://github.com/brmel/robonode/issues/93)) and per-session cells ([#86](https://github.com/brmel/robonode/issues/86)).
+**Next**, in order (tracker has the full list): 6-DoF orientation (`Goal::kCartesianPose` still has no planner, the largest robotics gap), Pinocchio behind `Kinematics`, a planner that *avoids* the contacts the cell now reports, scene overrides and per-session cells.
 
 OQ-1/2/4/5 decided ([DECISIONS](docs/DECISIONS.md)); OQ-3 (license) open.

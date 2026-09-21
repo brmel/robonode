@@ -51,8 +51,8 @@ about what they mean.
 - **One owner for the live world.** `CellGateway` was 902 lines and held the
   scene, the world pool, the snapshot and the mutex over it, plus the eight
   methods that used them — and "everything that touches physics does so under
-  the cell lock" (#103) was a convention every new caller had to be told. It is
-  a type now: `SceneView` owns the scene and the snapshot, `with()` is the only
+  the cell lock" was a convention every new caller had to be told. It is
+  a type now: `SceneView` owns the scene and the snapshot, `with` is the only
   way in, and a reader gets frames rather than the world — so the gap between a
   step and the sample of it is not observable. `check-design.sh` fails the build
   on a raw `Scene*` anywhere else, verified by breaking it. ThreadSanitizer is
@@ -135,7 +135,7 @@ about what they mean.
   carried their own copy of the same predicate — applied caught up with
   accepted, not running, bounded by silence rather than by a guess at how long
   the work takes. Two copies of the only question a caller is waiting on is two
-  chances to disagree about it. `progress_of()` is that answer, both surfaces
+  chances to disagree about it. `progress_of` is that answer, both surfaces
   use it, and `check-design.sh` fails the build on a second one.
 - **A comparison stopped being one function that did five things.**
   `Platform::compare` resolved the trial, reset the cell, ran it, judged the
@@ -213,7 +213,7 @@ about what they mean.
   worker, the idle ticker and the constructor each say who they are working
   for), and a record made outside any cell belongs to the platform and shows
   everywhere, because it is equally true of all of them. Gated.
-- **A second robot is waitable.** Fixing the log exposed it: `await_settled()`
+- **A second robot is waitable.** Fixing the log exposed it: `await_settled`
   polled the FIRST cell whatever you asked about, so anything driving a second
   robot returned the moment the first one happened to be idle. It names its
   cell now — through the facade, the CLI and `compare`.
@@ -267,8 +267,8 @@ about what they mean.
   lines on purpose: the wire wants numbers.
 - **A mode stopped pretending to be a flag on the 1 kHz path.**
   `command_all(path_s, dt_s, bool hold)` was two behaviours behind a boolean —
-  the call site named neither. `follow_all()` advances the trajectory;
-  `hold_all()` parks every axis where its governor last had it. Same work per
+  the call site named neither. `follow_all` advances the trajectory;
+  `hold_all` parks every axis where its governor last had it. Same work per
   cycle, no allocation, and the existing safety-hold tests pin it.
 - **A live view exists once, for every surface.** The eight views were spelled
   out four times over — eight HTTP routes, eight facade forwarders, a ten-branch
@@ -311,13 +311,13 @@ about what they mean.
   wrapper propagates now, and a test pins it.
 
 ### Changed
-- **The RT plan builder returns a reason instead of throwing one (#36).**
+- **The RT plan builder returns a reason instead of throwing one.**
   `SyncBlendPlan::make` replaces a factory that threw `std::invalid_argument` on
   ragged waypoints — an exception unwinding through the executive on the thread
   that owns the physics, for input a user can supply. `check-design.sh` now
   fails the build on `throw` in the seam-facing motion headers; the messages
   name the axis and the counts.
-- **`Result<T>` where a value comes back (#36).** The project is already C++23,
+- **`Result<T>` where a value comes back.** The project is already C++23,
   so `std::expected` needs no dependency — the plan to vendor `tl::expected` was
   stale. Document reads are the first seam converted: `store.read(file)` and
   `platform.doc(kind, file, session)` return the text or the reason, instead of
@@ -426,7 +426,7 @@ about what they mean.
   names the axis and the section that wanted it.
 
 ### Added
-- **A robot catalogue (#94, first half).** Cell descriptors are a document kind
+- **A robot catalogue.** Cell descriptors are a document kind
   (`robots`) like scenes and apps, so the platform ships a catalogue you can
   list, fork and edit — and starting a second machine is picking one from it.
   Ships `ur10e-fixed.cell.json`: the same arm bolted down, six joints where the
@@ -439,7 +439,7 @@ about what they mean.
   Adding that kind was one row in the workspace's table: the routes and the
   shipped-library map now build themselves from it, so no endpoint, no store
   method and no client learned a new word.
-- **A planner that can see obstacles (#39, first half).** The Kinematics seam
+- **A planner that can see obstacles.** The Kinematics seam
   answers "would this configuration be touching something?" (MuJoCo counts
   contacts on the scratch world it already owns; impls that cannot answer say
   so, and the planner refuses rather than pretending). `robonode.avoid` plans
@@ -456,11 +456,11 @@ about what they mean.
   worst following error (named axis, its own unit), cycles, jitter and overruns
   ride along in `POST /compare`. Two control versions take the same time and
   track the path differently — that difference is now the number on screen.
-- **A stacking scenario (#99).** `stacking-line.scene.json` +
+- **A stacking scenario.** `stacking-line.scene.json` +
   `stacking.app.json` place a part on top of a block; whether it stays is
   contact physics, not the plan. `place` takes an optional `slot`, because
   "on top of what is already there" is a choice, not a counter.
-- **Scene overrides (#93).** Composition was additive: a scene could add clutter
+- **Scene overrides.** Composition was additive: a scene could add clutter
   but never move the conveyor, delete the decoy or make the part heavier. An
   `overrides` list edits what the BASE world declares, applied with the XML
   parser MuJoCo itself uses (tinyxml2) instead of string surgery — and an
@@ -469,7 +469,7 @@ about what they mean.
 - **A pose from the browser.** The transport bar takes roll/pitch/yaw in degrees
   (converted once, next to the inputs) and telemetry carries `tcp_quat`, so the
   boxes start from where the tool actually points.
-- **6-DoF (#92).** `Goal::kCartesianPose` has a planner: `robonode.moveP` walks
+- **6-DoF.** `Goal::kCartesianPose` has a planner: `robonode.moveP` walks
   the TCP in a straight line and slerps the orientation along it, solving a full
   pose at each step. The Kinematics seam answers real orientation and a real
   angular Jacobian (MuJoCo `mj_jacSite`), `ik_pose` solves the six-row residual
@@ -545,7 +545,7 @@ and every local link in the tree now resolves.
   — the non-functional targets — moved into ARCHITECTURE, annotated with where
   each one actually stands rather than what we hoped.
 - **`docs/REVIEW-2026-07.md`** — a point-in-time review whose findings are now
-  ADRs and whose backlog is tracker #19. Two places to look for the same answer
+  ADRs and whose backlog is tracker. Two places to look for the same answer
   is one place too many.
 - **`docs/DEPLOY-CLOUD.md`** — folded into `docs/DEPLOYMENT.md`. Deployment is
   one subject.
@@ -554,13 +554,13 @@ and every local link in the tree now resolves.
 - **AGENTS.md** stops describing things that do not exist (a per-issue "loop
   playbook" comment on every issue) and starts describing what does: the fast
   preset loop, `robonode --server` against a live cell, `contacts` for
-  diagnosing a stalled move, and the fact that RT purity items #34/#35/#36 are
+  diagnosing a stalled move, and the fact that RT purity items are
   still *open* — written as if true, but not yet enforced.
 - **ARCHITECTURE** carries the non-functional targets and honest issue pointers
-  (the closed duplicates #82/#83 no longer stand in for open work).
+  (the closed duplicates no longer stand in for open work).
 - **REAL-ROBOTS** says what is done (a real UR10e, contacts, a weld grasp) and
   what is not (RT kinematics is still a hand-rolled position-only solve — the
-  reason #92 exists).
+  reason it exists).
 - README's document table lists only documents that exist, in a stated read
   order; the design notes' "where the truth lives" point at the module map and the
   contribution docs instead of deleted files.
@@ -713,7 +713,7 @@ fixtures, and a "grasp" was a pose the platform wrote down. Both are fixed.
   descriptor, so a scenario is chosen the same way everything else is.
 - **Swap the scenario on a running platform**: `load_scene` is a command like
   any other — identified, queued behind whatever is moving, and reported when
-  the world is actually live. `robonode use-scene <file>`, or ▶ Run scene in
+  the world is actually live. `robonode use-scene <file>`, or Run scene in
   the browser.
 
 ### Added — sessions
@@ -811,7 +811,7 @@ demonstrating solutions. Full write-up: [docs/CHALLENGES.md](docs/CHALLENGES.md)
 ## [0.5.0] — 2026-07-25 — the architecture review, implemented
 
 A full review across dead code, branding, state, robotics and modularity, then
-every finding fixed. Record: the 2026-07 review (since folded into the ADRs and tracker #19);
+every finding fixed. Record: the 2026-07 review (since folded into the ADRs and tracker );
 the resulting design: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ### Added — the control plane
@@ -876,7 +876,7 @@ the resulting design: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 - **Silent failures**: a bad descriptor, a half-built cell, a missing detector
   and a non-7-node cell all failed silently. They now report; `pick` refuses
   instead of driving the TCP to the world origin.
-- **`Otg::duration_s()` was 0 before the first update**, so a jog could truncate
+- **`Otg::duration_s` was 0 before the first update**, so a jog could truncate
   its own horizon; `Otg::estimate_duration` gives a bound from the limits.
 - **A latched cell could never resume** — resume was itself blocked by the latch.
 
@@ -995,7 +995,7 @@ can **bring their own**, behind one clean interface, over real physics.
 - Clean C++23 build broke on spdlog v1.14.1's bundled fmt (consteval); bumped to
   1.15.1.
 
-### Added — real WASM sandbox (#81, opt-in)
+### Added — real WASM sandbox
 - **Wasmtime engine**, built with `-DROBONODE_BUILD_WASM=ON` (vendors the
   Wasmtime C-API per platform). User source compiles to a real WebAssembly
   module — the sandbox bytecode lowers 1:1 to WASM f64 ops (`wasm::emit`), so
@@ -1007,11 +1007,11 @@ can **bring their own**, behind one clean interface, over real physics.
   seam with stronger isolation.
 
 ### Known limitations (deferred, tracked)
-- **Vision is a scene oracle**, not real CV (#82: OpenCV/ONNX + camera feed).
-- **Planner is DLS-IK line/point** (#83: cuRobo/OMPL, GPU/collision-aware).
+- **Vision is a scene oracle**, not real CV (OpenCV/ONNX + camera feed).
+- **Planner is DLS-IK line/point** (cuRobo/OMPL, GPU/collision-aware).
 - **Error model is `Status`** (a unified, `[[nodiscard]]`, exception-free model);
-  the `std::expected` migration (#72) is deferred as optional.
-- **Capability folders** don't yet mirror the seams (#71).
+  the `std::expected` migration is deferred as optional.
+- **Capability folders** don't yet mirror the seams.
 
 ## [0.3.0] — real UR10e, ready apps, station-as-data, Docker stack, facade.
 ## [0.2.0] — Cartesian FK/IK, per-node driver swap, MuJoCo twin, web dashboard.

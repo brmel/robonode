@@ -9,8 +9,8 @@ flowchart LR
   subgraph net["docker network: robonode"]
     CS["cell-server :8080<br/>physics twin (MuJoCo) · web app · Platform facade · CLI"]
     RTB["rtb-kinematics :8091<br/>Robotics Toolbox — real-robot FK/IK behind the Kinematics seam"]
-    VIS["vision :xxxx ▶#6/#38<br/>OpenCV/ONNX (add the same way)"]
-    PLAN["planner ▶#39<br/>cuRobo (GPU node)"]
+    VIS["vision :xxxx<br/>OpenCV/ONNX (add the same way)"]
+    PLAN["planner<br/>cuRobo (GPU node)"]
   end
   Browser["browser / agent"] -->|HTTP + SSE| CS
   CLI["robonode CLI"] -->|in-process or HTTP| CS
@@ -75,7 +75,7 @@ volume.**
 3. Add a service block to `docker-compose.yml` on the `robonode` network.
 4. The cell-server reaches it by name; nothing else changes — that is the modularity paying rent.
 
-This is how the vision service (#6/#38), the GPU planner (cuRobo, #39), Zenoh (#7), and the Tier-B sandbox (#26/#37) attach: each a container behind a seam the core already owns.
+This is how the vision service, the GPU planner (cuRobo), Zenoh, and the Tier-B sandbox attach: each a container behind a seam the core already owns.
 
 ## Public instances
 
@@ -137,7 +137,7 @@ gcloud run deploy robonode-cell \
 - The filesystem is ephemeral. Sessions and user modules vanish on every
   instance replacement. Mount a GCS bucket (`--add-volume`,
   `--add-volume-mount`) or accept that the instance is a scratchpad. A proper
-  database-backed store is the open roadmap item (#84) behind `JsonDocStore`.
+  database-backed store is the open roadmap item behind `JsonDocStore`.
 
 To put **Firebase Hosting** in front of it — a CDN, a custom domain, and the
 same origin so SSE and the wire contract are untouched:
@@ -180,8 +180,8 @@ is the current answer; binding a cell per session is a known gap
 
 ## Notes
 
-- **GPU services** (cuRobo #39) run on a GPU host with the NVIDIA container runtime (`deploy.resources.reservations.devices`) — not on a laptop.
-- **Real hardware** (UR / EtherCAT, #15/#16) runs the cell-server on an x86 PREEMPT_RT host with the fieldbus on the metal, not in a container.
+- **GPU services** (cuRobo ) run on a GPU host with the NVIDIA container runtime (`deploy.resources.reservations.devices`) — not on a laptop.
+- **Real hardware** (UR / EtherCAT, /) runs the cell-server on an x86 PREEMPT_RT host with the fieldbus on the metal, not in a container.
 - The web assets and cell descriptor are baked into the image; override at runtime with `ROBONODE_WEB_DIR`, `ROBONODE_WORLDS_DIR`, `ROBONODE_CELL_FILE`.
 - **Tuning is data.** `config/robonode.settings.json` carries every heuristic —
   IK damping/tolerance/iteration budget, the carrier-axis weight, settle and

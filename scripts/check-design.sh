@@ -36,7 +36,7 @@ for s in "${SEAMS[@]}"; do
   [ -f "$s" ] || bad "seam missing: $s (a seam is a contract, not disposable)"
 done
 
-# 3) RT-loop purity + anti-hardcoding (ADR-5, #32): the pure-logic modules
+# 3) RT-loop purity + anti-hardcoding (ADR-5): the pure-logic modules
 #    carry no Python, and no baked-in config — model/config file paths, IPs, or
 #    URLs. Everything comes THROUGH the seam as descriptor data. core/motion/
 #    celld are the audited pure modules (apps/services may hold their defaults).
@@ -45,7 +45,7 @@ done
 hits=$(grep -rnE --include='*.hpp' --include='*.cpp' \
   '<Python\.h>|^import |[[:alnum:]_/]\.(xml|json)"|https?://|([0-9]{1,3}\.){3}[0-9]{1,3}' \
   core motion celld 2>/dev/null | grep -v _deps || true)
-[ -n "$hits" ] && { bad "pure modules must stay Python-free + hardcoding-free (paths/IPs/URLs are descriptor data — ADR-5/#32):"; echo "$hits" | sed 's/^/    /'; }
+[ -n "$hits" ] && { bad "pure modules must stay Python-free + hardcoding-free (paths/IPs/URLs are descriptor data — ADR-5):"; echo "$hits" | sed 's/^/    /'; }
 
 # 4) One error model at the seams (ADR-7): no exceptions thrown across a seam.
 #    Guard the obvious regression — throwing out of a public seam header.
@@ -168,7 +168,7 @@ hits=$(grep -rn 'Settings{}\.' --include='*.hpp' --include='*.cpp' \
   core motion celld gateway engines apps vision sandbox recorder adapters 2>/dev/null || true)
 [ -n "$hits" ] && { bad "a tunable must be injected from Settings, not defaulted in a signature (ADR-14/17):"; echo "$hits" | sed 's/^/    /'; }
 
-# 5b) One owner for the live world (#103). Two threads stepping the same physics
+# 5b) One owner for the live world. Two threads stepping the same physics
 #     data is a segfault, not a race you get away with — so a raw Scene is
 #     reachable through SceneView and nowhere else. Opening one (the engine
 #     choice) stays with the cell; touching one does not.
@@ -212,12 +212,12 @@ if [ -x "${BUILD_DIR:-build}/apps/robonode_cli/robonode_cli" ]; then
   [ -n "$missing" ] && { bad "AGENTS.md does not list every CLI verb:$missing"; }
 fi
 
-# 6e) #36, as far as it has landed: the seam-facing motion headers return a
+# 6e) As far as it has landed: the seam-facing motion headers return a
 #     reason instead of throwing one. An exception here unwinds through the
 #     executive on the thread that owns the physics, and the caller who passed a
 #     ragged waypoint list deserves a sentence, not a terminate(). sync_executive
 #     is not on this list yet — its checks are construction-time invariants
-#     between vectors one caller builds together (see #36).
+#     between vectors one caller builds together (see the seam rules).
 hits=$(grep -rn 'throw ' motion/include/robonode/motion/sync_blend.hpp \
        motion/include/robonode/motion/cartesian.hpp motion/include/robonode/motion/planner.hpp \
        2>/dev/null | grep -vE ':[0-9]+: *(//|\*)' || true)
@@ -255,12 +255,12 @@ done
 
 # Pending gates — enabled (moved above) as their issue closes, so the guard
 # hardens over time instead of failing prematurely. Still open:
-#   #34 → forbid rtb-service calls from motion/celld (RT path Python-free at call level)
-#   #35 → forbid std::mutex / new / malloc on the executive step path
-#   #36 → the rest of it: sync_executive's construction checks, and the 21
+#   - forbid rtb-service calls from motion/celld (RT path Python-free at call level)
+#   - forbid std::mutex / new / malloc on the executive step path
+#   - the rest of it: sync_executive's construction checks, and the 21
 #         remaining `Status f(…, T& out)` signatures (rule in docs/ARCHITECTURE.md)
-# Done: #28/#32 (descriptor-driven + anti-hardcoding, enabled above) · #42/#44
+# Done: descriptor-driven + anti-hardcoding (enabled above)
 # (spdlog logging seam — the no-printf rule stays OFF: apps print CLI output by
 # design; the seam is for events, not stdout).
-echo "pending gates (enable as #34/#35/#36 close): see script footer"
+echo "pending gates: see script footer"
 exit "$fail"

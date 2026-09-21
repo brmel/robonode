@@ -1,68 +1,82 @@
-# RoboNode — architecture & stack (one file)
+# RoboNode — architecture
 
-> **Goal.** An open-source, modular platform for testing robotics algorithms in a real physics environment. In a web app, users see and manipulate robots **and stations** (moving deck, pallet, conveyor) in a real physics engine, and swap or bring their own **module** — path/trajectory, robot control, vision, learning — behind **one clean interface that hides the complexity** (in the spirit of the Matrox Imaging Library). Every node is a typed capability with interchangeable versions and a bring-your-own slot, run safely in a sandbox. We **reuse mature engines** (MuJoCo, Robotics Toolbox, OpenCV/DL, Ruckig, MCAP/Foxglove) and never reinvent them; the platform is the clean, modular glue and the swap/test experience.
+> **What this is.** A platform for testing robotics algorithms without building a
+> lab around them first. You open a robot cell in the browser, watch a real physics
+> engine run it, and replace any of the four things that matter — what sees, what
+> tracks, what plans the path, and what controls the arm — with your own code.
 >
-> *The single source of truth for the system design and the open-source stack.* Companion docs: [DECISIONS.md](DECISIONS.md) (the ADRs — why each choice), [MODULE-MAP.md](MODULE-MAP.md) (where a change belongs), [CHALLENGES.md](CHALLENGES.md) (the scenarios the platform poses), [DEPLOYMENT.md](DEPLOYMENT.md), [REAL-ROBOTS.md](REAL-ROBOTS.md). The backlog is tracker issue **#19**.
+> **How it is built.** Each of those four is one interface with several
+> implementations behind it, so a new algorithm is a new implementation and not a
+> fork. Third-party code compiles into a sandbox with a fuel budget, so a
+> stranger's control loop cannot take the cell down with it. The heavy lifting is
+> borrowed on purpose — MuJoCo for physics, Ruckig for trajectories, OpenCV for
+> vision, Pinocchio for kinematics — and what is built here is the boundary around
+> them, plus the one wire contract that the browser, the CLI and any other client
+> all speak.
+>
+> Companion documents: [DECISIONS.md](DECISIONS.md) (why each choice was made),
+> [MODULE-MAP.md](MODULE-MAP.md) (where a change belongs),
+> [CHALLENGES.md](CHALLENGES.md) (the scenarios the platform poses),
+> [DEPLOYMENT.md](DEPLOYMENT.md) and [REAL-ROBOTS.md](REAL-ROBOTS.md).
 
 ---
 
 # Part 1 — Architecture
 
-> This describes what is in the tree. A `▶#n` marks work that has not landed and
-> names the issue tracking it; everything else is shipped and tested — the
-> journey rows in [TEST-STRATEGY.md](TEST-STRATEGY.md) each name the test that
-> proves them. For what changed when, see [CHANGELOG.md](../CHANGELOG.md); for
-> the standing judgement on the boundaries, [SYSTEM-REVIEW.md](SYSTEM-REVIEW.md).
+> This describes what is in the tree. Anything not yet landed is marked
+> *(planned)*; everything else is shipped and tested, and the journey rows in
+> [TEST-STRATEGY.md](TEST-STRATEGY.md) each name the test that proves it. For what
+> changed when, see [CHANGELOG.md](../CHANGELOG.md).
 >
-> A version number is not repeated here on purpose: it was stale within a week
-> the last time it was.
+> A version number is not repeated here on purpose: it was stale within a week the
+> last time it was.
 
 ## Components (layers)
 
-`✅` in the tree · `▶#n` planned, tracked by that issue.
+`` in the tree · `#n` planned, tracked by that issue.
 
 ```mermaid
 flowchart TB
   subgraph FE["Clients — one contract, zero divergence (ADR-8): every surface is a thin client of the facade"]
-    UI["web UI ✅ — three.js scene rebuilt from GET /model ✅ · store + SSE ✅ · tokens/theme/i18n/ARIA ✅ · capability cards from /capabilities ✅ · sandbox editor ✅ · application, scene and robot editors on one record widget ✅ · camera feed from GET /camera.bmp ✅ · Compare via POST /compare, kept as documents ✅"]
-    CLI["robonode CLI ✅ (CLI11) — agent-complete: run · jog · movel · stop/estop/resume · swap · version · define · app · cells · model · logs"]
-    SDK["Python / other SDK ▶#8 (same contract)"]
+    UI["web UI — three.js scene rebuilt from GET /model · store + SSE · tokens/theme/i18n/ARIA · capability cards from /capabilities · sandbox editor · application, scene and robot editors on one record widget · camera feed from GET /camera.bmp · Compare via POST /compare, kept as documents"]
+    CLI["robonode CLI (CLI11) — agent-complete: run · jog · movel · stop/estop/resume · swap · version · define · app · cells · model · logs"]
+    SDK["Python / other SDK (same contract)"]
   end
   subgraph APP["Apps (apps/*) — composition roots: they choose which vendors to link"]
-    SRV["cell_server (HTTP+SSE) ✅ · robonode CLI ✅"]
+    SRV["cell_server (HTTP+SSE) · robonode CLI"]
   end
   subgraph CTRL["Control plane (gateway/) — identity, state, cancellation"]
-    ROUTER["CommandRouter ✅ — the wire contract in one place"]
-    BUS["CommandBus ✅ — ids, bounded queue, coalescing, one worker"]
-    SUP["CellSupervisor ✅ — state machine + CancelToken + software e-stop latch"]
-    TELE["TelemetryPublisher ✅ — snapshots + applied_id progress"]
+    ROUTER["CommandRouter — the wire contract in one place"]
+    BUS["CommandBus — ids, bounded queue, coalescing, one worker"]
+    SUP["CellSupervisor — state machine + CancelToken + software e-stop latch"]
+    TELE["TelemetryPublisher — snapshots + applied_id progress"]
   end
   subgraph CAP["Capability layer (gateway/) — algorithms as data"]
-    CAPREG["CapabilityRegistry ✅ → GET /capabilities (descriptor · ABI · authorable · provenance)"]
-    VIS_C["VisionCapability ✅"] ; TRK_C["TrackingCapability ✅"] ; TRAJ_C["TrajectoryCapability ✅"] ; CTL_C["ControlCapability ✅"]
+    CAPREG["CapabilityRegistry → GET /capabilities (descriptor · ABI · authorable · provenance)"]
+    VIS_C["VisionCapability"] ; TRK_C["TrackingCapability"] ; TRAJ_C["TrajectoryCapability"] ; CTL_C["ControlCapability"]
   end
   subgraph BE["Domain · C++ modules (one package, boundary-lint enforced)"]
-    FACADE["Platform facade ✅ — the one entry every surface binds to"]
-    RUNTIME["CellRuntime ✅ — owns the live cell + robots; the mutex never leaves it"]
-    CELLD["celld ✅ — Cell · RobotNode (carrier+joints by name) · ToolNode · stations · descriptors · stores"]
-    MOTION["motion ✅ — one SyncExecutive (SetpointSource-driven) · Governor · SyncBlendPlan · TrajectoryValidator · seams"]
-    KIN["Kinematics seam ✅ — MuJoCo impl ✅ · RTB impl (example) ✅ · Pinocchio ▶#34"]
-    REG["DriverRegistry / ModuleRegistry ✅ — version list + live swap"]
-    REC["recorder ✅ — MCAP per run, with the versions that produced it"]
-    SAND["sandbox ✅ — expression VM ✅ · Wasmtime opt-in ✅"]
+    FACADE["Platform facade — the one entry every surface binds to"]
+    RUNTIME["CellRuntime — owns the live cell + robots; the mutex never leaves it"]
+    CELLD["celld — Cell · RobotNode (carrier+joints by name) · ToolNode · stations · descriptors · stores"]
+    MOTION["motion — one SyncExecutive (SetpointSource-driven) · Governor · SyncBlendPlan · TrajectoryValidator · seams"]
+    KIN["Kinematics seam — MuJoCo impl · RTB impl (example) · Pinocchio"]
+    REG["DriverRegistry / ModuleRegistry — version list + live swap"]
+    REC["recorder — MCAP per run, with the versions that produced it"]
+    SAND["sandbox — expression VM · Wasmtime opt-in"]
   end
   subgraph SVC["Services / sidecars — OFF the 1 kHz loop"]
-    RTB["rtb-kinematics (Python · Robotics Toolbox) ✅ — example only"]
-    VISS["OpenCV vision node ✅ (engines/opencv) — ONNX/DL ▶"]
+    RTB["rtb-kinematics (Python · Robotics Toolbox) — example only"]
+    VISS["OpenCV vision node (engines/opencv) — ONNX/DL"]
   end
   subgraph DEP["Vendored (not reinvented) — see Part 2"]
-    MJ["MuJoCo ✅"] ; RUCK["Ruckig ✅ (jog)"] ; MCAPD["MCAP/Foxglove ✅"] ; URCL["ur_client_library ✅"]
+    MJ["MuJoCo"] ; RUCK["Ruckig (jog)"] ; MCAPD["MCAP/Foxglove"] ; URCL["ur_client_library"]
   end
   subgraph DOMAIN["Domain data — no hardcoding"]
-    CONTRACTS["contracts/ ✅ — JSON Schemas, validated against the live server"]
-    DESC["cell descriptors ✅ — nodes · robots · motions · stations"]
-    SETTINGS["config/robonode.settings.json ✅ — every tunable"]
-    APPS["apps + user modules ✅ — programs and chosen capability versions"]
+    CONTRACTS["contracts/ — JSON Schemas, validated against the live server"]
+    DESC["cell descriptors — nodes · robots · motions · stations"]
+    SETTINGS["config/robonode.settings.json — every tunable"]
+    APPS["apps + user modules — programs and chosen capability versions"]
   end
 
   UI <-->|JSON/SSE| SRV
@@ -198,7 +212,7 @@ session, so:
 
 - **The robot is descriptor-driven but has no catalogue.** Changing robot means
   writing a cell descriptor and a matching MJCF by hand; there is no library to
-  pick from, and `joint_names()`/`tcp_site()` still read `robots.front()` rather
+  pick from, and `joint_names`/`tcp_site` still read `robots.front` rather
   than serving several robots at once.
 - **A session shares one cell.** Scenes, apps and modules are per session, but
   the running physics cell is shared: two people cannot drive different
@@ -215,43 +229,43 @@ Every node is a **Module** exposing a typed **Capability** with a clean I/O cont
 
 ```mermaid
 flowchart LR
-  subgraph MotionAxis["Capability: MotionAxis@1 ✅ (rail + each joint)"]
-    A1["robonode.sim-axis (filter) ✅"]
-    A2["robonode.sim-axis-soft (sluggish) ✅"]
-    A3["robonode.mujoco-axis (physics) ✅"]
-    A4["robonode.ur-wrist (real UR RTDE) ✅"]
-    A5["your driver ✅ (BYO template)"]
+  subgraph MotionAxis["Capability: MotionAxis@1 (rail + each joint)"]
+    A1["robonode.sim-axis (filter)"]
+    A2["robonode.sim-axis-soft (sluggish)"]
+    A3["robonode.mujoco-axis (physics)"]
+    A4["robonode.ur-wrist (real UR RTDE)"]
+    A5["your driver (BYO template)"]
   end
-  subgraph Arm["Capability: ArmKinematics@1 ✅"]
-    K0["Pinocchio (C++ in-process, RT FK/IK/Jac) ▶#34"]
-    K1["MujocoKinematics (FK/Jac) ✅"]
-    K2["RtbKinematics (offline model source) ✅"]
-    K3["URDF/DH your model ▶#25 (FANUC, …)"]
+  subgraph Arm["Capability: ArmKinematics@1"]
+    K0["Pinocchio (C++ in-process, RT FK/IK/Jac)"]
+    K1["MujocoKinematics (FK/Jac)"]
+    K2["RtbKinematics (offline model source)"]
+    K3["URDF/DH your model (FANUC, …)"]
   end
-  subgraph Plan["Capability: Planner ✅"]
-    P1["JointPlanner ✅"]
-    P2["CartesianLinePlanner (moveL) ✅"]
-    P3["RtbPlanner (offline IK) ✅"]
-    P4["cuRobo (GPU, collision-aware) ▶#39 · OMPL CPU fallback"]
-    P5["Crocoddyl DynamicPlanner (DDP/MPC) ▶#41"]
-    P6["your planner ▶ (same seam)"]
+  subgraph Plan["Capability: Planner"]
+    P1["JointPlanner"]
+    P2["CartesianLinePlanner (moveL)"]
+    P3["RtbPlanner (offline IK)"]
+    P4["cuRobo (GPU, collision-aware) · OMPL CPU fallback"]
+    P5["Crocoddyl DynamicPlanner (DDP/MPC)"]
+    P6["your planner (same seam)"]
   end
-  subgraph Vision["Capability: Vision ✅"]
-    V1["camera → frames ✅ (projected; offscreen render ▶)"]
-    V2["OpenCV detector ▶ (not reinvented)"]
-    V3["DL model (ONNX/…) ▶"]
-    V4["your detector ▶"]
+  subgraph Vision["Capability: Vision"]
+    V1["camera → frames (projected; offscreen render )"]
+    V2["OpenCV detector (not reinvented)"]
+    V3["DL model (ONNX/…)"]
+    V4["your detector"]
   end
-  subgraph Station["Capability: Station ✅"]
-    S1["conveyor / moving deck ▶"]
-    S2["pallet ▶"]
-    S3["your station ▶"]
+  subgraph Station["Capability: Station"]
+    S1["conveyor / moving deck"]
+    S2["pallet"]
+    S3["your station"]
   end
-  subgraph Algo["Tier-B user algorithm ✅ (sandboxed)"]
-    Z1["reads a node's output, writes its setpoint ▶"]
+  subgraph Algo["Tier-B user algorithm (sandboxed)"]
+    Z1["reads a node's output, writes its setpoint"]
   end
 
-  REG["Module/Capability registry ✅<br/>(version list · live swap · lifecycle)"]
+  REG["Module/Capability registry <br/>(version list · live swap · lifecycle)"]
   REG --- MotionAxis ; REG --- Arm ; REG --- Plan ; REG --- Vision ; REG --- Station ; REG --- Algo
 ```
 
@@ -261,20 +275,20 @@ Above the nodes sits the **application layer**: an **Application** is a cell (no
 
 ```mermaid
 flowchart TB
-  subgraph LIB["Application library ✅ — ready-to-use"]
-    A1["Bin picking ✅"] ; A2["Palletizing / depalletizing ✅"] ; A3["Machine tending ✅"] ; A4["Pick-and-place · inspection ▶"]
+  subgraph LIB["Application library — ready-to-use"]
+    A1["Bin picking"] ; A2["Palletizing / depalletizing"] ; A3["Machine tending"] ; A4["Pick-and-place · inspection"]
   end
-  subgraph APP["An Application = data (descriptor-driven) ✅"]
-    CELL["cell: nodes + stations (#28/#29)"]
-    PROG["program: task steps (task steps, run by the program engine) ✅"]
-    VERS["chosen capability versions + overrides ✅"]
+  subgraph APP["An Application = data (descriptor-driven)"]
+    CELL["cell: nodes + stations"]
+    PROG["program: task steps (task steps, run by the program engine)"]
+    VERS["chosen capability versions + overrides"]
   end
-  subgraph OVR["Algorithm override per capability ✅ (extends the registry and the version manager)"]
-    V["Vision detector ▾"] ; C["Control law ▾"] ; P["Path planner ▾"] ; B["…or bring your own (#23)"]
+  subgraph OVR["Algorithm override per capability (extends the registry and the version manager)"]
+    V["Vision detector ▾"] ; C["Control law ▾"] ; P["Path planner ▾"] ; B["…or bring your own"]
   end
-  EDIT["Application editor ✅ — compose / modify (issue #58 is still open; the editor is not)"]
-  DB["Document store ✅ — apps · scenes · modules · robots · run records, per session<br/>(a durable database is ▶#84)"]
-  FACADE["Platform facade (#33) — runs the app"]
+  EDIT["Application editor — compose / modify (the editor is not)"]
+  DB["Document store — apps · scenes · modules · robots · run records, per session<br/>(a durable database is)"]
+  FACADE["Platform facade — runs the app"]
 
   LIB --> APP
   EDIT --> APP
@@ -284,7 +298,7 @@ flowchart TB
   EDIT <--> DB
 ```
 
-The app layer reuses everything below it: nodes/capabilities (#30), descriptor-driven cells + stations (#28/#29), the facade (#33), the CLI (#43), the dashboard (#46). An app is a *composition*, not new machinery — reuse mature engines, don't reinvent, converge to a Vention-class platform.
+The app layer reuses everything below it: nodes/capabilities, descriptor-driven cells + stations, the facade, the CLI, the dashboard. An app is a *composition*, not new machinery — reuse mature engines, don't reinvent, converge to a Vention-class platform.
 
 ## Command + telemetry flow (a command, end to end)
 
@@ -295,21 +309,21 @@ surface polls for a side effect, and no surface invents its own "done".
 ```mermaid
 sequenceDiagram
   participant U as Browser / CLI
-  participant R as CommandRouter ✅
-  participant B as CommandBus ✅ (one worker)
-  participant S as CellSupervisor ✅
-  participant M as MotionService ✅
-  participant C as celld/Cell ✅
-  participant E as SyncExecutive ✅ (1 kHz)
-  participant P as MuJoCo ✅
+  participant R as CommandRouter
+  participant B as CommandBus (one worker)
+  participant S as CellSupervisor
+  participant M as MotionService
+  participant C as celld/Cell
+  participant E as SyncExecutive (1 kHz)
+  participant P as MuJoCo
 
   U->>R: POST /command {cmd: move_l, …}
   R->>R: validate + build the work (caller's thread)
-  R-->>U: {ok, id, queued}          %% accepted, not done
+  R-->>U: {ok, id, queued} %% accepted, not done
   R->>B: submit (bounded, coalescing)
   B->>S: begin(moving) — refused while latched
   B->>M: run the command
-  M->>M: plan (Planner seam) → TrajectoryValidator ✅
+  M->>M: plan (Planner seam) → TrajectoryValidator
   M->>C: run_waypoints / run_sources (+ CancelToken)
   C->>E: SyncBlendPlan or SetpointSource per axis
   loop every cycle
@@ -318,7 +332,7 @@ sequenceDiagram
     P-->>E: joint state
     E-->>U: CycleHook → TelemetryPublisher → SSE
   end
-  M->>M: RunRecorder → MCAP + capability versions ✅
+  M->>M: RunRecorder → MCAP + capability versions
   B->>B: applied_id = id
   B-->>U: telemetry frame reports applied_id, state=idle
 ```
@@ -338,9 +352,9 @@ it says so — an aspiration recorded as a fact is how a system lies about itsel
 
 | | Target | Where it stands |
 |---|---|---|
-| NFR-1 | 1 kHz control cycle; jitter p99.9 < 100 µs on PREEMPT_RT | Measured per move and logged (`jitter p99 … max …`). Typical here: p99 ≈ 250 µs on a laptop under a general-purpose kernel. The PREEMPT_RT evidence is #16 |
+| NFR-1 | 1 kHz control cycle; jitter p99.9 < 100 µs on PREEMPT_RT | Measured per move and logged (`jitter p99 … max …`). Typical here: p99 ≈ 250 µs on a laptop under a general-purpose kernel. The PREEMPT_RT evidence is planned |
 | NFR-2 | Software stop observed → drive disable ≤ 10 ms | On-path deceleration lands within a cycle of the command; a *hardware* chain is independent and out of scope (ADR-15) |
-| NFR-3 | Streaming command path ≤ 20 ms p99 | Commands are queued and identified; the streaming-into-a-running-move case is #51 |
+| NFR-3 | Streaming command path ≤ 20 ms p99 | Commands are queued and identified; the streaming-into-a-running-move case is planned |
 | NFR-4 | Browser telemetry latency ≤ 150 ms p95 | SSE at the configured `stream_period_ms` (20 ms default) |
 | NFR-5 | The cell runs with no cloud, indefinitely | True by construction: there is no cloud in the control path |
 | NFR-9 | arm64 + x86_64 Linux, and macOS for development | Both built here; CI builds x86_64 |
@@ -348,134 +362,134 @@ it says so — an aspiration recorded as a fact is how a system lies about itsel
 
 ## Principles (enforced)
 
-- **One clean interface** hiding complexity — the Module/Capability seam (#30) + Platform facade (#33). MIL-style single ontology.
-- **No hardcoded values / no duplication** — tree, nodes, stations, limits, programs, ports, robot are descriptor data (#28/#29), guarded by anti-hardcoding lint (#32).
+- **One clean interface** hiding complexity — the Module/Capability seam + Platform facade. MIL-style single ontology.
+- **No hardcoded values / no duplication** — tree, nodes, stations, limits, programs, ports, robot are descriptor data, guarded by anti-hardcoding lint.
 - **Don't reinvent** — reuse the engines in Part 2.
-- **Bring your own, safely** — every capability has a user-version slot; Tier-B runs user code sandboxed (#26); the governor is always the last safety net.
+- **Bring your own, safely** — every capability has a user-version slot; Tier-B runs user code sandboxed; the governor is always the last safety net.
 - **Structural modularity** — module boundaries enforced by `scripts/check-boundaries.sh` in CI; each module owns its dependency; **no dependency without a seam we own** (any Part-2 row is swappable without touching product logic).
-- **Real-time correctness (external review, 2026-07)** — the 1 kHz path carries no Python, no heap allocation, no locks, no blocking I/O: kinematics run **in-process** (Pinocchio #34, not the Python RTB hop), the non-RT↔RT hand-off is a **lock-free SPSC** queue (#35), seams return **`std::expected`** not exceptions (#36), user modules are **AOT-compiled + WASI-off** (#37), and perception is **async-decoupled** off the loop (#38).
+- **Real-time correctness (external review, 2026-07)** — the 1 kHz path carries no Python, no heap allocation, no locks, no blocking I/O: kinematics run **in-process** (Pinocchio, not the Python RTB hop), the non-RT↔RT hand-off is a **lock-free SPSC** queue, seams return **`std::expected`** not exceptions, user modules are **AOT-compiled + WASI-off**, and perception is **async-decoupled** off the loop.
 - **One contract, many surfaces (ADR-8).** The Platform facade is the single definition of *what the system can do*; the web UI, the `robonode` CLI and the SDK are thin clients of it, never a parallel implementation. The CLI is **agent-complete** — everything a human does in the UI, an agent does headless, with JSON output. The contract itself is written down in [`contracts/`](../contracts/) as JSON Schema and **validated against a running server**, so divergence fails a test instead of surprising a client. A capability in one surface but not another is a bug.
 - **Nothing important is a literal.** Tuning lives in [`config/robonode.settings.json`](../config/robonode.settings.json) — IK damping/tolerance/budget, carrier weight, settle and stop windows, the trajectory-duration ceiling, approach clearance, queue capacity, stream rates, sandbox workspace bounds, recording. The cell (nodes, robots, motions, stations) and the applications are descriptor data. A heuristic you cannot change without a rebuild is one nobody will improve.
 - **Failures are loud.** A fallback is legitimate only when the degraded behaviour is *correct*, not merely non-crashing: a missing detector refuses the pick instead of reporting the origin, a half-built cell reports which node failed and leaves the previous one running, and a rejected command is visible in the UI.
-- **Observability is a shared stream (#44).** Logs, traces, and telemetry are one queryable, followable surface emitted through the recorder seam and consumed identically by CLI (`logs -f`, `trace`, `telemetry`) and UI. Logging uses a **mature, professional stack — spdlog + fmt**, structured (JSON sink), levelled, per-module, **async/lock-free so it never blocks the loop (#42)**. No `printf`/`iostream` in product code.
+- **Observability is a shared stream.** Logs, traces, and telemetry are one queryable, followable surface emitted through the recorder seam and consumed identically by CLI (`logs -f`, `trace`, `telemetry`) and UI. Logging uses a **mature, professional stack — spdlog + fmt**, structured (JSON sink), levelled, per-module, **async/lock-free so it never blocks the loop**. No `printf`/`iostream` in product code.
 
 ---
 
 # Part 2 — Stack (reuse, don't reinvent)
 
-Mature open-source building blocks by concern. Status: ✅ used in the build now (with exact pin) · ▶ candidate (issue #) · ⏸ evaluated, set aside (trade-off noted). Written for external critique of the choices (esp. "why not ROS 2 / MoveIt?").
+Mature open-source building blocks by concern. Status: used in the build now (with exact pin) · candidate (issue #) · ⏸ evaluated, set aside (trade-off noted). Written for external critique of the choices (esp. "why not ROS 2 / MoveIt?").
 
 ### Physics / simulation
 | Repo | Role | Status / pin |
 |---|---|---|
-| [google-deepmind/mujoco](https://github.com/google-deepmind/mujoco) | Physics engine (the twin) | ✅ `3.10.0`, `sim-mujoco` (FetchContent, source build) |
-| [google-deepmind/mujoco_menagerie](https://github.com/google-deepmind/mujoco_menagerie) | Real robot MJCF models (UR, Franka, Kuka, …) | ▶ #20 |
+| [google-deepmind/mujoco](https://github.com/google-deepmind/mujoco) | Physics engine (the twin) | `3.10.0`, `sim-mujoco` (FetchContent, source build) |
+| [google-deepmind/mujoco_menagerie](https://github.com/google-deepmind/mujoco_menagerie) | Real robot MJCF models (UR, Franka, Kuka, …) | |
 | [gazebosim/gz-sim](https://github.com/gazebosim/gz-sim) | Alt sim (Linux/CI twin) | ⏸ Jetty/gz-sim 11 (Ionic EOLs 2026-09 — don't pin); same `AxisAdapter` seam |
 | [bulletphysics/bullet3](https://github.com/bulletphysics/bullet3) · [NVIDIA Isaac Sim](https://developer.nvidia.com/isaac/sim) | Alt physics / GPU sim + synthetic data | ⏸ later (perception RL) |
 
 ### Kinematics / dynamics / robotics toolboxes
 | Repo | Role | Status / pin |
 |---|---|---|
-| [stack-of-tasks/pinocchio](https://github.com/stack-of-tasks/pinocchio) | **RT** FK/IK/Jacobian in-process (C++, Eigen, analytic derivatives, µs) | ▶ **#34 P0 — the RT Kinematics impl** (review: kill the Python-in-loop hop) |
-| [petercorke/robotics-toolbox-python](https://github.com/petercorke/robotics-toolbox-python) | Robot models + offline FK/IK/trajectories | ✅ behind the Kinematics seam, **offline / Tier-C only — not in the 1 kHz loop** (`rtb-kinematics` service) |
-| [robot-descriptions/robot_descriptions.py](https://github.com/robot-descriptions/robot_descriptions.py) | Fetch 185+ robot models (URDF/MJCF) ready | ▶ #21/#25 |
+| [stack-of-tasks/pinocchio](https://github.com/stack-of-tasks/pinocchio) | **RT** FK/IK/Jacobian in-process (C++, Eigen, analytic derivatives, µs) | **the RT Kinematics impl** (review: kill the Python-in-loop hop) |
+| [petercorke/robotics-toolbox-python](https://github.com/petercorke/robotics-toolbox-python) | Robot models + offline FK/IK/trajectories | behind the Kinematics seam, **offline / Tier-C only — not in the 1 kHz loop** (`rtb-kinematics` service) |
+| [robot-descriptions/robot_descriptions.py](https://github.com/robot-descriptions/robot_descriptions.py) | Fetch 185+ robot models (URDF/MJCF) ready | / |
 | [google-deepmind/dm_control](https://github.com/google-deepmind/dm_control) | MuJoCo Python control / PyMJCF | ⏸ reference |
 
 ### Motion planning / trajectory
 | Repo | Role | Status / pin |
 |---|---|---|
-| [pantor/ruckig](https://github.com/pantor/ruckig) | Online jerk-limited trajectory (OTG) | ✅ `v0.17.3`, `motion` (community; waypoints are Pro/cloud — blending stays in-house) |
-| [NVlabs/curobo](https://github.com/NVlabs/curobo) | GPU-parallel global planning + collision (CUDA) | ▶ **#39** — Planner impl; review benches ~45 ms vs OMPL ~1 s |
-| [ompl/ompl](https://github.com/ompl/ompl) | Sampling-based motion planning (RRT/PRM) | ▶ CPU-fallback Planner impl (#39) |
-| [loco-3d/crocoddyl](https://github.com/loco-3d/crocoddyl) | Optimal control / DDP (built on Pinocchio) | ▶ #41 — DynamicPlanner capability, contact-rich, later |
+| [pantor/ruckig](https://github.com/pantor/ruckig) | Online jerk-limited trajectory (OTG) | `v0.17.3`, `motion` (community; waypoints are Pro/cloud — blending stays in-house) |
+| [NVlabs/curobo](https://github.com/NVlabs/curobo) | GPU-parallel global planning + collision (CUDA) | planned — Planner impl; review benches ~45 ms vs OMPL ~1 s |
+| [ompl/ompl](https://github.com/ompl/ompl) | Sampling-based motion planning (RRT/PRM) | CPU-fallback Planner impl |
+| [loco-3d/crocoddyl](https://github.com/loco-3d/crocoddyl) | Optimal control / DDP (built on Pinocchio) | DynamicPlanner capability, contact-rich, later |
 | [moveit/moveit2](https://github.com/moveit/moveit2) | Full manipulation planning (ROS 2) | ⏸ **review confirms skip** — heavy/ROS-coupled; Pinocchio + cuRobo/OMPL behind our Planner seam is the lean path |
-| [hungpham2511/toppra](https://github.com/hungpham2511/toppra) | Time-optimal path parameterization | ▶ `v0.6.4` retiming reference (Python) |
+| [hungpham2511/toppra](https://github.com/hungpham2511/toppra) | Time-optimal path parameterization | `v0.6.4` retiming reference (Python) |
 
 ### Robot control / drivers (real hardware)
 | Repo | Role | Status / pin |
 |---|---|---|
-| [UniversalRobots/Universal_Robots_Client_Library](https://github.com/UniversalRobots/Universal_Robots_Client_Library) | UR RTDE/servoj control | ✅ `2.13.0`, `adapters/ur` (compile-verified; live needs x86 URSim) |
+| [UniversalRobots/Universal_Robots_Client_Library](https://github.com/UniversalRobots/Universal_Robots_Client_Library) | UR RTDE/servoj control | `2.13.0`, `adapters/ur` (compile-verified; live needs x86 URSim) |
 | [ros-controls/ros2_control](https://github.com/ros-controls/ros2_control) | Real-time controller framework | ⏸ **feedback-wanted** — our `AxisAdapter`+governor+executive cover it without ROS |
-| [FANUC-CORPORATION/fanuc_description](https://github.com/FANUC-CORPORATION/fanuc_description) · [ros-industrial/fanuc](https://github.com/ros-industrial/fanuc) | FANUC URDF + meshes | ▶ #25 (via RTB URDF import — no ready MJCF exists) |
-| [frankaemika/libfranka](https://github.com/frankaemika/libfranka) · [doosan-robotics/doosan-robot](https://github.com/doosan-robotics/doosan-robot) · [ros-industrial/abb](https://github.com/ros-industrial/abb) | Franka/Doosan/ABB drivers & descriptions | ▶ per-vendor adapters behind the seam |
-| [IgH EtherLab](https://gitlab.com/etherlab.org/ethercat) | EtherCAT master (own drives) | ▶ `stable-1.6`; needs a Linux PREEMPT_RT rig |
+| [FANUC-CORPORATION/fanuc_description](https://github.com/FANUC-CORPORATION/fanuc_description) · [ros-industrial/fanuc](https://github.com/ros-industrial/fanuc) | FANUC URDF + meshes | (via RTB URDF import — no ready MJCF exists) |
+| [frankaemika/libfranka](https://github.com/frankaemika/libfranka) · [doosan-robotics/doosan-robot](https://github.com/doosan-robotics/doosan-robot) · [ros-industrial/abb](https://github.com/ros-industrial/abb) | Franka/Doosan/ABB drivers & descriptions | per-vendor adapters behind the seam |
+| [IgH EtherLab](https://gitlab.com/etherlab.org/ethercat) | EtherCAT master (own drives) | `stable-1.6`; needs a Linux PREEMPT_RT rig |
 
-### Vision / perception / learning (don't reinvent) — **async-decoupled, never in the 1 kHz loop** (#38)
+### Vision / perception / learning (don't reinvent) — **async-decoupled, never in the 1 kHz loop**
 Perception runs in its own thread pool; poses cross to the loop via SPSC and a state estimator (EKF) interpolates the low-rate result up to loop rate.
 | Repo | Role | Status |
 |---|---|---|
-| [opencv/opencv](https://github.com/opencv/opencv) | Classical vision (detect, calib, track) | ▶ #6 (Vision capability) |
-| [microsoft/onnxruntime](https://github.com/microsoft/onnxruntime) | Run trained DL models (portable) | ▶ #6 (DL detector slot) |
-| [halide/Halide](https://github.com/halide/Halide) | High-perf image kernels (algorithm/schedule split, ARM64) | ▶ #38 custom vision-node option (review) |
-| [pytorch/pytorch](https://github.com/pytorch/pytorch) · [ultralytics/ultralytics](https://github.com/ultralytics/ultralytics) | Training / detection (YOLO) | ▶ bring-your-own model |
+| [opencv/opencv](https://github.com/opencv/opencv) | Classical vision (detect, calib, track) | (Vision capability) |
+| [microsoft/onnxruntime](https://github.com/microsoft/onnxruntime) | Run trained DL models (portable) | (DL detector slot) |
+| [halide/Halide](https://github.com/halide/Halide) | High-perf image kernels (algorithm/schedule split, ARM64) | custom vision-node option (review) |
+| [pytorch/pytorch](https://github.com/pytorch/pytorch) · [ultralytics/ultralytics](https://github.com/ultralytics/ultralytics) | Training / detection (YOLO) | bring-your-own model |
 | [NVlabs/FoundationPose](https://github.com/NVlabs/FoundationPose) · [google-ai-edge/mediapipe](https://github.com/google-ai-edge/mediapipe) | 6-DoF pose / perception blocks | ⏸ candidate detectors |
 
 ### Middleware / comms
 | Repo | Role | Status / pin |
 |---|---|---|
-| [yhirose/cpp-httplib](https://github.com/yhirose/cpp-httplib) | HTTP+SSE gateway (v0 transport) | ✅ `v0.19.0`, `gateway` + `engines/rtb` |
-| [eclipse-zenoh/zenoh](https://github.com/eclipse-zenoh/zenoh) | Edge↔cloud pub/sub data plane (+ `zenoh-shm` zero-copy for vision) | ▶ #7 (`zenoh-c`/`zenoh-cpp` 1.9.0); review: use shm transport for frames |
+| [yhirose/cpp-httplib](https://github.com/yhirose/cpp-httplib) | HTTP+SSE gateway (v0 transport) | `v0.19.0`, `gateway` + `engines/rtb` |
+| [eclipse-zenoh/zenoh](https://github.com/eclipse-zenoh/zenoh) | Edge↔cloud pub/sub data plane (+ `zenoh-shm` zero-copy for vision) | (`zenoh-c`/`zenoh-cpp` 1.9.0); review: use shm transport for frames |
 | [ros2/ros2](https://github.com/ros2/ros2) | Full robotics middleware + ecosystem | ⏸ **review confirms bridge-not-foundation** — Zenoh-native + our IDL; ROS 2 attaches via rmw_zenoh |
 | [eclipse-ecal/ecal](https://github.com/eclipse-ecal/ecal) | Pure-C++ zero-copy shared-memory transport | ⏸ alt to Zenoh for vision shm if the zenoh-c bindings prove cumbersome (review) |
-| [grpc/grpc](https://github.com/grpc/grpc) | Typed RPC (SDKs/UI/Tier-B) | ⏸ #8 deferred (HTTP/SSE covers v0) |
-| [nlohmann/json](https://github.com/nlohmann/json) | JSON (descriptors, gateway) — **authoring only** | ✅ `v3.12.0` (RT-loop reads move to FlatBuffers, #40) |
+| [grpc/grpc](https://github.com/grpc/grpc) | Typed RPC (SDKs/UI/Tier-B) | deferred (HTTP/SSE covers v0) |
+| [nlohmann/json](https://github.com/nlohmann/json) | JSON (descriptors, gateway) — **authoring only** | `v3.12.0` (RT-loop reads move to FlatBuffers) |
 
 ### Real-time plumbing (external review — keep the 1 kHz path clean)
 | Repo | Role | Status / pin |
 |---|---|---|
-| [boostorg/lockfree](https://github.com/boostorg/lockfree) | Lock-free SPSC queue — non-RT↔RT command/telemetry hand-off | ▶ **#35** (review: no mutex/alloc/blocking in the loop; don't hand-roll) |
-| [TartanLlama/expected](https://github.com/TartanLlama/expected) | `std::expected` shim (pre-C++23) for seam error returns | ▶ #36 (review: expected over exceptions across seams — RT/ABI safety) |
-| [google/flatbuffers](https://github.com/google/flatbuffers) | Zero-copy descriptor reads inside the RT loop | ▶ #40 (JSON stays for authoring; FlatBuffers for in-loop config) |
-| [gabime/spdlog](https://github.com/gabime/spdlog) · [fmtlib/fmt](https://github.com/fmtlib/fmt) | **Logging backbone** — structured (JSON sink), levelled, per-module, async/lock-free | ▶ #42 (RT-loop no-block) + **#44** (structured logs + one CLI/UI observability surface) |
+| [boostorg/lockfree](https://github.com/boostorg/lockfree) | Lock-free SPSC queue — non-RT↔RT command/telemetry hand-off | planned (review: no mutex/alloc/blocking in the loop; don't hand-roll) |
+| [TartanLlama/expected](https://github.com/TartanLlama/expected) | `std::expected` shim (pre-C++23) for seam error returns | (review: expected over exceptions across seams — RT/ABI safety) |
+| [google/flatbuffers](https://github.com/google/flatbuffers) | Zero-copy descriptor reads inside the RT loop | (JSON stays for authoring; FlatBuffers for in-loop config) |
+| [gabime/spdlog](https://github.com/gabime/spdlog) · [fmtlib/fmt](https://github.com/fmtlib/fmt) | **Logging backbone** — structured (JSON sink), levelled, per-module, async/lock-free | (RT-loop no-block) + planned (structured logs + one CLI/UI observability surface) |
 
 ### Telemetry / visualization
 | Repo | Role | Status / pin |
 |---|---|---|
-| [foxglove/mcap](https://github.com/foxglove/mcap) | Recording (flight recorder) | ✅ `releases/cpp/v2.1.3`, `recorder` (tarball fetch — git-lfs) |
-| [foxglove/foxglove-sdk](https://github.com/foxglove/foxglove-sdk) | Live viz + MCAP (one API) | ▶ #11 (`sdk/v0.25.3`) |
-| [mrdoob/three.js](https://github.com/mrdoob/three.js) · [gkjohnson/urdf-loaders](https://github.com/gkjohnson/urdf-loaders) | Web 3D twin | ✅ `r185` (vendored, no CDN) / ▶ real meshes |
+| [foxglove/mcap](https://github.com/foxglove/mcap) | Recording (flight recorder) | `releases/cpp/v2.1.3`, `recorder` (tarball fetch — git-lfs) |
+| [foxglove/foxglove-sdk](https://github.com/foxglove/foxglove-sdk) | Live viz + MCAP (one API) | (`sdk/v0.25.3`) |
+| [mrdoob/three.js](https://github.com/mrdoob/three.js) · [gkjohnson/urdf-loaders](https://github.com/gkjohnson/urdf-loaders) | Web 3D twin | `r185` (vendored, no CDN) / real meshes |
 | [rerun-io/rerun](https://github.com/rerun-io/rerun) | Multimodal viz | ⏸ alt |
 
-### Client / CLI — agent-complete, same contract as the UI (#43)
-The `robonode` CLI and the web UI are both thin clients of the Platform facade (#33): identical command + telemetry contract, no divergent logic. The CLI exists so an **agent can drive the whole system headless** — execute, monitor, tail logs/traces/telemetry, manage lifecycle — with machine-readable output.
+### Client / CLI — agent-complete, same contract as the UI
+The `robonode` CLI and the web UI are both thin clients of the Platform facade: identical command + telemetry contract, no divergent logic. The CLI exists so an **agent can drive the whole system headless** — execute, monitor, tail logs/traces/telemetry, manage lifecycle — with machine-readable output.
 | Repo | Role | Status / pin |
 |---|---|---|
-| [CLIUtils/CLI11](https://github.com/CLIUtils/CLI11) | C++ command/subcommand parsing for `robonode` | ▶ #43 (mature, header-only; subcommands, validators, config) |
-| [nlohmann/json](https://github.com/nlohmann/json) | `--json` machine output (same schema the UI/SSE speak) | ✅ reused |
-| SSE / Zenoh stream | `logs -f` · `trace` · `telemetry` follow — same stream the UI subscribes to | ▶ #43/#44 |
+| [CLIUtils/CLI11](https://github.com/CLIUtils/CLI11) | C++ command/subcommand parsing for `robonode` | (mature, header-only; subcommands, validators, config) |
+| [nlohmann/json](https://github.com/nlohmann/json) | `--json` machine output (same schema the UI/SSE speak) | reused |
+| SSE / Zenoh stream | `logs -f` · `trace` · `telemetry` follow — same stream the UI subscribes to | / |
 
 ### User-module sandbox (bring your own, safely) · fleet
 | Repo | Role | Status |
 |---|---|---|
-| [bytecodealliance/wasmtime](https://github.com/bytecodealliance/wasmtime) | WASM runtime for user algorithms (Tier-B) | ▶ #26/#37 (`v46`; review: **AOT/Cranelift precompile + WASI disabled** for in-loop modules — no JIT warmup, no OS calls; component-model-via-C-API remains the unproven bet, WASI-p1 fallback). Tier-A bare-metal drivers/planners use a dlopen C-ABI `.so`/`.dylib` slot instead (#37). |
-| OCI/containerd · [google/gvisor](https://github.com/google/gvisor) | Heavier/GPU user modules, isolation | ▶ Tier-B (containers) |
-| [BehaviorTree/BehaviorTree.CPP](https://github.com/BehaviorTree/BehaviorTree.CPP) | Program/flow engine | ▶ `4.9.1` (under the flow UI) |
-| [mendersoftware/mender](https://github.com/mendersoftware/mender) | A/B OTA updates | ▶ later (`5.1.0`) |
+| [bytecodealliance/wasmtime](https://github.com/bytecodealliance/wasmtime) | WASM runtime for user algorithms (Tier-B) | / (`v46`; review: **AOT/Cranelift precompile + WASI disabled** for in-loop modules — no JIT warmup, no OS calls; component-model-via-C-API remains the unproven bet, WASI-p1 fallback). Tier-A bare-metal drivers/planners use a dlopen C-ABI `.so`/`.dylib` slot instead. |
+| OCI/containerd · [google/gvisor](https://github.com/google/gvisor) | Heavier/GPU user modules, isolation | Tier-B (containers) |
+| [BehaviorTree/BehaviorTree.CPP](https://github.com/BehaviorTree/BehaviorTree.CPP) | Program/flow engine | `4.9.1` (under the flow UI) |
+| [mendersoftware/mender](https://github.com/mendersoftware/mender) | A/B OTA updates | later (`5.1.0`) |
 
 ## Modularity seams (the contract layer — every Part-2 row hides behind one)
 
-A seam is only real if something else already plugs into it. `✅` = ≥2
+A seam is only real if something else already plugs into it. `` = ≥2
 implementations selectable as data today.
 
 | Seam (we own) | Defined in | What plugs in behind it |
 |---|---|---|
-| `AxisAdapter` ✅ | `motion/axis_adapter.hpp` | `SimAxis` · `SimAxis`(soft) · `ByoAxis` · `MujocoAxisAdapter` · `UrWristAdapter` · your driver |
-| `SetpointSource` ✅ | `motion/setpoint_source.hpp` | `PlanSource` · `Otg` (Ruckig) · `HoldSource` · `PlanAxisSource` · a teleop feed |
-| `Kinematics` ✅ | `motion/kinematics.hpp` | `MujocoKinematics` · `RtbKinematics` (example) · Pinocchio ▶#34 |
-| `Planner` ✅ | `motion/planner.hpp` | `CartesianLinePlanner` (moveL) · `JointReachPlanner` (moveJ) · `RendezvousPlanner` · `SandboxedPlanner` (user code) · collision-aware cuRobo/OMPL ▶#39 |
-| `Controller` ✅ | `motion/controller.hpp` | `DirectController` · `SmoothController` |
-| `Detector` ✅ | `vision/detector.hpp` | `ToyDetector` (scene oracle) · **`CvDetector` (OpenCV, real pixels)** · `SandboxedDetector` · `WasmDetector` |
-| `Camera` ✅ | `vision/camera.hpp` · `camera_registry.hpp` | `robonode.overhead` · `robonode.overhead-slow`; a rendered or real camera plugs in unchanged. Detectors are handed one — they never build it |
-| `Tracker` ✅ | `vision/tracker.hpp` | `SnapshotTracker` (no motion model — the honest baseline) · `ConstantVelocityTracker` (least squares + track gating) · `SandboxedTracker` (user code) |
-| `Scene` ✅ | `celld/scene.hpp` | `MujocoScene` — the LIVE world a station drives and a sensor reads |
+| `AxisAdapter` | `motion/axis_adapter.hpp` | `SimAxis` · `SimAxis`(soft) · `ByoAxis` · `MujocoAxisAdapter` · `UrWristAdapter` · your driver |
+| `SetpointSource` | `motion/setpoint_source.hpp` | `PlanSource` · `Otg` (Ruckig) · `HoldSource` · `PlanAxisSource` · a teleop feed |
+| `Kinematics` | `motion/kinematics.hpp` | `MujocoKinematics` · `RtbKinematics` (example) · Pinocchio (planned) |
+| `Planner` | `motion/planner.hpp` | `CartesianLinePlanner` (moveL) · `JointReachPlanner` (moveJ) · `RendezvousPlanner` · `SandboxedPlanner` (user code) · collision-aware cuRobo/OMPL (planned) |
+| `Controller` | `motion/controller.hpp` | `DirectController` · `SmoothController` |
+| `Detector` | `vision/detector.hpp` | `ToyDetector` (scene oracle) · **`CvDetector` (OpenCV, real pixels)** · `SandboxedDetector` · `WasmDetector` |
+| `Camera` | `vision/camera.hpp` · `camera_registry.hpp` | `robonode.overhead` · `robonode.overhead-slow`; a rendered or real camera plugs in unchanged. Detectors are handed one — they never build it |
+| `Tracker` | `vision/tracker.hpp` | `SnapshotTracker` (no motion model — the honest baseline) · `ConstantVelocityTracker` (least squares + track gating) · `SandboxedTracker` (user code) |
+| `Scene` | `celld/scene.hpp` | `MujocoScene` — the LIVE world a station drives and a sensor reads |
 | `ToolNode` | `celld/tool_node.hpp` | `SimGripper` · a real gripper driver |
-| `ModuleRegistry<T,Ctx>` ✅ | `motion/module_registry.hpp` | one "list versions / build one / swap live" mechanism for **every** capability |
-| `CapabilityBase` ✅ | `gateway/capability.hpp` | vision · trajectory · control — each self-describing to every surface |
-| `CellGateway::DriverHook` ✅ | `gateway/cell_gateway.hpp` | the app chooses which vendor drivers exist in this build |
-| Persistence ✅ | `celld/json_doc_store.hpp` | filesystem now (per session) · a durable store ▶#84, same interface |
-| Transport | `apps/cell_server` + `contracts/` | HTTP+SSE now · gRPC/Zenoh ▶#8 |
-| Recorder ✅ | `recorder/` | MCAP (Foxglove-readable) |
-| Sandbox ✅ | `sandbox/program.hpp` | expression VM · Wasmtime (opt-in) |
+| `ModuleRegistry<T,Ctx>` | `motion/module_registry.hpp` | one "list versions / build one / swap live" mechanism for **every** capability |
+| `CapabilityBase` | `gateway/capability.hpp` | vision · trajectory · control — each self-describing to every surface |
+| `CellGateway::DriverHook` | `gateway/cell_gateway.hpp` | the app chooses which vendor drivers exist in this build |
+| Persistence | `celld/json_doc_store.hpp` | filesystem now (per session) · a durable store (planned), same interface |
+| Transport | `apps/cell_server` + `contracts/` | HTTP+SSE now · gRPC/Zenoh (planned) |
+| Recorder | `recorder/` | MCAP (Foxglove-readable) |
+| Sandbox | `sandbox/program.hpp` | expression VM · Wasmtime (opt-in) |
 
 ## External review → decisions (2026-07)
 
@@ -486,15 +500,15 @@ open**, and the table says which.
 
 | Review finding | Decision | Issue |
 |---|---|---|
-| Python RTB in the 1 kHz loop = IPC + GIL jitter, blows the deadline | **Pinocchio (C++) does RT FK/IK/Jac in-process**; RTB demoted to offline model source / Tier-C | #34 (P0) |
-| Mutex on the non-RT↔RT boundary = priority inversion | **Lock-free SPSC** (vendored boost::lockfree), no lock/alloc/blocking in the loop | #35 (P0) |
-| Exceptions across seams break RT-safety + ABI | **`std::expected`** (tl::expected pre-C++23) on seam returns; RT path stays noexcept + latched | #36 |
-| Wasm JIT warmup (15–30 ms) + WASI syscalls break determinism | **Wasmtime AOT/Cranelift + WASI-off** for in-loop modules; native C-ABI `.so` slot for Tier-A | #37 |
-| DL inference (15–100 ms) cannot sit in the loop | **Vision async-decoupled**: own thread pool → SPSC → EKF interpolation; zenoh-shm zero-copy frames | #38 |
-| OMPL global planning ~1 s, jagged paths | **cuRobo (GPU)** behind the Planner seam (~45 ms), OMPL CPU fallback | #39 |
-| JSON parse allocates → RT spikes | **FlatBuffers** for in-loop descriptor reads; JSON stays for authoring | #40 |
-| Contact-rich optimal control wanted | **Crocoddyl** DynamicPlanner (DDP on Pinocchio), later | #41 |
-| Blocking I/O logging in the loop | **spdlog/fmt async** logging | #42 |
+| Python RTB in the 1 kHz loop = IPC + GIL jitter, blows the deadline | **Pinocchio (C++) does RT FK/IK/Jac in-process**; RTB demoted to offline model source / Tier-C | (P0) |
+| Mutex on the non-RT↔RT boundary = priority inversion | **Lock-free SPSC** (vendored boost::lockfree), no lock/alloc/blocking in the loop | (P0) |
+| Exceptions across seams break RT-safety + ABI | **`std::expected`** (tl::expected pre-C++23) on seam returns; RT path stays noexcept + latched | |
+| Wasm JIT warmup (15–30 ms) + WASI syscalls break determinism | **Wasmtime AOT/Cranelift + WASI-off** for in-loop modules; native C-ABI `.so` slot for Tier-A | |
+| DL inference (15–100 ms) cannot sit in the loop | **Vision async-decoupled**: own thread pool → SPSC → EKF interpolation; zenoh-shm zero-copy frames | |
+| OMPL global planning ~1 s, jagged paths | **cuRobo (GPU)** behind the Planner seam (~45 ms), OMPL CPU fallback | |
+| JSON parse allocates → RT spikes | **FlatBuffers** for in-loop descriptor reads; JSON stays for authoring | |
+| Contact-rich optimal control wanted | **Crocoddyl** DynamicPlanner (DDP on Pinocchio), later | |
+| Blocking I/O logging in the loop | **spdlog/fmt async** logging | |
 | MuJoCo · Ruckig · Zenoh · Wasmtime · MCAP choices | **Confirmed** — keep pinned | — |
 
 The seam design is what lets every one of these land **without touching product logic**: Pinocchio slots behind the same `Kinematics` interface RTB uses; cuRobo behind the same `Planner`; the SPSC behind the `CellGateway` transport. That is the modularity paying rent.

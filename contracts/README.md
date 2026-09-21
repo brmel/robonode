@@ -15,6 +15,6 @@ is checked rather than asserted.
 | `scene.schema.json` | `GET /scenes/{file}`, `PUT /scenes/{file}` — the scenario a user authors |
 
 `robonode-idl/` holds the **protobuf** definitions for the future gRPC surface
-(#8). Nothing generates from them yet, so they are a design document, not a
+. Nothing generates from them yet, so they are a design document, not a
 contract — when the SDK lands they become the generated source of truth and
 these schemas become the JSON projection of the same types.

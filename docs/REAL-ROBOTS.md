@@ -2,12 +2,12 @@
 
 > Two aspects of "real", both behind existing seams so the node design is untouched.
 >
-> 1. **Real physics model** — ✅ **done**. The cell runs a real UR10e from MuJoCo Menagerie (menagerie geometry verbatim, local renames only), on a 7th-axis rail, with contacts and a weld-based grasp (ADR-16).
-> 2. **Real kinematics** — ✅ via Robotics Toolbox *offline*, ▶ **open for the RT path** ([#34](https://github.com/brmel/robonode/issues/34)).
+> 1. **Real physics model** — **done**. The cell runs a real UR10e from MuJoCo Menagerie (menagerie geometry verbatim, local renames only), on a 7th-axis rail, with contacts and a weld-based grasp (ADR-16).
+> 2. **Real kinematics** — via Robotics Toolbox *offline*, **open for the RT path**.
 >
-> **Why the RT path is still open.** Querying the Python RTB service from the 1 kHz loop is exactly the flaw ADR-5 forbids: IPC plus the GIL cannot meet the deadline. So the RT implementation is to be **Pinocchio (C++, in-process)** behind the *same* `Kinematics` seam, and RTB stays the offline model/URDF source and the Tier-C planner. Today the loop uses a hand-rolled damped-least-squares solve on MuJoCo's own Jacobian. It answers full SE(3) — `move_pose` reaches a point *and* an angle ([#92](https://github.com/brmel/robonode/issues/92), closed) — and what Pinocchio buys is a maintained implementation of it rather than ours. When Pinocchio lands, nothing above the seam changes. That is the seam paying rent.
+> **Why the RT path is still open.** Querying the Python RTB service from the 1 kHz loop is exactly the flaw ADR-5 forbids: IPC plus the GIL cannot meet the deadline. So the RT implementation is to be **Pinocchio (C++, in-process)** behind the *same* `Kinematics` seam, and RTB stays the offline model/URDF source and the Tier-C planner. Today the loop uses a hand-rolled damped-least-squares solve on MuJoCo's own Jacobian. It answers full SE(3) — `move_pose` reaches a point *and* an angle (, closed) — and what Pinocchio buys is a maintained implementation of it rather than ours. When Pinocchio lands, nothing above the seam changes. That is the seam paying rent.
 
-## ✅ Implemented — real kinematics via Robotics Toolbox
+## Implemented — real kinematics via Robotics Toolbox
 
 Decision (chosen): host [petercorke/robotics-toolbox-python](https://github.com/petercorke/robotics-toolbox-python) — real robot models (UR3/5/10, Panda, …) + validated FK/IK/Jacobian/trajectories — in a small Python service, and reach it through our seams:
 
@@ -22,7 +22,7 @@ DriverRegistry / AxisAdapter / SyncBlendPlan — all unchanged        real model
 - **Verified:** `examples/rtb_dev` plans a real UR10 Cartesian moveL via the service — 6 joints × N real IK waypoints, FK lands on target to 1e-6 m. `services/rtb-kinematics/test_service.py` self-checks the library; `scripts/rtb-verify.sh` runs the full C++↔service loop.
 - **FANUC / other industrial arms** load into RTB from their URDF (`rtb.ERobot.URDF`) — the same seam, still no reimplementation.
 
-## ▶ Next — real physics model on the rail
+## Next — real physics model on the rail
 
 The physics twin (MuJoCo) still uses the primitive arm. To make the *simulation* a real robot too, load a real model so MuJoCo simulates the same robot RTB plans for. Survey + plan below.
 
@@ -63,7 +63,7 @@ Both tracks are 6+ DOF and reuse every node seam unchanged.
 ## Why this fits our node design unchanged
 
 - Each robot joint is already a **MotionAxis node** driven by `MujocoAxisAdapter` (joint + actuator name from descriptor `config`). A real menagerie model just supplies different — accurate — joint/actuator names, limits, and inertias. The descriptor's `limits` become the *real* robot's limits (data, FR-1.3).
-- `MujocoKinematics` computes FK/Jacobian from whatever model is loaded → real kinematics for free (#4 cross-checks still hold).
+- `MujocoKinematics` computes FK/Jacobian from whatever model is loaded → real kinematics for free ( cross-checks still hold).
 - The rail (7th axis) stays ours; the real arm mounts on the carriage.
 
 ## The one technical problem: mounting a real arm on our rail

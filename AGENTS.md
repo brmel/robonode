@@ -18,11 +18,11 @@ Build a **modular, open-source platform to test robotics algorithms in real phys
 7. NEXT   go to 1
 ```
 
-One issue = one commit = one matrix row moving ▶→✅. Small slices over big ones.
+One issue = one commit = one matrix row moving →. Small slices over big ones.
 
 ## Pick next
 
-Order comes from the tracker (**issue #19**, phases R → 0 → 1 → 5). Within that, take the lowest-numbered issue that is `agent-ready` and whose `blocked by` are all closed.
+Order comes from the tracker (**issue **, phases R → 0 → 1 → 5). Within that, take the lowest-numbered issue that is `agent-ready` and whose `blocked by` are all closed.
 
 ```sh
 gh issue list --state open --label agent-ready --json number,title,labels \
@@ -50,7 +50,7 @@ A slice is done only when **`scripts/verify.sh` exits 0** (design invariants + b
 
 - [ ] a test exists in the correct layer and is green (see `docs/TEST-STRATEGY.md`)
 - [ ] the issue's acceptance criteria are all met
-- [ ] the scenario-matrix row is flipped ▶→✅ (or a new row added) in `docs/TEST-STRATEGY.md`
+- [ ] the scenario-matrix row is flipped → (or a new row added) in `docs/TEST-STRATEGY.md`
 - [ ] the issue is closed with a one-line evidence note (what proves it)
 - [ ] committed, one issue per commit, `Co-Authored-By: Claude Opus 4.8`
 
@@ -61,7 +61,7 @@ A slice is done only when **`scripts/verify.sh` exits 0** (design invariants + b
 These are the ADRs as hard rules. `check-design.sh` fails the build on violation, so you *cannot* merge drift — but know them so you don't fight the gate:
 
 - **Seams are contracts** — extend `AxisAdapter` / `SetpointSource` / `Kinematics` / `Planner` / `Controller` / `Detector` / `ToolNode` / `ModuleRegistry` / `CapabilityBase` / `JsonDocStore` / the Platform facade; never reach around them. Deleting a seam is a regression. A seam belongs in the layer that *consumes* it. (`check-boundaries.sh`)
-- **RT-loop purity (ADR-5/6/7)** — the 1 kHz path carries no Python, no heap alloc, no locks, no blocking I/O. Kinematics in-process (Pinocchio is #34; today it is a hand-rolled DLS solve on MuJoCo's Jacobian), non-RT↔RT via lock-free SPSC (#35), and seams returning `std::expected` instead of throwing (#36) are all *open* — write new code as if they were true, and do not add a violation the gate has not caught yet.
+- **RT-loop purity (ADR-5/6/7)** — the 1 kHz path carries no Python, no heap alloc, no locks, no blocking I/O. Kinematics in-process (Pinocchio is planned; today it is a hand-rolled DLS solve on MuJoCo's Jacobian), non-RT↔RT via lock-free SPSC, and seams returning `std::expected` instead of throwing are all *open* — write new code as if they were true, and do not add a violation the gate has not caught yet.
 - **One owner for the physics (ADR-16)** — `mjData` is single-owner. The thread that steps the world samples frames and contacts; every other surface reads that snapshot. Reading the live world from an HTTP thread corrupts the solver, and it looks like a crash inside `mj_collideTree`.
 - **Data-driven (no hardcoding)** — tree, limits, robots, motions, stations and programs are descriptor data; **every tunable is in `config/robonode.settings.json`** (ADR-14). Pure modules (`core`/`motion`/`celld`) carry no file/path literals. A number you cannot change without a rebuild is drift.
 - **Address by name, never by position (ADR-13)** — a robot names its carrier and joints; `gateway/` may not index the flat node list. The gate greps for it.
@@ -93,8 +93,8 @@ The full architecture + rationale: `docs/ARCHITECTURE.md`. Decisions: `docs/DECI
 
 ## Roadmap = single source of truth, zero drift
 
-- **Tracker #19** is the ordered backlog. It records what shipped per release and what is open, in order. Where a closed issue and the code disagree, the code wins: the P0–P6 duplicates (#71–#91) were closed in bulk and several were never implemented. **`docs/TEST-STRATEGY.md`** is the progress ledger (scenario matrix). Update both as part of Done — the roadmap is not a separate artifact you sync later, it *is* the record.
-- Every open issue maps to a phase in #19; every user-facing capability maps to a matrix row. No orphans. If you create work, add it to both.
+- **Tracker ** is the ordered backlog. It records what shipped per release and what is open, in order. Where a closed issue and the code disagree, the code wins: the P0–P6 duplicates (–) were closed in bulk and several were never implemented. **`docs/TEST-STRATEGY.md`** is the progress ledger (scenario matrix). Update both as part of Done — the roadmap is not a separate artifact you sync later, it *is* the record.
+- Every open issue maps to a phase in; every user-facing capability maps to a matrix row. No orphans. If you create work, add it to both.
 - Do not invent scope. If the slice needs something not in an issue, open an issue for it (tracer-slice shape: what, acceptance criteria, blocked-by), don't silently expand.
 
 ## Where things go
@@ -120,4 +120,4 @@ Everything else: proceed. The gates catch mistakes; that's what they're for.
 
 ## Launch prompt (what the human types to start you)
 
-> "Work the RoboNode backlog autonomously per AGENTS.md: pick the next agent-ready unblocked issue from tracker #19, implement the slice, make `scripts/verify.sh` pass, flip its scenario-matrix row, close it with evidence, commit, and continue until the queue is empty or you hit a stop condition. Report each closed issue."
+> "Work the RoboNode backlog autonomously per AGENTS.md: pick the next agent-ready unblocked issue from tracker, implement the slice, make `scripts/verify.sh` pass, flip its scenario-matrix row, close it with evidence, commit, and continue until the queue is empty or you hit a stop condition. Report each closed issue."

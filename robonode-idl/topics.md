@@ -1,7 +1,7 @@
 # Topic key space (Zenoh)
 
 > **Status: design, not a live contract.** Nothing publishes these topics yet —
-> the Zenoh data plane is [#7](https://github.com/brmel/robonode/issues/7). What
+> the Zenoh data plane is. What
 > the platform serves today is JSON over HTTP+SSE, defined in
 > [`contracts/`](../contracts/).
 

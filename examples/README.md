@@ -9,5 +9,5 @@ is linked into `cell_server` or the `robonode` CLI, and nothing depends on them.
 | [ur_governed_move/](ur_governed_move/) | A real UR joint driven through the same `AxisAdapter`, governor and executive the sim uses, recorded to MCAP | `-DROBONODE_BUILD_UR_ADAPTER=ON` (default) |
 
 The product path for a real robot is different and does not need these: the app
-registers vendor drivers (`robonode::vendor_drivers()`), and a node is pointed at
+registers vendor drivers (`robonode::vendor_drivers`), and a node is pointed at
 hardware with a live driver swap — see [docs/REAL-ROBOTS.md](../docs/REAL-ROBOTS.md).
