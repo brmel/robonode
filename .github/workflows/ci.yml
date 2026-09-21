@@ -36,7 +36,14 @@ jobs:
       # physics, i.e. most of OUR code. What ran was the part that could not
       # have been wrong. sim-mujoco waives the two warnings their sanitizer
       # shim trips; nothing else is relaxed.
+      # clang, not gcc: MuJoCo's mjsan.h — the header it only compiles under
+      # ASan — writes `static inline void f(...) __attribute__((always_inline))`,
+      # and gcc rejects a trailing attribute on a function definition. clang
+      # accepts it, and the sanitizers are native there anyway.
       - name: Configure with ASan/UBSan (MuJoCo on — otherwise it covers nothing)
+        env:
+          CC: clang
+          CXX: clang++
         run: >
           cmake -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DROBONODE_BUILD_UR_ADAPTER=OFF
           -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer"
