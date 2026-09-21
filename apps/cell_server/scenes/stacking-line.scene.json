@@ -1,0 +1,15 @@
+{
+  "name": "Stacking line",
+  "base": "rail_ur10e.xml",
+  "objects": [
+    {
+      "name": "base_block",
+      "type": "box",
+      "size": [0.03, 0.03, 0.03],
+      "pos": [0.45, -0.55, 0.33],
+      "material": "part",
+      "collides": true,
+      "mass": 0.4
+    }
+  ]
+}

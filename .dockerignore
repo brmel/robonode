@@ -1,0 +1,9 @@
+# Build the image from sources only — never copy host build trees or noise.
+build/
+build-*/
+**/build/
+_archive/
+.git/
+*.mcap
+**/.DS_Store
+**/_deps/

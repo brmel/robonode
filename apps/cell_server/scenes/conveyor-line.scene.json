@@ -1,0 +1,5 @@
+{
+  "name": "Conveyor line",
+  "base": "rail_ur10e.xml",
+  "objects": []
+}

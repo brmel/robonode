@@ -1,0 +1,36 @@
+name: Bug report
+description: Something behaves differently from what the docs or the code claim
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What you ran, and what happened
+      description: Commands or clicks, then the behaviour you saw.
+      placeholder: |
+        robonode --server http://localhost:8080 pick
+        → "nothing within grasp reach (0.19 m)", but the part was on the belt
+    validations: {required: true}
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+    validations: {required: true}
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs and contacts
+      description: >
+        `robonode --server <url> logs` and `robonode --server <url> contacts`.
+        A cell that stopped short usually says what it is leaning on.
+      render: shell
+  - type: input
+    id: version
+    attributes:
+      label: Version / commit
+      placeholder: v0.8.0 or the commit sha
+  - type: dropdown
+    id: how
+    attributes:
+      label: How are you running it?
+      options: [docker compose, local build, Fly.io, Cloud Run, other]

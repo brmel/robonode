@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://robonode.dev/contracts/scene.schema.json",
+  "title": "Scene descriptor",
+  "description": "A scenario as data: the world it starts from, plus what the user placed in it. The platform composes the physics model from this, so changing the world is editing a number \u2014 never XML, never a rebuild.",
+  "type": "object",
+  "required": [
+    "base"
+  ],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "display name in the scene library"
+    },
+    "base": {
+      "type": "string",
+      "description": "the physics model this scene starts from"
+    },
+    "objects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "also the site the platform can look the object up by"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "box",
+              "sphere",
+              "cylinder",
+              "capsule",
+              "ellipsoid"
+            ]
+          },
+          "material": {
+            "type": "string"
+          },
+          "size": {
+            "$ref": "#/$defs/vec3",
+            "description": "half-extents, the physics engine's convention"
+          },
+          "pos": {
+            "$ref": "#/$defs/vec3"
+          },
+          "collides": {
+            "type": "boolean",
+            "description": "an obstacle collides; a decoy is only seen"
+          },
+          "visible": {
+            "type": "boolean"
+          },
+          "mass": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "slide_axis": {
+            "type": "string",
+            "description": "one sliding degree of freedom, e.g. \"-1 0 0\"; absent means fixed in place"
+          },
+          "slide_range": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 2,
+            "maxItems": 2
+          }
+        }
+      }
+    },
+    "overrides": {
+      "type": "array",
+      "description": "changes to what the BASE world already declares \u2014 move it, remove it, change its material or mass. An override naming a body the base does not have is refused.",
+      "items": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "the body in the base world"
+          },
+          "pos": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 3,
+            "maxItems": 3
+          },
+          "visible": {
+            "type": "boolean",
+            "description": "false removes it from the model entirely"
+          },
+          "material": {
+            "type": "string"
+          },
+          "mass": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "$defs": {
+    "vec3": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "minItems": 3,
+      "maxItems": 3
+    }
+  }
+}

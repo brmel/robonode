@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://robonode.dev/contracts/command-ack.schema.json",
+  "title": "Command acknowledgement",
+  "description": "The reply to POST /command. `ok` means ACCEPTED, not done: completion is observed on the telemetry stream when applied_id reaches this id.",
+  "type": "object",
+  "required": ["ok"],
+  "properties": {
+    "ok": { "type": "boolean" },
+    "id": { "type": "integer", "minimum": 1, "description": "command id to watch for in telemetry.applied_id" },
+    "queued": { "type": "integer", "minimum": 0, "description": "queue depth at acceptance" },
+    "version": { "type": "string", "description": "define_module: the registered version name" },
+    "error": { "type": "string", "description": "why the command was refused" }
+  },
+  "allOf": [
+    { "if": { "properties": { "ok": { "const": true } } }, "then": { "required": ["id"] } },
+    { "if": { "properties": { "ok": { "const": false } } }, "then": { "required": ["error"] } }
+  ]
+}

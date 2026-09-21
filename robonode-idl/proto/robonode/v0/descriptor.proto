@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package robonode.v0;
+
+import "robonode/v0/common.proto";
+
+// Machine-readable capability advertisement (FR-1.3). One node may expose
+// several capabilities; consumers (planners, UIs, algorithms) must read
+// limits from here at runtime.
+message CapabilityDescriptor {
+  string type = 1;            // e.g. "MotionAxis@1", "ArmKinematics@1"
+  string units = 2;           // "mm" | "deg" | ...
+  AxisLimits limits = 3;      // for motion-bearing capabilities
+  double command_rate_hz = 4; // max accepted command/stream rate
+  repeated string modes = 5;  // e.g. "position", "velocity", "torque"
+  bool blending = 6;          // supports blended waypoint sequences (FR-2.3)
+  bool streaming = 7;         // supports stream_open/stream_write (FR-2.6)
+}
+
+message Transform {
+  // Fixed transform parent→child; calibration workflows overwrite with
+  // provenance (FR-1.7).
+  repeated double xyz_mm = 1; // 3
+  repeated double rpy_rad = 2; // 3
+}
+
+message DriverRef {
+  string name = 1;    // registry id, e.g. "robonode.ethercat-cia402"
+  string version = 2; // semver
+}
+
+message DeviceInfo {
+  string vendor = 1;
+  string model = 2;
+  string serial = 3;
+}
+
+// The node: digital representation of one physical or simulated asset (§3
+// domain model). Published on change; queryable.
+message NodeDescriptor {
+  string id = 1;               // unique within cell
+  string cell = 2;
+  DriverRef driver = 3;
+  DeviceInfo device = 4;
+  string parent_node = 5;      // empty = root of the cell tree
+  Transform parent_transform = 6;
+  repeated CapabilityDescriptor capabilities = 7;
+  NodeLifecycle state = 8;
+  SafetyState safety = 9;
+  bool simulated = 10;         // twin nodes are first-class (FR-5.1)
+}

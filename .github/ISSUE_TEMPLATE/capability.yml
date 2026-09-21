@@ -1,0 +1,25 @@
+name: Capability / engine proposal
+description: A new algorithm version, or a mature engine to put behind a seam
+labels: [capability]
+body:
+  - type: dropdown
+    id: seam
+    attributes:
+      label: Which seam
+      options: [Kinematics, Planner, Controller, Detector, Camera, Tracker, ToolNode, AxisAdapter, Scene, other]
+    validations: {required: true}
+  - type: input
+    id: engine
+    attributes:
+      label: Engine or algorithm
+      placeholder: Pinocchio / OMPL / cuRobo / ONNX Runtime / your own
+  - type: textarea
+    id: why
+    attributes:
+      label: What it does that the current versions cannot
+    validations: {required: true}
+  - type: textarea
+    id: proof
+    attributes:
+      label: How we will know it works
+      description: The test and the scenario-matrix row it flips (docs/TEST-STRATEGY.md).

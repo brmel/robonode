@@ -1,0 +1,183 @@
+{
+  "name": "UR10e, bolted down",
+  "cell": "ur10e-fixed",
+  "world": "conveyor-line.scene.json",
+  "families": [
+    {
+      "id": "physics",
+      "driver": "robonode.mujoco-axis"
+    },
+    {
+      "id": "sim",
+      "driver": "robonode.sim-axis"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "j1",
+      "joint": "j1",
+      "actuator": "j1_servo",
+      "unit": "rad",
+      "units_per_m": 1,
+      "limits": {
+        "position_min": -6.28,
+        "position_max": 6.28,
+        "velocity_max": 3,
+        "acceleration_max": 15,
+        "jerk_max": 150
+      }
+    },
+    {
+      "id": "j2",
+      "joint": "j2",
+      "actuator": "j2_servo",
+      "unit": "rad",
+      "units_per_m": 1,
+      "limits": {
+        "position_min": -6.28,
+        "position_max": 6.28,
+        "velocity_max": 3,
+        "acceleration_max": 15,
+        "jerk_max": 150
+      }
+    },
+    {
+      "id": "j3",
+      "joint": "j3",
+      "actuator": "j3_servo",
+      "unit": "rad",
+      "units_per_m": 1,
+      "limits": {
+        "position_min": -3.14,
+        "position_max": 3.14,
+        "velocity_max": 3,
+        "acceleration_max": 15,
+        "jerk_max": 150
+      }
+    },
+    {
+      "id": "j4",
+      "joint": "j4",
+      "actuator": "j4_servo",
+      "unit": "rad",
+      "units_per_m": 1,
+      "limits": {
+        "position_min": -6.28,
+        "position_max": 6.28,
+        "velocity_max": 3,
+        "acceleration_max": 15,
+        "jerk_max": 150
+      }
+    },
+    {
+      "id": "j5",
+      "joint": "j5",
+      "actuator": "j5_servo",
+      "unit": "rad",
+      "units_per_m": 1,
+      "limits": {
+        "position_min": -6.28,
+        "position_max": 6.28,
+        "velocity_max": 3,
+        "acceleration_max": 15,
+        "jerk_max": 150
+      }
+    },
+    {
+      "id": "j6",
+      "joint": "j6",
+      "actuator": "j6_servo",
+      "unit": "rad",
+      "units_per_m": 1,
+      "limits": {
+        "position_min": -6.28,
+        "position_max": 6.28,
+        "velocity_max": 3,
+        "acceleration_max": 15,
+        "jerk_max": 150
+      }
+    }
+  ],
+  "robots": [
+    {
+      "id": "ur10e-a",
+      "carrier": [],
+      "joints": [
+        "j1",
+        "j2",
+        "j3",
+        "j4",
+        "j5",
+        "j6"
+      ],
+      "tcp_site": "tcp"
+    }
+  ],
+  "motions": [
+    {
+      "id": "home-cycle",
+      "settle_s": 1.5,
+      "waypoints": {
+        "j1": [
+          0,
+          0.8,
+          0.5
+        ],
+        "j2": [
+          0,
+          -1.2,
+          -0.9
+        ],
+        "j3": [
+          0,
+          1.6,
+          1.2
+        ],
+        "j4": [
+          0,
+          0.6,
+          0.4
+        ],
+        "j5": [
+          0,
+          -0.8,
+          -0.5
+        ],
+        "j6": [
+          0,
+          0.5,
+          0.3
+        ]
+      }
+    }
+  ],
+  "stations": [
+    {
+      "id": "conveyor-1",
+      "type": "conveyor",
+      "config": {
+        "speed_m_s": "0.08",
+        "joint": "belt_x",
+        "actuator": "belt_drive",
+        "start_site": "belt_start",
+        "end_site": "belt_end",
+        "workpiece": "part",
+        "rewind_m": "-0.45",
+        "drop_m": "0.03",
+        "clutter_site": "decoy"
+      }
+    },
+    {
+      "id": "pallet-1",
+      "type": "pallet",
+      "config": {
+        "cols": "2",
+        "ox": "0.45",
+        "oy": "-0.55",
+        "oz": "0.33",
+        "dx": "0.15",
+        "dz": "0.06"
+      }
+    }
+  ]
+}

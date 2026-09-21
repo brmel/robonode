@@ -1,0 +1,79 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": { "major": 3, "minor": 20, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "dev",
+      "displayName": "dev — fast loop, no heavy engines",
+      "description": "Core, motion, celld, sandbox, vision seams. No MuJoCo (minutes to build), no vendor SDK. Use this while working on the algorithms, the seams or the tests.",
+      "binaryDir": "${sourceDir}/build-dev",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "ROBONODE_BUILD_MUJOCO": "OFF",
+        "ROBONODE_BUILD_UR_ADAPTER": "OFF"
+      }
+    },
+    {
+      "name": "sim",
+      "displayName": "sim — the physics twin and the whole app",
+      "description": "MuJoCo on: cell_server, the CLI, the browser journeys. The default for anything you can see move. First configure builds MuJoCo from source.",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "ROBONODE_BUILD_MUJOCO": "ON",
+        "ROBONODE_BUILD_UR_ADAPTER": "OFF"
+      }
+    },
+    {
+      "name": "full",
+      "displayName": "full — every optional engine",
+      "description": "Physics, the UR vendor adapter, the Robotics Toolbox bridge and the Wasmtime sandbox. What CI builds before a release.",
+      "binaryDir": "${sourceDir}/build-full",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "ROBONODE_BUILD_MUJOCO": "ON",
+        "ROBONODE_BUILD_UR_ADAPTER": "ON",
+        "ROBONODE_BUILD_RTB": "ON",
+        "ROBONODE_BUILD_WASM": "ON"
+      }
+    },
+    {
+      "name": "asan",
+      "displayName": "asan — address + undefined behaviour sanitizers",
+      "description": "Our code only; vendored engines are excluded because sanitizing someone else's library is not our job. Slow, and worth it after touching threading or lifetimes.",
+      "binaryDir": "${sourceDir}/build-asan",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "ROBONODE_BUILD_MUJOCO": "OFF",
+        "ROBONODE_BUILD_UR_ADAPTER": "OFF",
+        "CMAKE_CXX_FLAGS": "-fsanitize=address,undefined -fno-omit-frame-pointer"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "dev", "configurePreset": "dev", "jobs": 0 },
+    { "name": "sim", "configurePreset": "sim", "jobs": 0 },
+    { "name": "full", "configurePreset": "full", "jobs": 0 },
+    { "name": "asan", "configurePreset": "asan", "jobs": 0 }
+  ],
+  "testPresets": [
+    {
+      "name": "fast",
+      "configurePreset": "dev",
+      "description": "The sub-two-second loop: everything that does not need physics.",
+      "filter": { "include": { "label": "fast" } },
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "sim",
+      "configurePreset": "sim",
+      "description": "Everything, physics included. Minutes, because the real-time suites run in real time.",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "asan",
+      "configurePreset": "asan",
+      "output": { "outputOnFailure": true }
+    }
+  ]
+}

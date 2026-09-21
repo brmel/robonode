@@ -1,0 +1,6 @@
+# Real robot kinematics — a mature library, not reimplemented. Pinned, because
+# an unpinned scientific stack means "worked yesterday" is not reproducible and
+# a contributor's failure is not the same failure as CI's.
+roboticstoolbox-python==1.1.1
+numpy==1.26.4
+spatialmath-python==1.1.10

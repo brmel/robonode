@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://robonode.dev/contracts/capabilities.schema.json",
+  "title": "Capabilities",
+  "description": "Every swappable capability, describing itself: how it presents, whether users may author versions, and the sandbox ABI they author against. Surfaces render from this instead of hardcoding a list.",
+  "type": "array",
+  "items": { "$ref": "#/$defs/capability" },
+  "$defs": {
+    "capability": {
+      "type": "object",
+      "required": ["id", "version", "available", "descriptor", "trial"],
+      "properties": {
+        "id": { "type": "string" },
+        "version": { "type": "string", "description": "the selected version" },
+        "available": { "type": "array", "items": { "type": "string" } },
+        "trial": {
+          "type": "string",
+          "description": "the application that puts this capability under load — what a surface runs to compare two of its versions"
+        },
+        "descriptor": {
+          "type": "object",
+          "required": ["id", "title", "authorable", "abi"],
+          "properties": {
+            "id": { "type": "string" },
+            "title": { "type": "string" },
+            "icon": { "type": "string" },
+            "hint": { "type": "string" },
+            "template": { "type": "string" },
+            "authorable": { "type": "boolean" },
+            "abi": {
+              "type": "object",
+              "required": ["inputs", "outputs"],
+              "properties": {
+                "inputs": { "type": "array", "items": { "type": "string" } },
+                "outputs": { "type": "integer", "minimum": 0 }
+              }
+            }
+          }
+        },
+        "provenance": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "origin"],
+            "properties": {
+              "id": { "type": "string" },
+              "origin": { "type": "string", "enum": ["builtin", "user"] },
+              "source_hash": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

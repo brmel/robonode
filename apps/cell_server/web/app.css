@@ -1,0 +1,245 @@
+/* Component styles. Every value is a token — no raw px, colour or duration. */
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0; height: 100%;
+  background: var(--bg); color: var(--ink);
+  font: var(--fs-base)/var(--lh-base) var(--font-sans);
+  transition: background var(--dur-base) var(--ease), color var(--dur-base) var(--ease);
+}
+body { display: flex; flex-direction: column; }
+canvas { display: block; }
+
+#app { display: flex; flex: 1; min-height: 0; }
+#side { width: var(--rail-w); flex: 0 0 var(--rail-w); background: var(--panel);
+  border-right: 1px solid var(--line); display: flex; flex-direction: column;
+  overflow-y: auto; overflow-x: hidden; }
+#side .sec { flex: 0 0 auto; }
+#dock { width: var(--dock-w); flex: 0 0 var(--dock-w); background: var(--panel);
+  border-left: 1px solid var(--line); display: flex; flex-direction: column; overflow: auto; }
+#view { flex: 1; position: relative; background: var(--bg); min-width: 0; overflow: hidden; }
+
+header { padding: var(--sp6); border-bottom: 1px solid var(--line); }
+header h1 { margin: 0; font-size: var(--fs-lg); font-weight: var(--fw-bold); }
+header p { margin: var(--sp1) 0 0; color: var(--dim); font-size: var(--fs-sm); }
+
+.sec { padding: var(--sp5) var(--sp6); border-bottom: 1px solid var(--line); }
+.sec h2 { margin: 0 0 var(--sp4); font-size: var(--fs-xs); text-transform: uppercase;
+  letter-spacing: var(--tracking-caps); color: var(--dim); font-weight: var(--fw-medium); }
+
+button { font: inherit; color: var(--ink); background: var(--btn); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: var(--sp3) var(--sp5); cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease); }
+button:hover { border-color: var(--accent); }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink);
+  font-weight: var(--fw-bold); }
+button.danger { color: var(--danger); }
+#themeToggle { background: transparent; padding: var(--sp2) var(--sp3); font-size: var(--fs-md);
+  line-height: 1; }
+
+input[type=number] { width: 56px; font: inherit; font-size: var(--fs-sm); color: var(--ink);
+  background: var(--btn); border: 1px solid var(--line); border-radius: var(--radius-sm);
+  padding: var(--sp2); }
+select { font: inherit; font-size: var(--fs-sm); color: var(--ink); background: var(--btn);
+  border: 1px solid var(--line); border-radius: var(--radius-sm); padding: var(--sp2) var(--sp3); }
+
+.row { display: flex; gap: var(--sp3); align-items: center; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.seg button { border: 0; border-radius: 0; background: transparent; padding: var(--sp3) var(--sp4); }
+.seg button.on { background: var(--accent); color: var(--accent-ink); font-weight: var(--fw-bold); }
+
+/* rail (cell tree) */
+.tree { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp0); }
+.tree li { padding: var(--sp3) var(--sp4); border-radius: var(--radius-sm); cursor: pointer;
+  font-size: var(--fs-md); }
+.tree li:hover { background: var(--btn); }
+.tree li.on { background: var(--btn); font-weight: var(--fw-bold); box-shadow: inset 2px 0 0 var(--accent); }
+
+/* dock tabs */
+.tabs { display: flex; flex-wrap: wrap; gap: var(--sp0); padding: var(--sp3) var(--sp3) 0;
+  border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--panel);
+  z-index: var(--z-sticky); }
+.tabs button { border: 0; background: transparent; color: var(--dim);
+  padding: var(--sp3) var(--sp4); border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  font-size: var(--fs-sm); }
+.tabs button:hover { color: var(--ink); }
+.tabs button.on { color: var(--ink); background: var(--btn); font-weight: var(--fw-bold); }
+[role=tabpanel][hidden] { display: none; }
+
+/* tables */
+table { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
+th, td { text-align: left; padding: var(--sp2); border-bottom: 1px solid var(--line); }
+th { color: var(--dim); font-weight: var(--fw-medium); font-size: var(--fs-xs); }
+td.val { font-variant-numeric: tabular-nums; color: var(--dim); }
+td select { max-width: 150px; }
+tbody tr { cursor: pointer; }
+tr.sel td { box-shadow: inset 2px 0 0 var(--accent); }
+.gap { color: var(--warn); font-size: var(--fs-2xs); margin-left: var(--sp1); }
+
+/* cards + chips */
+.nodes { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp3); }
+.ncard { border: 1px solid var(--line); border-radius: var(--radius); padding: var(--sp3) var(--sp4);
+  background: var(--bg); color: inherit; text-align: left; font: inherit; }
+.ncard.app { cursor: pointer; }
+.ncard.app.running { border-color: var(--accent); box-shadow: inset 2px 0 0 var(--accent); }
+.ncard h3 { margin: 0 0 var(--sp1); font-size: var(--fs-sm); font-weight: var(--fw-bold); }
+.ncard .st { font-size: var(--fs-2xs); color: var(--dim); }
+.ncard .soon { color: var(--warn); }
+.ok { color: var(--ok); }
+.warn { color: var(--warn); }
+
+.chips { display: flex; flex-wrap: wrap; gap: var(--sp2); margin-top: var(--sp3); }
+.chip { font-size: var(--fs-xs); padding: var(--sp1) var(--sp4); border: 1px solid var(--line);
+  border-radius: var(--radius-pill); cursor: pointer; background: var(--btn); color: var(--ink); }
+.chip:hover { border-color: var(--accent); }
+.chip.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+/* Judging a version is a different act from selecting one, so it does not look
+   like another chip in the row. */
+.capjudge { margin-top: var(--sp3); font-size: var(--fs-xs); padding: var(--sp1) var(--sp4);
+  border: 1px dashed var(--line); border-radius: var(--radius-sm); cursor: pointer;
+  background: transparent; color: var(--dim); }
+.capjudge:hover { border-color: var(--accent); color: var(--ink); border-style: solid; }
+
+.badge { display: inline-block; padding: var(--sp0) var(--sp3); border-radius: var(--radius-sm);
+  font-size: var(--fs-xs); font-weight: var(--fw-bold); }
+#drivingCell { background: var(--btn); color: var(--ink); border: 1px solid var(--line);
+  font-weight: var(--fw-medium); }
+.badge.physics { background: var(--badge-phys-bg); color: var(--badge-phys-ink); }
+.badge.sim { background: var(--badge-sim-bg); color: var(--badge-sim-ink); }
+.drv { color: var(--dim); font-size: var(--fs-xs); }
+/* A library says what it is FOR: three of them sat under one-word headings and
+   the difference between an application, a robot and a scene was left to be
+   inferred. */
+.secwhat { color: var(--dim); font-size: var(--fs-xs); margin: calc(-1 * var(--sp2)) 0 var(--sp3); }
+
+/* inspector */
+.insp { font-size: var(--fs-sm); }
+.insp .kv { display: flex; justify-content: space-between; gap: var(--sp4); padding: var(--sp1) 0;
+  border-bottom: 1px dashed var(--line); }
+.insp .kv:last-child { border-bottom: 0; }
+.insp .k { color: var(--dim); }
+.insp .v { font-variant-numeric: tabular-nums; }
+
+/* editor */
+.editor { display: flex; flex-direction: column; gap: var(--sp2); }
+.erow { display: flex; gap: var(--sp2); flex-wrap: wrap; align-items: center; }
+.erow input { flex: 1; min-width: 120px; font: inherit; font-size: var(--fs-sm); color: var(--ink);
+  background: var(--btn); border: 1px solid var(--line); border-radius: var(--radius); padding: var(--sp2) var(--sp3); }
+#modRun { flex: 1 0 auto; }
+#modSrc { font: var(--fs-sm)/var(--lh-base) var(--font-mono); color: var(--ink); background: var(--btn);
+  border: 1px solid var(--line); border-radius: var(--radius); padding: var(--sp3); resize: vertical; }
+.ehint { font-size: var(--fs-2xs); color: var(--dim); }
+.ehead { margin: var(--sp3) 0 0; font-size: var(--fs-2xs); text-transform: uppercase;
+  letter-spacing: var(--tracking-caps); color: var(--dim); font-weight: var(--fw-medium); }
+.jsonview { margin: 0; max-height: 160px; overflow: auto; font: var(--fs-2xs)/var(--lh-base) var(--font-mono);
+  color: var(--dim); background: var(--btn); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: var(--sp3); }
+.ehint code { background: var(--btn); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 0 var(--sp1); }
+.eout { font: var(--fs-xs)/var(--lh-base) var(--font-mono); color: var(--dim); white-space: pre-wrap; }
+.eout.ok { color: var(--ok); }
+.eout.err { color: var(--warn); }
+.libitem.on { box-shadow: inset 2px 0 0 var(--accent); }
+.libitem { display: flex; align-items: center; gap: var(--sp3); padding: var(--sp2) 0;
+  border-bottom: 1px solid var(--line); font-size: var(--fs-sm); }
+.libname { flex: 1; font: var(--fs-sm)/var(--lh-base) var(--font-mono); }
+.libload, .libdel { font-size: var(--fs-xs); padding: var(--sp0) var(--sp4); }
+
+/* application editor — one row per program step */
+.applist { display: flex; flex-direction: column; gap: var(--sp2); }
+.approw { display: flex; gap: var(--sp2); align-items: stretch; }
+.approw .ncard { flex: 1; min-width: 0; }
+.approw .ncard h3 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.appedit { font-size: var(--fs-xs); padding: 0 var(--sp3); flex: 0 0 auto; }
+.steps { display: flex; flex-direction: column; gap: var(--sp2); }
+/* A step row: number, what it is, its arguments, and the controls that move it.
+   The arguments are the only part allowed to take the leftover width — the
+   controls must never be pushed off the edge, which is what happened when the
+   argument inputs had a fixed width and the row simply grew. */
+.step { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; gap: var(--sp2);
+  align-items: center; border: 1px solid var(--line); border-radius: var(--radius);
+  padding: var(--sp2) var(--sp3); }
+.step > .args { min-width: 0; }
+.step .stepverb { max-width: 8.5em; }
+.stepno { font: var(--fs-2xs)/var(--lh-base) var(--font-mono); color: var(--dim); min-width: 1.5em; }
+.step .args { display: flex; flex-wrap: wrap; gap: var(--sp2); }
+/* Label above its input, not beside it: beside, the label sets a floor on how
+   narrow the field can be, and five fields in a 300px panel then push the row's
+   controls off the edge. */
+.argf { display: flex; flex-direction: column; gap: 1px; font-size: var(--fs-2xs);
+  color: var(--dim); }
+.argf { flex: 1 1 4.5em; min-width: 0; }
+.argf input { width: 100%; min-width: 0; font: inherit; font-size: var(--fs-xs); color: var(--ink);
+  background: var(--btn); border: 1px solid var(--line); border-radius: var(--radius-sm);
+  padding: var(--sp1) var(--sp2); }
+.stepops { display: flex; gap: var(--sp1); flex: 0 0 auto; }
+.stepops button { font-size: var(--fs-xs); padding: 0 var(--sp2); }
+
+.tgroup { display: inline-flex; align-items: center; gap: var(--sp3); }
+/* Why the cell is faulted, for as long as it is: the toast says it once, this
+   keeps it. Truncated with the whole text in the tooltip — a transport bar is
+   not the place for a paragraph. */
+.rreason { font-size: var(--fs-2xs); color: var(--warn); max-width: 340px; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; opacity: 0; }
+.rreason.on { opacity: 1; }
+.rstep { font: var(--fs-2xs)/var(--lh-base) var(--font-mono); color: var(--dim);
+  max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: 0; }
+.rstep.on { opacity: 1; }
+
+/* dashboard overlay */
+#dash { position: absolute; top: var(--sp5); right: var(--sp5); display: flex; flex-direction: column;
+  gap: var(--sp4); z-index: var(--z-overlay); width: 190px; }
+.dcard { background: color-mix(in srgb, var(--panel) 82%, transparent);
+  backdrop-filter: blur(var(--blur-overlay)); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: var(--sp4); box-shadow: var(--shadow-overlay); }
+.dcard .feed { width: 100%; height: auto; display: block; margin: var(--sp2) 0;
+  border: 1px solid var(--line); border-radius: var(--radius-sm); image-rendering: pixelated; }
+.dcard .feed.off { display: none; }
+.dcard .dt { font-size: var(--fs-2xs); text-transform: uppercase; letter-spacing: var(--tracking-caps); color: var(--dim); }
+.dcard .dv { font-size: var(--fs-xl); font-weight: var(--fw-bold); font-variant-numeric: tabular-nums; }
+.dcard .dv2 { font-size: var(--fs-sm); margin-top: var(--sp0); }
+.dcard .dl { font-size: var(--fs-2xs); color: var(--dim); margin-top: var(--sp0); }
+
+.logs { font: var(--fs-xs)/var(--lh-base) var(--font-mono); max-height: 150px; overflow: auto;
+  color: var(--dim); background: var(--bg); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: var(--sp3) var(--sp4); }
+.logs div { white-space: pre-wrap; }
+.logs .warn { color: var(--warn); }
+.logs .err { color: var(--danger); }
+
+#hint { position: absolute; left: 50%; bottom: var(--sp5); transform: translateX(-50%);
+  z-index: var(--z-overlay); font-size: var(--fs-xs); color: var(--dim);
+  background: color-mix(in srgb, var(--panel) 70%, transparent); backdrop-filter: blur(6px);
+  border: 1px solid var(--line); border-radius: var(--radius-pill); padding: var(--sp2) var(--sp5);
+  pointer-events: none; }
+
+/* transport bar */
+#transport { flex: 0 0 auto; display: flex; align-items: center; gap: var(--sp4); flex-wrap: wrap;
+  padding: var(--sp4) var(--sp6); background: var(--panel); border-top: 1px solid var(--line); }
+#transport .tlabel { font-size: var(--fs-xs); text-transform: uppercase;
+  letter-spacing: var(--tracking-caps); color: var(--dim); }
+#transport .tsep { width: 1px; height: 24px; background: var(--line); }
+.rstate { font-size: var(--fs-sm); color: var(--dim); display: flex; align-items: center; gap: var(--sp2); }
+.rstate::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--dim); }
+.rstate.run { color: var(--ok); }
+.rstate.run::before { background: var(--ok); }
+.rstate.held { color: var(--danger); }
+.rstate.held::before { background: var(--danger); }
+
+/* error channel — a rejected command is never silent */
+/* Above the transport bar, never across it: a message that covers the controls
+   you need in order to recover is worse than no message. */
+#toast { position: fixed; left: 50%; bottom: calc(var(--sp7) + 64px); transform: translateX(-50%);
+  z-index: var(--z-toast); background: var(--panel); color: var(--danger);
+  border: 1px solid var(--danger); border-radius: var(--radius); padding: var(--sp3) var(--sp5);
+  font-size: var(--fs-sm); box-shadow: var(--shadow-overlay); opacity: 0; pointer-events: none;
+  transition: opacity var(--dur-base) var(--ease); }
+#toast.on { opacity: 1; }
+
+@media (max-width: 1180px) {
+  #dock { width: var(--dock-w-compact); flex-basis: var(--dock-w-compact); }
+  #side { width: var(--rail-w-compact); flex-basis: var(--rail-w-compact); }
+}
+@media (max-width: 720px) {
+  #app { flex-direction: column; }
+  #side, #dock { width: 100%; flex-basis: auto; }
+}

@@ -1,0 +1,74 @@
+syntax = "proto3";
+
+package robonode.v0;
+
+import "robonode/v0/common.proto";
+
+// MotionAxis@1 — single-DOF motion capability (linear axis, rotary indexer,
+// servo conveyor in position mode). SPEC §2.2.
+
+message HomeRequest {
+  string command_id = 1;
+  string node = 2;
+}
+
+message MoveToRequest {
+  string command_id = 1;
+  string node = 2;
+  double position_mm = 3;
+  MotionProfile profile = 4;
+  // Blend tolerance into the NEXT queued move; 0 = full stop at target.
+  // Present on axes, not only arms — closes the Vention gap (FR-2.3).
+  double blend_mm = 5;
+}
+
+message MoveSequenceRequest {
+  string command_id = 1;
+  string node = 2;
+  repeated MoveToRequest waypoints = 3; // per-waypoint profile + blend
+}
+
+message JogRequest {
+  string command_id = 1;
+  string node = 2;
+  double velocity_mm_s = 3;   // signed; 0 = stop jog
+  // Server-issued lease + heartbeat; loss of heartbeat ⇒ controlled stop
+  // (FR-2.1 deadman semantics).
+  string jog_lease = 4;
+}
+
+message StopRequest {
+  string command_id = 1;
+  string node = 2;
+  StopKind kind = 3;
+}
+
+// FR-2.6 streaming primitive. Client setpoints are retargets INTO the OTG:
+// output to the drive is always jerk-limited and governor-checked, whatever
+// the client sends. Absolute setpoints; sequence-numbered (FR-2.10).
+message StreamOpenRequest {
+  string command_id = 1;
+  string node = 2;
+  double rate_hz = 3; // ≤ descriptor command_rate_hz
+}
+
+message StreamSetpoint {
+  uint64 seq = 1;
+  CellTime t = 2;
+  double position_mm = 3;
+  double velocity_ff_mm_s = 4; // optional feedforward
+}
+
+// Telemetry at capability-defined rate (FR-6.1): setpoints vs actuals —
+// following error is a first-class production signal.
+message AxisTelemetry {
+  CellTime t = 1;
+  double target_position_mm = 2;
+  double target_velocity_mm_s = 3;
+  double actual_position_mm = 4;
+  double actual_velocity_mm_s = 5;
+  double following_error_mm = 6;
+  double torque_pct = 7;
+  double temperature_c = 8;
+  SafetyState safety = 9;
+}

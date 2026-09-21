@@ -1,0 +1,68 @@
+syntax = "proto3";
+
+package robonode.v0;
+
+import "robonode/v0/common.proto";
+import "robonode/v0/descriptor.proto";
+import "robonode/v0/motion_axis.proto";
+
+// CellClient — the ONLY surface Tier B algorithms (and SDKs) see (FR-3.8).
+// No raw device access ever: every actuator effect passes capability
+// commands, then the platform governor (SPEC I3). Identical for WASM and
+// OCI packagings (ADR-3), and byte-identical against the twin (SPEC I5).
+service CellClient {
+  // Discovery: node tree + descriptors; kinematic chain queries.
+  rpc ListNodes(ListNodesRequest) returns (ListNodesResponse);
+  rpc WatchNodes(ListNodesRequest) returns (stream NodeDescriptor);
+
+  // Telemetry: typed subscription by topic selector (topics.md).
+  rpc Subscribe(SubscribeRequest) returns (stream TelemetryEnvelope);
+
+  // Commands: unary, idempotent, acked (FR-2.10).
+  rpc Home(HomeRequest) returns (Ack);
+  rpc MoveTo(MoveToRequest) returns (Ack);
+  rpc MoveSequence(MoveSequenceRequest) returns (Ack);
+  rpc Jog(JogRequest) returns (Ack);
+  rpc Stop(StopRequest) returns (Ack);
+
+  // FR-2.6: open a setpoint stream mediated by the OTG + governor.
+  rpc OpenSetpointStream(stream StreamSetpoint) returns (stream StreamStatus);
+
+  // Parameters declared in the algorithm manifest (params_schema).
+  rpc GetParams(GetParamsRequest) returns (GetParamsResponse);
+}
+
+message ListNodesRequest {
+  string capability_filter = 1; // e.g. "MotionAxis@1"; empty = all
+}
+
+message ListNodesResponse {
+  repeated NodeDescriptor nodes = 1;
+}
+
+message SubscribeRequest {
+  repeated string selectors = 1; // Zenoh-style, e.g. "rn/*/rail-x/MotionAxis/telemetry"
+  double max_rate_hz = 2;        // downsample cap; quota-enforced
+}
+
+message TelemetryEnvelope {
+  string topic = 1;
+  CellTime t = 2;
+  oneof payload {
+    AxisTelemetry axis = 3;
+    bytes raw = 15; // escape hatch for capability types this proto predates
+  }
+}
+
+message StreamStatus {
+  uint64 last_seq = 1;
+  bool governed = 2;    // true if governor modified the last setpoint
+  string reason = 3;    // typed reason when governed/rejected
+  SafetyState safety = 4;
+}
+
+message GetParamsRequest {}
+
+message GetParamsResponse {
+  string params_json = 1; // validated against manifest params_schema
+}

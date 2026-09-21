@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://robonode.dev/contracts/model.schema.json",
+  "title": "Kinematic chain",
+  "description": "The robot as the physics model declares it: body tree, joint axes, meshes and named frames. A viewer rebuilds the robot from this instead of transcribing the model, which is how a view drifts from the simulation.",
+  "type": "object",
+  "required": ["up", "links"],
+  "properties": {
+    "up": { "type": "string", "enum": ["z", "y"] },
+    "tcp_site": { "type": "string", "description": "the site the robot's tool point sits on" },
+    "workpiece_site": { "type": "string", "description": "the frame the platform reports dynamically; a viewer skips its static geometry" },
+    "links": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name", "parent", "pos", "quat", "axis", "geoms"],
+        "properties": {
+          "name": { "type": "string" },
+          "parent": { "type": "integer", "minimum": 0, "description": "index into links; 0 is the world" },
+          "joint": { "type": "string", "description": "empty when the link is fixed to its parent" },
+          "joint_type": { "type": "string", "enum": ["", "hinge", "slide", "ball", "free"] },
+          "pos": { "$ref": "#/$defs/vec3" },
+          "quat": { "$ref": "#/$defs/quat" },
+          "axis": { "$ref": "#/$defs/vec3" },
+          "geoms": {
+            "type": "array",
+            "description": "everything drawable on this link — meshes and primitives alike",
+            "items": {
+              "type": "object",
+              "required": ["type", "size", "pos", "quat"],
+              "properties": {
+                "type": { "type": "string", "enum": ["box", "sphere", "capsule", "cylinder", "plane", "mesh"] },
+                "group": { "type": "integer", "description": "MuJoCo visibility group; 3 and above is collision geometry, not a visual" },
+                "mesh": { "type": "string", "description": "asset name, for type=mesh" },
+                "material": { "type": "string", "description": "the model's palette name" },
+                "size": { "$ref": "#/$defs/vec3", "description": "half-extents (MuJoCo convention)" },
+                "pos": { "$ref": "#/$defs/vec3" },
+                "quat": { "$ref": "#/$defs/quat" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "sites": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "body", "pos"],
+        "properties": {
+          "name": { "type": "string" },
+          "body": { "type": "integer", "minimum": 0 },
+          "pos": { "$ref": "#/$defs/vec3" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "vec3": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
+    "quat": { "type": "array", "items": { "type": "number" }, "minItems": 4, "maxItems": 4, "description": "w x y z" }
+  }
+}

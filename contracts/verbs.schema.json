@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://robonode.dev/contracts/verbs.schema.json",
+  "title": "Program verbs",
+  "description": "What an application program may say, read from the table that runs it. An authoring surface offers exactly these — it never keeps a list of its own.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["verb", "args"],
+    "properties": {
+      "verb": { "type": "string", "minLength": 1 },
+      "args": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+    },
+    "additionalProperties": false
+  }
+}

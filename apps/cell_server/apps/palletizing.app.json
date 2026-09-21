@@ -1,0 +1,79 @@
+{
+  "name": "Palletizing",
+  "cell": "ur10e.cell.json",
+  "program": [
+    {
+      "verb": "family",
+      "args": {
+        "family": "physics"
+      }
+    },
+    {
+      "verb": "version",
+      "args": {
+        "capability": "planner",
+        "version": "robonode.moveJ"
+      }
+    },
+    {
+      "verb": "deliver",
+      "with": {
+        "station": "conveyor-1"
+      }
+    },
+    {
+      "verb": "pick"
+    },
+    {
+      "verb": "place",
+      "args": {
+        "station": "pallet-1"
+      }
+    },
+    {
+      "verb": "deliver",
+      "with": {
+        "station": "conveyor-1"
+      }
+    },
+    {
+      "verb": "pick"
+    },
+    {
+      "verb": "place",
+      "args": {
+        "station": "pallet-1"
+      }
+    },
+    {
+      "verb": "deliver",
+      "with": {
+        "station": "conveyor-1"
+      }
+    },
+    {
+      "verb": "pick"
+    },
+    {
+      "verb": "place",
+      "args": {
+        "station": "pallet-1"
+      }
+    },
+    {
+      "verb": "deliver",
+      "with": {
+        "station": "conveyor-1"
+      }
+    },
+    {
+      "verb": "pick"
+    },
+    {
+      "verb": "place",
+      "args": {
+        "station": "pallet-1"
+      }
+    }
+  ]
+}

@@ -1,0 +1,130 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  # Design-drift gate: boundaries + the ADR invariants as greppable rules.
+  # This is the guard that lets an agent work unsupervised (see AGENTS.md).
+  design:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Design invariants (boundaries + ADR rules)
+        run: bash scripts/check-design.sh
+
+  # Main package: motion/celld/recorder/UR adapter. MuJoCo off here (its
+  # source build is heavy) — it has its own job below.
+  robonode:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure (incl. UR adapter, MuJoCo off)
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DROBONODE_BUILD_MUJOCO=OFF
+      - name: Build
+        run: cmake --build build -j
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+  robonode-sanitizers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # MuJoCo ON. It used to be off, which sounded principled — "sanitizing
+      # vendored libs is not our job" — but it excluded every suite that runs
+      # physics, i.e. most of OUR code. What ran was the part that could not
+      # have been wrong. sim-mujoco waives the two warnings their sanitizer
+      # shim trips; nothing else is relaxed.
+      - name: Configure with ASan/UBSan (MuJoCo on — otherwise it covers nothing)
+        run: >
+          cmake -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DROBONODE_BUILD_UR_ADAPTER=OFF
+          -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer"
+          -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer"
+          -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined"
+      - name: Build
+        run: cmake --build build -j
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+        env:
+          ASAN_OPTIONS: detect_leaks=0
+          UBSAN_OPTIONS: print_stacktrace=1
+
+  # ThreadSanitizer over the suite where the threads actually are. The ASan job
+  # above builds with MuJoCo OFF — which excludes every test that runs a worker,
+  # an idle ticker and a reader at once, so it has never seen the races that
+  # crashed this platform four times. This one links MuJoCo on purpose.
+  robonode-races:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure with ThreadSanitizer (MuJoCo on — that is where the threads are)
+        run: >
+          cmake -B build-tsan -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DROBONODE_BUILD_UR_ADAPTER=OFF
+          -DCMAKE_CXX_FLAGS="-fsanitize=thread -fno-omit-frame-pointer"
+          -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=thread"
+      - name: Build the suites the concurrency lives in
+        run: >
+          cmake --build build-tsan -j --target gateway_concurrency_tests
+          gateway_integration_tests gateway_multicell_tests mujoco_tests arm_tests
+          scene_tests celld_tests
+      - name: Run them
+        run: >
+          for t in gateway_concurrency_tests gateway_integration_tests gateway_multicell_tests
+          mujoco_tests arm_tests scene_tests celld_tests;
+          do ./build-tsan/tests/$t || exit 1; done
+
+  # Physics twin: source-builds MuJoCo (heavy) so it stands alone. UR off.
+  mujoco:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure (MuJoCo on, UR off)
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DROBONODE_BUILD_UR_ADAPTER=OFF
+      - name: Build
+        run: cmake --build build -j
+      # The whole suite, not just the physics unit tests: the integration tests
+      # are where concurrency bugs surface (a reader racing the worker crashed
+      # MuJoCo one run in four, and only this suite caught it).
+      - name: Test (full suite, physics included)
+        run: ctest --test-dir build --output-on-failure
+
+  # Browser end-to-end: bring up the live cell_server (docker) and run the
+  # Playwright journeys (docs/TEST-STRATEGY.md scenario matrix). The same
+  # journeys an agent drives via the Playwright MCP server, pinned for CI.
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start cell_server (docker compose)
+        run: docker compose up --build -d
+      - name: Wait for the app
+        run: |
+          for i in $(seq 1 60); do curl -sf http://localhost:8080/ >/dev/null && exit 0; sleep 5; done
+          echo "cell_server did not come up"; docker compose logs; exit 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install Playwright
+        run: npm install && npx playwright install --with-deps chromium
+      - name: Run browser e2e
+        run: E2E_BASE_URL=http://localhost:8080 npm run test:e2e
+      - name: Stop
+        if: always()
+        run: docker compose down
+
+  # Real robot kinematics (Robotics Toolbox) — the Python service self-checks
+  # the mature library's FK/IK/moveL. The C++ bridge is compile-checked by the
+  # main `robonode` job (ROBONODE_BUILD_RTB defaults on, no MuJoCo needed).
+  rtb-service:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Robotics Toolbox
+        run: pip install -r services/rtb-kinematics/requirements.txt
+      - name: Service self-test (real UR10 FK/IK/moveL)
+        run: cd services/rtb-kinematics && python test_service.py

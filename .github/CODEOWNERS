@@ -1,0 +1,30 @@
+# Review routing, not ownership of ideas. The point is that a change to one
+# area reaches someone who knows that area — and that a change crossing a seam
+# is visible as such in the PR.
+#
+# Replace @brmel with the people or teams who actually watch each area.
+
+*                                   @brmel
+
+# The real-time spine and the seams it consumes. Changes here can break timing
+# in ways tests notice late — ADR-5/6/7 apply.
+/motion/                            @brmel
+/core/                              @brmel
+
+# The physics twin: the only module that knows MuJoCo exists (ADR-16).
+/engines/sim-mujoco/                @brmel
+
+# The shared contract. A change here is a change to the browser, the CLI and
+# every test at once.
+/contracts/                         @brmel
+/config/robonode.settings.json      @brmel
+
+# Architecture decisions. A PR that touches these is proposing a design change.
+/docs/DECISIONS.md                  @brmel
+/docs/ARCHITECTURE.md               @brmel
+/AGENTS.md                          @brmel
+
+# Gates. Weakening one is a decision, not a fix.
+/scripts/check-design.sh            @brmel
+/scripts/check-boundaries.sh        @brmel
+/scripts/verify.sh                  @brmel

@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package robonode.v0;
+
+// Node lifecycle (REQUIREMENTS FR-1.2). Transitions are commands with acks;
+// every state change carries a reason + timestamp in NodeStateEvent.
+enum NodeLifecycle {
+  NODE_LIFECYCLE_UNSPECIFIED = 0;
+  NODE_LIFECYCLE_UNCONFIGURED = 1;
+  NODE_LIFECYCLE_CONFIGURING = 2;
+  NODE_LIFECYCLE_INACTIVE = 3;
+  NODE_LIFECYCLE_ACTIVE = 4;
+  NODE_LIFECYCLE_DEGRADED = 5;
+  NODE_LIFECYCLE_FAULT = 6;
+}
+
+// Safety state observed from the certified chain (FR-8.2). Software never
+// *produces* ESTOP; it observes and reacts.
+enum SafetyState {
+  SAFETY_STATE_UNSPECIFIED = 0;
+  SAFETY_STATE_NORMAL = 1;
+  SAFETY_STATE_REDUCED = 2;         // e.g. T1 commissioning / speed-scaled
+  SAFETY_STATE_PROTECTIVE_STOP = 3; // IEC 60204 category 2 hold
+  SAFETY_STATE_ESTOP = 4;           // category 0/1, hardware-backed
+  SAFETY_STATE_FAULT = 5;
+}
+
+// Stop semantics (FR-2.7).
+enum StopKind {
+  STOP_KIND_UNSPECIFIED = 0;
+  STOP_KIND_PAUSE = 1;            // decelerate on path, resumable
+  STOP_KIND_STOP = 2;             // decelerate, discard program state
+  STOP_KIND_PROTECTIVE_STOP = 3;  // category 2
+}
+
+// Per-move kinematic profile (FR-2.2). Jerk is honored, not decorative:
+// jerk_mm_s3 == 0 selects a trapezoidal profile explicitly.
+message MotionProfile {
+  double velocity_mm_s = 1;
+  double acceleration_mm_s2 = 2;
+  double jerk_mm_s3 = 3;
+}
+
+// Capability limits — always data read at runtime, never constants (FR-1.3).
+message AxisLimits {
+  double position_min_mm = 1;
+  double position_max_mm = 2;
+  double velocity_max_mm_s = 3;
+  double acceleration_max_mm_s2 = 4;
+  double jerk_max_mm_s3 = 5;
+  double force_max_n = 6; // 0 = unknown/not enforced
+}
+
+// Cell-clock timestamp: nanoseconds since cell epoch, one PTP-synced clock
+// domain per cell (FR-6.1).
+message CellTime {
+  fixed64 nanos = 1;
+}
+
+// Command acknowledgement (FR-2.10): every command idempotent + acked.
+message Ack {
+  string command_id = 1;
+  bool accepted = 2;
+  string reason = 3; // typed reason string, empty when accepted
+}

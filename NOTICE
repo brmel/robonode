@@ -1,0 +1,19 @@
+RoboNode
+Copyright 2026 RoboNode contributors
+
+This product includes software developed by third parties, each under its own
+licence. The full list, with the exact version pinned and the seam it sits
+behind, is in docs/ARCHITECTURE.md (Part 2). The major ones:
+
+  MuJoCo (physics)              Apache-2.0   google-deepmind/mujoco
+  Ruckig (online trajectories)  MIT          pantor/ruckig
+  OpenCV (vision)               Apache-2.0   opencv/opencv
+  spdlog / fmt (logging)        MIT          gabime/spdlog
+  nlohmann/json                 MIT          nlohmann/json
+  cpp-httplib (transport)       MIT          yhirose/cpp-httplib
+  CLI11 (command line)          BSD-3-Clause CLIUtils/CLI11
+  MCAP (recording)              Apache-2.0   foxglove/mcap
+  three.js (3D view)            MIT          mrdoob/three.js
+
+The UR10e model and meshes under engines/sim-mujoco/worlds/assets come from
+MuJoCo Menagerie (Apache-2.0), Universal Robots' published geometry.

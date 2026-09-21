@@ -1,0 +1,49 @@
+{
+  "name": "Machine tending",
+  "cell": "ur10e.cell.json",
+  "program": [
+    {
+      "verb": "family",
+      "args": {
+        "family": "physics"
+      }
+    },
+    {
+      "verb": "version",
+      "args": {
+        "capability": "planner",
+        "version": "robonode.moveJ"
+      }
+    },
+    {
+      "verb": "pick"
+    },
+    {
+      "verb": "move_l",
+      "args": {
+        "x": 1.0,
+        "y": 0.1,
+        "z": 0.5
+      }
+    },
+    {
+      "verb": "move_l",
+      "args": {
+        "x": 0.5,
+        "y": 0.4,
+        "z": 0.6
+      }
+    },
+    {
+      "verb": "pick"
+    },
+    {
+      "verb": "move_l",
+      "args": {
+        "x": 0.55,
+        "y": -0.3,
+        "z": 0.45
+      }
+    }
+  ]
+}

@@ -1,0 +1,73 @@
+{
+  "_": "Platform tuning. Every value here is a heuristic meant to be improved \u2014 change it and restart, no rebuild. Override the file with ROBONODE_SETTINGS.",
+  "ik": {
+    "lambda": 0.05,
+    "tol_m": 0.0001,
+    "max_iters": 200,
+    "max_step_rad": 0.1,
+    "carrier_weight": 0.08,
+    "line_steps": 30,
+    "sandbox_line_steps": 15,
+    "lead_in_s": 0.8,
+    "tol_rad": 0.005,
+    "orientation_weight": 0.3,
+    "clearance_m": 0.18
+  },
+  "motion": {
+    "rate_hz": 1000.0,
+    "settle_s": 1.5,
+    "stop_time_s": 0.35,
+    "max_duration_s": 120.0,
+    "limit_tolerance": 0.001
+  },
+  "app": {
+    "approach_m": 0.06,
+    "grasp_reach_m": 0.05,
+    "intercept_attempts": 4,
+    "intercept_lead_s": 1.6,
+    "sight_timeout_s": 4.0,
+    "grip_constraint": "grip"
+  },
+  "tracking": {
+    "window": 12,
+    "gate_m": 0.25,
+    "min_span_s": 0.15,
+    "smoothing": 0.4
+  },
+  "gateway": {
+    "queue_capacity": 64,
+    "telemetry_decimation": 20,
+    "stream_period_ms": 20,
+    "log_every_n_frames": 25,
+    "stall_timeout_ms": 15000,
+    "max_overrun_fraction": 0.05,
+    "max_jitter_p99_us": 1500.0
+  },
+  "compare": {
+    "_": "Which application puts a capability under load when two of its versions are compared. A capability with no entry is compared with the fallback. A trial must EXERCISE its capability: the planner's was a named joint motion that never planned a path, so every planner passed it.",
+    "fallback": "pick-demo.app.json",
+    "trial": {
+      "vision": "bin-picking.app.json",
+      "camera": "bin-picking.app.json",
+      "tracking": "moving-bin-picking.app.json",
+      "planner": "bin-picking.app.json",
+      "control": "pick-demo.app.json"
+    }
+  },
+  "recorder": {
+    "enabled": false,
+    "dir": "runs"
+  },
+  "workspace": {
+    "lo": [
+      -3.0,
+      -3.0,
+      -1.0
+    ],
+    "hi": [
+      3.0,
+      3.0,
+      3.0
+    ]
+  }
+}

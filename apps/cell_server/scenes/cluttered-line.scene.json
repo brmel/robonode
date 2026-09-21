@@ -1,0 +1,26 @@
+{
+  "name": "Cluttered line",
+  "base": "rail_ur10e.xml",
+  "objects": [
+    {
+      "name": "crate",
+      "type": "box",
+      "size": [0.10, 0.10, 0.12],
+      "pos": [0.55, -0.05, 0.12],
+      "material": "rail",
+      "collides": true,
+      "mass": 8.0
+    },
+    {
+      "name": "second_part",
+      "type": "box",
+      "size": [0.03, 0.03, 0.03],
+      "pos": [1.30, 0.25, 0.37],
+      "material": "part",
+      "collides": false,
+      "mass": 0.4,
+      "slide_axis": "-1 0 0",
+      "slide_range": [-0.55, 0.55]
+    }
+  ]
+}

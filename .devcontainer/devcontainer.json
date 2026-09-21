@@ -1,0 +1,16 @@
+{
+  "name": "RoboNode",
+  "image": "mcr.microsoft.com/devcontainers/cpp:ubuntu-24.04",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": { "version": "lts" }
+  },
+  "onCreateCommand": "sudo apt-get update && sudo apt-get install -y --no-install-recommends libopencv-dev",
+  "postCreateCommand": "cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j --target cell_server",
+  "forwardPorts": [8080],
+  "portsAttributes": { "8080": { "label": "cell server", "onAutoForward": "openPreview" } },
+  "customizations": {
+    "vscode": {
+      "extensions": ["ms-vscode.cpptools", "ms-vscode.cmake-tools", "ms-playwright.playwright"]
+    }
+  }
+}

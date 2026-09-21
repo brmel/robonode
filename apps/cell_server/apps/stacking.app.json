@@ -1,0 +1,10 @@
+{
+  "name": "Stacking (gravity judges)",
+  "cell": "ur10e.cell.json",
+  "program": [
+    { "verb": "deliver", "args": { "station": "conveyor-1" } },
+    { "verb": "pick" },
+    { "verb": "place", "args": { "station": "pallet-1", "slot": "2" } },
+    { "verb": "wait", "args": { "seconds": "2.0" } }
+  ]
+}

@@ -1,0 +1,51 @@
+# RoboNode — modular deployment. Each capability is its own container behind a
+# shared network; the seam is the boundary, the container is the unit of deploy
+# and scale. Add a vision / planner service the same way and the cell-server
+# reaches it by name.
+#
+# This file is the IMMUTABLE definition: everything baked into the image, no
+# host paths, nothing to edit by accident. docker-compose.override.yml adds the
+# developer conveniences and compose loads it automatically, so:
+#
+#   docker compose up --build                      → dev  (web + config live from source)
+#   docker compose -f docker-compose.yml up -d     → prod (image only, nothing mounted)
+#   docker compose ps                                (health of each service)
+services:
+  # The live cell: physics twin (MuJoCo) + web app + the Platform facade.
+  cell-server:
+    build: .
+    image: robonode/cell-server
+    ports:
+      - "8080:8080"
+    environment:
+      # Bind all interfaces INSIDE the container (isolated); the host reaches it
+      # only through the mapped port. Native runs default to loopback.
+      ROBONODE_HOST: "0.0.0.0"
+      # Where the real-robot kinematics service lives (used by the RTB bridge).
+      RTB_HOST: rtb-kinematics
+      RTB_PORT: "8091"
+      ROBONODE_SESSIONS_DIR: /data/sessions
+      ROBONODE_MODULES_DIR: /data/modules
+    volumes:
+      # What users author has to outlive the container; everything else is in
+      # the image. A named volume, not a host path, so prod owns its own state.
+      - robonode_data:/data
+    restart: unless-stopped
+    networks: [robonode]
+
+  # Real-robot kinematics (Robotics Toolbox) behind the Kinematics/Planner seam.
+  # Independent service — scales and redeploys without touching the RT core.
+  rtb-kinematics:
+    build: ./services/rtb-kinematics
+    image: robonode/rtb-kinematics
+    ports:
+      - "8091:8091"
+    restart: unless-stopped
+    networks: [robonode]
+
+volumes:
+  robonode_data:
+
+networks:
+  robonode:
+    name: robonode

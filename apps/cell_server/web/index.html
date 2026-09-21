@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>🦾</text></svg>" />
+<title>RoboNode — live cell</title>
+<link rel="stylesheet" href="./tokens.css" />
+<link rel="stylesheet" href="./app.css" />
+<script>
+  // Resolve the theme before paint: the saved choice, else the OS preference.
+  // Stamping it here is what lets tokens.css carry ONE light palette instead of
+  // a second copy behind a media query.
+  (function () {
+    const saved = localStorage.getItem('robonode-theme');
+    const os = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', saved || os);
+  })();
+</script>
+</head>
+<body>
+<div id="app">
+  <aside id="side" aria-label="Cell navigation">
+    <header>
+      <div class="row" style="justify-content:space-between; align-items:flex-start">
+        <div>
+          <h1 data-t="app.title">RoboNode — live cell</h1>
+          <p><span id="drivingCell" class="badge"></span> <span id="status" data-t="status.connecting">connecting…</span></p>
+        </div>
+        <button id="themeToggle" data-t-title="theme.toggle">◐</button>
+      </div>
+    </header>
+
+    <div class="sec">
+      <h2 data-t="section.session">Session</h2>
+      <div class="erow">
+        <input id="sessionId" list="sessionList" aria-label="session" />
+        <datalist id="sessionList"></datalist>
+        <button id="sessionSet" data-t="session.switch">Switch</button>
+      </div>
+    </div>
+
+    <div class="sec">
+      <h2 data-t="section.applications">Applications</h2>
+      <p class="secwhat" data-t="section.applicationsWhat"></p>
+      <div class="applist" id="apps"><span class="drv">…</span></div>
+    </div>
+
+    <div class="sec">
+      <h2 data-t="section.robots">Robots</h2>
+      <p class="secwhat" data-t="section.robotsWhat"></p>
+      <div class="nodes" id="robotList"><span class="drv">…</span></div>
+      <div id="cellList" class="drv"></div>
+      <div class="editor" id="robotEditor" hidden>
+        <div class="erow">
+          <input id="robotFile" aria-label="robot file" readonly />
+          <button id="robotSave" data-t="robots.save">Save</button>
+          <button id="robotClose" data-t="robots.close">Close</button>
+        </div>
+        <div id="robotNodes" class="steps"></div>
+        <div id="robotOut" class="eout" role="status"></div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <h2 data-t="section.scenes">Scenes</h2>
+      <p class="secwhat" data-t="section.scenesWhat"></p>
+      <div class="nodes" id="sceneList"><span class="drv">…</span></div>
+    </div>
+  </aside>
+
+  <main id="view" aria-label="3D cell view">
+    <div id="hint" data-t="hint.orbit">drag to orbit · scroll to zoom · right-drag to pan</div>
+    <div id="dash">
+      <div class="dcard">
+        <div class="dt" data-t="dash.physics">Physics</div>
+        <div class="dv" id="physFollow">—</div>
+        <div class="dl" data-t="dash.followError">peak following error (joints)</div>
+        <div class="dv2">1 kHz · MuJoCo</div>
+      </div>
+      <div class="dcard">
+        <div class="dt" data-t="dash.contacts">Contacts</div>
+        <div class="dv2" id="contacts">—</div>
+        <div class="dl" data-t="dash.touching">what is touching what</div>
+      </div>
+      <div class="dcard">
+        <div class="dt" data-t="dash.vision">Vision</div>
+        <img id="camFeed" class="feed" alt="camera feed" width="320" height="240" />
+        <div class="dv2" id="visionPart">…</div>
+        <div class="dl" data-t="dash.partPose">detected part pose (m)</div>
+      </div>
+      <div class="dcard">
+        <div class="dt" data-t="dash.tracking">Tracking</div>
+        <div class="dv" id="trackSpeed">—</div>
+        <div class="dl" data-t="dash.beltSpeed">estimated target speed (m/s)</div>
+      </div>
+    </div>
+  </main>
+
+  <aside id="dock" aria-label="Inspector dock">
+    <div class="tabs" id="docktabs" role="tablist" aria-label="Dock panels">
+      <button role="tab" data-tab="cell" aria-controls="panel-cell" aria-selected="true" data-t="tab.cell">Cell</button>
+      <button role="tab" data-tab="apps" aria-controls="panel-apps" aria-selected="false" data-t="tab.apps">Apps</button>
+      <button role="tab" data-tab="editor" aria-controls="panel-editor" aria-selected="false" data-t="tab.editor">Editor</button>
+      <button role="tab" data-tab="scenes" aria-controls="panel-scenes" aria-selected="false" data-t="tab.scenes">Scenes</button>
+      <button role="tab" data-tab="logs" aria-controls="panel-logs" aria-selected="false" data-t="tab.logs">Logs</button>
+      <button role="tab" data-tab="compare" aria-controls="panel-compare" aria-selected="false" data-t="tab.compare">Compare</button>
+    </div>
+
+    <div id="panel-cell" role="tabpanel" data-panel="cell" class="on">
+      <div class="sec">
+        <h2 data-t="section.capabilities">Capability modules</h2>
+        <div class="nodes" id="capabilityCards"></div>
+      </div>
+      <div class="sec">
+        <h2 data-t="section.joints">Robot node · joints</h2>
+        <div id="inspector" class="insp"><span class="drv" data-t="inspector.selectNode">select a joint…</span></div>
+        <table>
+          <thead><tr><th>node</th><th>driver (version)</th><th>out · Δfollow</th></tr></thead>
+          <tbody id="nodes"></tbody>
+        </table>
+      </div>
+      <div class="sec">
+        <h2 data-t="section.station">Station</h2>
+        <div class="nodes"><div class="ncard" id="stationCard"><div class="st soon">…</div></div></div>
+      </div>
+    </div>
+
+    <div id="panel-apps" role="tabpanel" data-panel="apps" hidden>
+      <div class="sec">
+        <h2 data-t="section.appEditor">Application editor — compose the program</h2>
+        <div class="editor">
+          <div class="erow">
+            <input id="appFile" placeholder="my-app.app.json" aria-label="app file" />
+            <input id="appName" placeholder="name" aria-label="app name" />
+            <input id="appCell" list="appCellList" placeholder="ur10e.cell.json" aria-label="app cell" />
+            <datalist id="appCellList"></datalist>
+          </div>
+          <div class="erow">
+            <button id="appNew" data-t="apps.new">New</button>
+            <button id="appSave" data-t="apps.save">Save</button>
+            <button id="appDelete" data-t="apps.delete">Delete</button>
+            <button id="appRun" class="primary">▶ <span data-t="apps.run">Run app</span></button>
+          </div>
+          <div id="appSteps" class="steps"></div>
+          <div class="erow">
+            <select id="appVerb" aria-label="verb to add"></select>
+            <button id="appAdd" data-t="apps.addStep">+ Add step</button>
+          </div>
+          <div id="appOut" class="eout" role="status" data-t="apps.hint">open an app, change its steps, save it as yours</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="panel-editor" role="tabpanel" data-panel="editor" hidden>
+      <div class="sec">
+        <h2 data-t="section.editor">Algorithm editor — bring your own (sandboxed)</h2>
+        <div class="editor">
+          <div class="erow">
+            <select id="modCap" aria-label="capability"></select>
+            <input id="modName" placeholder="name (e.g. my-grasp)" aria-label="module name" />
+            <button id="modRun" class="primary">▶ <span data-t="editor.compile">Compile + run</span></button>
+            <button id="modTest" data-t="editor.test">Test against</button>
+          </div>
+          <textarea id="modSrc" spellcheck="false" rows="4" aria-label="algorithm source"></textarea>
+          <div id="modHint" class="ehint"></div>
+          <div id="modOut" class="eout" role="status" data-t="editor.sandboxNote">runs in a sandbox</div>
+        </div>
+      </div>
+      <div class="sec">
+        <h2 data-t="section.saved">Saved algorithms</h2>
+        <div id="modLib" class="drv">…</div>
+      </div>
+    </div>
+
+    <div id="panel-scenes" role="tabpanel" data-panel="scenes" hidden>
+      <div class="sec">
+        <h2 data-t="section.sceneEditor">Scene editor — objects, obstacles, what moves</h2>
+        <div class="editor">
+          <div class="erow">
+            <input id="sceneFile" placeholder="my-line.scene.json" aria-label="scene file" />
+            <input id="sceneName" placeholder="name" aria-label="scene name" />
+            <input id="sceneBase" placeholder="rail_ur10e.xml" aria-label="base world" />
+          </div>
+          <div class="erow">
+            <button id="sceneNew" data-t="scenes.new">New</button>
+            <button id="sceneSave" data-t="scenes.save">Save</button>
+            <button id="sceneDelete" data-t="scenes.delete">Delete</button>
+            <button id="sceneUse" class="primary">▶ <span data-t="scenes.use">Run scene</span></button>
+          </div>
+
+          <h3 class="ehead" data-t="scenes.objects">What you place</h3>
+          <div id="sceneObjects" class="steps"></div>
+          <div class="erow"><button id="sceneAddObject" data-t="scenes.addObject">+ Add object</button></div>
+
+          <h3 class="ehead" data-t="scenes.overrides">What you change about the base world</h3>
+          <div id="sceneOverrides" class="steps"></div>
+          <div class="erow"><button id="sceneAddOverride" data-t="scenes.addOverride">+ Add override</button></div>
+
+          <pre id="sceneSrc" class="jsonview" aria-label="scene descriptor"></pre>
+          <div id="sceneOut" class="eout" role="status" data-t="scenes.hint">pick a scene, change a number, run it</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="panel-logs" role="tabpanel" data-panel="logs" hidden>
+      <div class="sec">
+        <h2 data-t="section.logs">Logs</h2>
+        <div id="logs" class="logs" role="log" aria-live="polite"><span class="drv">…</span></div>
+      </div>
+    </div>
+
+    <div id="panel-compare" role="tabpanel" data-panel="compare" hidden>
+      <div class="sec">
+        <h2 data-t="section.compare">Compare algorithms</h2>
+        <div id="compareBody" class="drv">…</div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<div id="transport">
+  <button id="run" class="primary">▶ <span data-t="transport.run">Run</span></button>
+  <button id="stop" data-t="transport.stop">Stop</button>
+  <button id="estop" class="danger" data-t="transport.estop">E-stop</button>
+  <button id="resume" data-t="transport.resume">Resume</button>
+  <span class="tsep"></span>
+  <span class="tlabel" data-t="transport.tcp">TCP</span>
+  <input id="tx" type="number" step="0.02" aria-label="TCP x (m)" />
+  <input id="ty" type="number" step="0.02" aria-label="TCP y (m)" />
+  <input id="tz" type="number" step="0.02" aria-label="TCP z (m)" />
+  <button id="movel" data-t="transport.moveTcp">Move TCP</button>
+  <span class="tlabel" data-t="transport.rpy">RPY°</span>
+  <input id="trx" type="number" step="15" aria-label="roll (degrees)" />
+  <input id="try_" type="number" step="15" aria-label="pitch (degrees)" />
+  <input id="trz" type="number" step="15" aria-label="yaw (degrees)" />
+  <button id="movep" data-t="transport.movePose">Move pose</button>
+  <button id="pick">🎯 <span data-t="transport.pick">Pick</span></button>
+  <span class="tsep"></span>
+  <span class="tgroup">
+    <span class="tlabel" data-t="transport.driver">Driver</span>
+    <span class="seg" id="family" role="group" aria-label="driver family"></span>
+    <span id="fambadge" class="badge"></span>
+  </span>
+  <span style="flex:1"></span>
+  <span id="runstep" class="rstep" role="status" aria-live="polite"></span>
+  <span id="runreason" class="rreason" role="status"></span>
+  <span id="runstate" class="rstate" role="status" data-t="state.idle">idle</span>
+</div>
+
+<div id="toast" role="alert"></div>
+<script type="module" src="./app.js"></script>
+</body>
+</html>

@@ -1,0 +1,160 @@
+/* Design tokens — the ONE source of truth for colour, type, space and motion.
+   Nothing downstream (CSS or the 3D scene) may hard-code a value that belongs
+   here; theme.js reads these same custom properties so the viewport and the
+   chrome cannot drift apart.
+
+   Dark is the base. Light is written once, applied to both the explicit
+   [data-theme="light"] and the OS preference — one palette, two selectors. */
+
+:root {
+  /* type scale (1.125 minor third, 12px base) */
+  --fs-2xs: 10px;
+  --fs-xs: 11px;
+  --fs-sm: 12px;
+  --fs-md: 13px;
+  --fs-base: 14px;
+  --fs-lg: 16px;
+  --fs-xl: 20px;
+  --lh-tight: 1.25;
+  --lh-base: 1.5;
+  --fw-normal: 400;
+  --fw-medium: 500;
+  --fw-bold: 600;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --tracking-caps: 0.08em;
+
+  /* space scale (4px base) */
+  --sp0: 2px;
+  --sp1: 4px;
+  --sp2: 6px;
+  --sp3: 8px;
+  --sp4: 10px;
+  --sp5: 14px;
+  --sp6: 18px;
+  --sp7: 24px;
+
+  /* shape + elevation */
+  --radius-sm: 4px;
+  --radius: 8px;
+  --radius-pill: 999px;
+  --shadow-overlay: 0 6px 24px rgb(0 0 0 / 28%);
+  --blur-overlay: 8px;
+
+  /* motion */
+  --dur-fast: 120ms;
+  --dur-base: 150ms;
+  --dur-slow: 700ms;
+  --ease: cubic-bezier(0.2, 0, 0.2, 1);
+
+  /* layering */
+  --z-sticky: 10;
+  --z-overlay: 20;
+  --z-toast: 40;
+
+  /* layout */
+  --rail-w: 300px;
+  --dock-w: 360px;
+  --rail-w-compact: 260px;
+  --dock-w-compact: 300px;
+  --bp-compact: 1180px;
+  --bp-stack: 720px;
+}
+
+/* --- palette: dark (base) --- */
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0e1116;
+  --panel: #171b22;
+  --line: #262c36;
+  --ink: #e6eaf0;
+  --dim: #8b94a3;
+  --accent: #4c8dff;
+  --accent-ink: #00122e;
+  --ok: #39d98a;
+  --warn: #ffb454;
+  --danger: #ff6b6b;
+  --btn: #222835;
+  --pill: #1e2430;
+  --badge-phys-bg: #12324a;
+  --badge-phys-ink: #7cc4ff;
+  --badge-sim-bg: #3a2f14;
+  --badge-sim-ink: #ffb454;
+
+  /* 3D scene — read by theme.js, so the viewport follows the theme */
+  --scene-bg: #0e1116;
+  --scene-floor: #14181f;
+  --scene-grid: #2b3644;
+  --scene-grid-sub: #1c232d;
+  --scene-rail: #2a3340;
+  --scene-carriage: #cf8a3a;
+  --scene-tcp: #39d98a;
+  --scene-part: #e23b3b;
+  --scene-part-held: #ffb454;
+  --scene-key-light: #ffffff;
+  --scene-fill-light: #4c6a99;
+  --scene-sky: #bcd0ff;
+  --scene-ground: #0c0e12;
+  --scene-mat-black: #0b0b0b;
+  --scene-mat-joint: #474747;
+  --scene-mat-link: #d1d1d1;
+  --scene-mat-brand: #7dadcc;
+}
+
+/* --- palette: light --- */
+/* Written ONCE. The OS preference is resolved into data-theme before paint
+   (see the inline script in index.html), so there is no second copy of these
+   values behind a media query waiting to drift. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f6f7f9;
+  --panel: #ffffff;
+  --line: #e2e5ea;
+  --ink: #1a1f27;
+  --dim: #5b636f;
+  --accent: #2563eb;
+  --accent-ink: #ffffff;
+  --ok: #16a34a;
+  --warn: #b45309;
+  --danger: #dc2626;
+  --btn: #eef1f5;
+  --pill: #eef1f5;
+  --badge-phys-bg: #dbeafe;
+  --badge-phys-ink: #1d4ed8;
+  --badge-sim-bg: #fef3c7;
+  --badge-sim-ink: #b45309;
+
+  --scene-bg: #eceff4;
+  --scene-floor: #dfe4ec;
+  --scene-grid: #b9c2d0;
+  --scene-grid-sub: #cdd4de;
+  --scene-rail: #9aa6b6;
+  --scene-carriage: #d08b3c;
+  --scene-tcp: #16a34a;
+  --scene-part: #dc2626;
+  --scene-part-held: #b45309;
+  --scene-key-light: #ffffff;
+  --scene-fill-light: #9db4d6;
+  --scene-sky: #dce6ff;
+  --scene-ground: #c3ccd8;
+  --scene-mat-black: #3b3f45;
+  --scene-mat-joint: #8b8f96;
+  --scene-mat-link: #e8eaee;
+  --scene-mat-brand: #6f9dbd;
+}
+
+/* Focus is never invisible: one ring, every interactive element. */
+:where(button, select, input, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 0ms;
+    --dur-base: 0ms;
+    --dur-slow: 0ms;
+  }
+}

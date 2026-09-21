@@ -1,0 +1,50 @@
+# One-command cloud deploy:  fly launch --copy-config  &&  fly deploy
+#
+# Fly runs the container as a small always-on VM, which is what a physics cell
+# needs: it is stateful (one running world), it streams (SSE), and it must not
+# scale to zero mid-run. Sessions live on a volume so a restart does not throw
+# away what people authored.
+app = "robonode"
+primary_region = "cdg"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  ROBONODE_HOST = "0.0.0.0"
+  ROBONODE_PORT = "8080"
+  ROBONODE_SESSIONS_DIR = "/data/sessions"
+  ROBONODE_MODULES_DIR = "/data/modules"
+  # A public address means untrusted visitors: keep the try-an-algorithm loop,
+  # refuse the destructive verbs. See SECURITY.md.
+  ROBONODE_PUBLIC = "1"
+
+[[mounts]]
+  source = "robonode_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # A cell is stateful and CPU-bound: keep one machine warm, never zero.
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type = "requests"
+    # The physics runs at 1 kHz on this CPU. Queue rather than thrash.
+    soft_limit = 20
+    hard_limit = 40
+
+[[vm]]
+  size = "performance-1x"   # 1 dedicated vCPU: shared CPUs make the RT loop jitter
+  memory = "2gb"
+
+[checks.up]
+  type = "http"
+  port = 8080
+  path = "/"
+  interval = "15s"
+  timeout = "3s"
+  grace_period = "30s"

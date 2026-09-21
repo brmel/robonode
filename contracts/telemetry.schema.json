@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://robonode.dev/contracts/telemetry.schema.json",
+  "title": "Telemetry frame",
+  "description": "The live cell snapshot every surface renders. Carries command progress so no caller polls for side effects.",
+  "type": "object",
+  "required": [
+    "t",
+    "family",
+    "pos",
+    "target",
+    "err",
+    "state",
+    "applied_id",
+    "accepted_id"
+  ],
+  "properties": {
+    "t": {
+      "type": "number",
+      "description": "cell clock, seconds"
+    },
+    "family": {
+      "type": "string",
+      "enum": [
+        "physics",
+        "sim"
+      ]
+    },
+    "pos": {
+      "$ref": "#/$defs/axisValues",
+      "description": "actual position per axis, in the axis unit"
+    },
+    "target": {
+      "$ref": "#/$defs/axisValues",
+      "description": "governed setpoint per axis"
+    },
+    "err": {
+      "$ref": "#/$defs/axisValues",
+      "description": "following error per axis"
+    },
+    "tcp": {
+      "$ref": "#/$defs/vec3",
+      "description": "TCP position (m); absent when kinematics are unavailable"
+    },
+    "vision": {
+      "type": "object",
+      "required": [
+        "detected"
+      ],
+      "properties": {
+        "detected": {
+          "type": "boolean"
+        },
+        "part": {
+          "$ref": "#/$defs/vec3"
+        }
+      }
+    },
+    "workpiece": {
+      "type": "object",
+      "description": "the item the tool carries or has placed; absent until something is grasped",
+      "required": [
+        "pose",
+        "held"
+      ],
+      "properties": {
+        "pose": {
+          "$ref": "#/$defs/vec3"
+        },
+        "held": {
+          "type": "boolean"
+        }
+      }
+    },
+    "holding": {
+      "type": "boolean"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "idle",
+        "building",
+        "planning",
+        "moving",
+        "held",
+        "faulted"
+      ],
+      "description": "the cell's declared state \u2014 the same set CellSupervisor reports"
+    },
+    "latched": {
+      "type": "boolean",
+      "description": "a software e-stop is latched; motion is refused until resume"
+    },
+    "running": {
+      "type": "boolean",
+      "description": "the cell is executing something \u2014 false when idle AND when faulted, because a fault has stopped, with a reason"
+    },
+    "applied_id": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "last command the worker finished"
+    },
+    "accepted_id": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "last command accepted onto the queue"
+    },
+    "last_error": {
+      "type": "string"
+    },
+    "step": {
+      "type": "string",
+      "description": "the program step in flight, e.g. \"3/5 pick approach=0.06\" \u2014 empty/absent when no application is running"
+    },
+    "app": {
+      "type": "string",
+      "description": "the application file whose steps are running, absent when none is"
+    },
+    "tcp_quat": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "minItems": 4,
+      "maxItems": 4,
+      "description": "which way the tool points, as (w, x, y, z) \u2014 absent when the cell has no kinematics"
+    }
+  },
+  "$defs": {
+    "vec3": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "axisValues": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      }
+    }
+  }
+}

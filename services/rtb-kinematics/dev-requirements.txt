@@ -1,0 +1,4 @@
+# What you need to work ON the service, not to run it.
+-r requirements.txt
+pytest==8.3.3
+ruff==0.6.9

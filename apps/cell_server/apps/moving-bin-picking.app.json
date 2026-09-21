@@ -1,0 +1,56 @@
+{
+  "name": "Moving bin picking",
+  "cell": "ur10e.cell.json",
+  "program": [
+    {
+      "verb": "family",
+      "args": {
+        "family": "physics"
+      }
+    },
+    {
+      "verb": "version",
+      "args": {
+        "capability": "planner",
+        "version": "robonode.moveJ"
+      }
+    },
+    {
+      "verb": "version",
+      "args": {
+        "capability": "tracking",
+        "version": "robonode.constant-velocity"
+      }
+    },
+    {
+      "verb": "version",
+      "args": {
+        "capability": "vision",
+        "version": "robonode.opencv"
+      }
+    },
+    {
+      "verb": "conveyor",
+      "args": {
+        "station": "conveyor-1",
+        "run": "true"
+      }
+    },
+    {
+      "verb": "intercept"
+    },
+    {
+      "verb": "place",
+      "args": {
+        "station": "pallet-1"
+      }
+    },
+    {
+      "verb": "conveyor",
+      "args": {
+        "station": "conveyor-1",
+        "run": "false"
+      }
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+name: Scenario proposal
+description: A hard, honest robotics problem the platform should be able to pose
+labels: [scenario]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What makes it hard on a real line, not just in simulation.
+      placeholder: The part is deformable, so a fixed grasp pose slips.
+    validations: {required: true}
+  - type: textarea
+    id: baseline
+    attributes:
+      label: The baseline that fails, and why
+      description: >
+        A challenge whose naive solution quietly succeeds is a demo and teaches
+        nothing. What is the obvious approach, and what does the log say when it
+        misses?
+    validations: {required: true}
+  - type: textarea
+    id: cell
+    attributes:
+      label: What the cell needs
+      description: Scene objects, a station behaviour, a capability — as data where possible.

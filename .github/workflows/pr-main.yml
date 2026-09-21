@@ -1,0 +1,38 @@
+name: PR into main
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify:
+    name: Definition of Done (design + build + tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: System deps
+        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build build-essential libgl1-mesa-dev libglu1-mesa-dev
+      - name: scripts/verify.sh
+        run: bash scripts/verify.sh
+
+  e2e:
+    name: Browser e2e (docker + Playwright)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start cell_server
+        run: docker compose up --build -d
+      - name: Wait for the app
+        run: |
+          for i in $(seq 1 60); do curl -sf http://localhost:8080/ >/dev/null && exit 0; sleep 5; done
+          echo "cell_server did not come up"; docker compose logs; exit 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install Playwright
+        run: npm install && npx playwright install --with-deps chromium
+      - name: Run journeys
+        run: E2E_BASE_URL=http://localhost:8080 npm run test:e2e
+      - name: Stop
+        if: always()
+        run: docker compose down

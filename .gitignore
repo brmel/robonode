@@ -1,0 +1,50 @@
+# build artifacts (one tree per preset — see CMakePresets.json)
+build/
+build-dev/
+build-full/
+build-asan/
+*.o
+*.a
+*.out
+
+# personal / pre-project material (delete when reviewed)
+_archive/
+
+# tool/session noise
+.playwright-mcp/
+.DS_Store
+
+# e2e (Playwright)
+node_modules/
+e2e/report/
+test-results/
+playwright/.cache/
+
+# demo outputs
+telemetry*.csv
+
+# pin-verify smoke outputs
+*.mcap
+
+# engine scratch output
+MUJOCO_LOG.TXT
+
+# python
+__pycache__/
+*.pyc
+.venv/
+.mypy_cache/
+
+# scratch screenshots from browser tests
+/*.png
+
+# runtime-authored, not source: user modules (#70), per-user sessions, and the
+# physics models the platform composes from a scene descriptor
+/apps/cell_server/modules/
+/apps/cell_server/sessions/
+runs/
+.composed-*.xml
+
+# staged robot descriptors: a catalogue entry copied where an engine can load it
+engines/sim-mujoco/worlds/.robot-*.cell.json
+build-tsan/

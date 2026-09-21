@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://robonode.dev/contracts/nodes.schema.json",
+  "title": "Node tree",
+  "description": "The cell's axes and the driver versions each can be swapped to.",
+  "type": "object",
+  "required": [
+    "family",
+    "nodes",
+    "families"
+  ],
+  "properties": {
+    "family": {
+      "type": "string",
+      "enum": [
+        "physics",
+        "sim"
+      ]
+    },
+    "available": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "every registered driver version"
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "driver",
+          "unit",
+          "lo",
+          "hi",
+          "state"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "driver": {
+            "type": "string"
+          },
+          "unit": {
+            "type": "string"
+          },
+          "joint": {
+            "type": "string",
+            "description": "the model joint this axis drives; binds telemetry to the chain by name"
+          },
+          "lo": {
+            "type": "number"
+          },
+          "hi": {
+            "type": "number"
+          },
+          "state": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "families": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "the driver families this cell declares \u2014 a surface builds its selector from this, never from a list of its own"
+    }
+  }
+}

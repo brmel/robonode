@@ -1,0 +1,18 @@
+{
+  "name": "Pick demo",
+  "cell": "ur10e.cell.json",
+  "program": [
+    {
+      "verb": "family",
+      "args": {
+        "family": "physics"
+      }
+    },
+    {
+      "verb": "motion",
+      "args": {
+        "id": "home-cycle"
+      }
+    }
+  ]
+}

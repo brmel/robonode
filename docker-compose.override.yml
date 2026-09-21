@@ -1,0 +1,19 @@
+# Developer conveniences. Compose loads this automatically, so `docker compose
+# up` is the dev experience and `docker compose -f docker-compose.yml up` is the
+# production one — the difference is this file, not a flag you have to remember.
+#
+# What it buys you: edit the web app, a cell descriptor, an application or the
+# tuning file and restart the service — no image rebuild.
+services:
+  cell-server:
+    volumes:
+      - ./apps/cell_server/web:/src/apps/cell_server/web:ro
+      - ./apps/cell_server/cells:/src/apps/cell_server/cells:ro
+      - ./apps/cell_server/apps:/src/apps/cell_server/apps:ro
+      - ./apps/cell_server/scenes:/src/apps/cell_server/scenes:ro
+      # Tuning is data: IK damping, settle windows, approach clearance, queue
+      # caps. Edit and restart, never rebuild.
+      - ./config:/src/config:ro
+      # What you author locally stays on your disk where you can read it.
+      - ./apps/cell_server/modules:/data/modules
+      - ./apps/cell_server/sessions:/data/sessions

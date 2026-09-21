@@ -1,0 +1,21 @@
+<!-- Single linear axis (rail-x) as a MuJoCo world. Mirrors the descriptor
+     robonode-idl/examples/rail-x.descriptor.json: slide joint, 0..1.45 m,
+     driven by a position servo. The physics twin behind robonode.mujoco-axis.
+     Units here are metres; the adapter presents millimetres to match the
+     MotionAxis descriptor (×1000). -->
+<mujoco model="rail">
+  <option timestep="0.00025" integrator="implicitfast"/>
+  <worldbody>
+    <light pos="0 0 2"/>
+    <geom name="floor" type="plane" size="2 2 0.1" rgba="0.3 0.3 0.35 1"/>
+    <body name="carriage" pos="0 0 0.05">
+      <joint name="rail" type="slide" axis="1 0 0" range="0 1.45" damping="20"/>
+      <geom type="box" size="0.06 0.06 0.05" mass="8" rgba="0.7 0.5 0.2 1"/>
+    </body>
+  </worldbody>
+  <actuator>
+    <!-- Position servo: kp/kv tuned so the carriage tracks the streamed
+         setpoint with a small, physical following error. -->
+    <position name="rail_servo" joint="rail" kp="6000" kv="300" ctrlrange="0 1.45"/>
+  </actuator>
+</mujoco>
