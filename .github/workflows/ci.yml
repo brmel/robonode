@@ -40,15 +40,20 @@ jobs:
       # ASan — writes `static inline void f(...) __attribute__((always_inline))`,
       # and gcc rejects a trailing attribute on a function definition. clang
       # accepts it, and the sanitizers are native there anyway.
+      # …and libc++ with it: clang 18 cannot consume libstdc++'s <expected>, so
+      # core/result.hpp stops compiling. Every dependency here is built from
+      # source by FetchContent, so there is no system library to disagree with.
+      - name: Install libc++
+        run: sudo apt-get update && sudo apt-get install -y libc++-dev libc++abi-dev
       - name: Configure with ASan/UBSan (MuJoCo on — otherwise it covers nothing)
         env:
           CC: clang
           CXX: clang++
         run: >
           cmake -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DROBONODE_BUILD_UR_ADAPTER=OFF
-          -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer"
+          -DCMAKE_CXX_FLAGS="-stdlib=libc++ -fsanitize=address,undefined -fno-omit-frame-pointer"
           -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer"
-          -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined"
+          -DCMAKE_EXE_LINKER_FLAGS="-stdlib=libc++ -fsanitize=address,undefined"
       - name: Build
         run: cmake --build build -j
       - name: Test
