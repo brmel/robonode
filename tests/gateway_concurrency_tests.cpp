@@ -41,7 +41,7 @@ void test_readers_do_not_race_the_physics() {
     stop.store(true);
     for (auto& r : readers) r.join();
     CHECK(settled.ok());
-    CHECK(reads.load() > 100);  // the readers really did hammer it
+    CHECK(reads.load() > kHammeredReads);  // the readers really did hammer it
 }
 
 // The tool and the stations touch the physics directly, and the idle ticker
@@ -100,7 +100,7 @@ void test_planning_does_not_race_the_telemetry_readers() {
     CHECK(planned > 0);
     stop.store(true);
     for (auto& r : readers) r.join();
-    CHECK(reads.load() > 50);
+    CHECK(reads.load() > kBusyReads);
     CHECK(!json::parse(p.telemetry_json(), nullptr, false).is_discarded());
 }
 

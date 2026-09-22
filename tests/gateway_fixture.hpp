@@ -40,6 +40,27 @@ using namespace std::chrono_literals;
 // bound rather than pacing themselves against a wall clock.
 constexpr auto kProgramTimeout = std::chrono::minutes{5};
 
+// ThreadSanitizer instruments every memory access, so reader threads make far
+// fewer passes through the same window. The bounds below exist to prove the
+// readers really ran — that a concurrency test is not passing vacuously — not
+// to assert a throughput, so they scale with the build rather than being
+// relaxed everywhere.
+#if defined(__SANITIZE_THREAD__)
+#define ROBONODE_TSAN 1
+#elif defined(__has_feature)
+#if __has_feature(thread_sanitizer)
+#define ROBONODE_TSAN 1
+#endif
+#endif
+
+#ifdef ROBONODE_TSAN
+constexpr int kBusyReads = 5;
+constexpr int kHammeredReads = 10;
+#else
+constexpr int kBusyReads = 50;
+constexpr int kHammeredReads = 100;
+#endif
+
 // A platform composed the way an app composes one: the cell names a scene, so
 // the scene library has to be reachable or the cell has no world to live in.
 inline robonode::Platform platform(const std::string& apps = {}, const std::string& modules = {}) {
