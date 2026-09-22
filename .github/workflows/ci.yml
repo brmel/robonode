@@ -31,29 +31,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # MuJoCo ON. It used to be off, which sounded principled — "sanitizing
-      # vendored libs is not our job" — but it excluded every suite that runs
-      # physics, i.e. most of OUR code. What ran was the part that could not
-      # have been wrong. sim-mujoco waives the two warnings their sanitizer
-      # shim trips; nothing else is relaxed.
-      # clang, not gcc: MuJoCo's mjsan.h — the header it only compiles under
-      # ASan — writes `static inline void f(...) __attribute__((always_inline))`,
-      # and gcc rejects a trailing attribute on a function definition. clang
-      # accepts it, and the sanitizers are native there anyway.
-      # …and libc++ with it: clang 18 cannot consume libstdc++'s <expected>, so
-      # core/result.hpp stops compiling. Every dependency here is built from
-      # source by FetchContent, so there is no system library to disagree with.
-      - name: Install libc++
-        run: sudo apt-get update && sudo apt-get install -y libc++-dev libc++abi-dev
-      - name: Configure with ASan/UBSan (MuJoCo on — otherwise it covers nothing)
-        env:
-          CC: clang
-          CXX: clang++
+      # MuJoCo is OFF here, and that costs real coverage — the physics suites are
+      # where most of our code runs. It is off because MuJoCo's mjsan.h, the
+      # header it compiles only under ASan, does not build with either compiler
+      # on this runner: gcc rejects `static inline void f(...) __attribute__(
+      # (always_inline))` as a trailing attribute on a definition, and clang
+      # rejects the `asm volatile` inside it. Both are upstream. Sanitising the
+      # rest beats a job that is permanently red and sanitises nothing.
+      - name: Configure with ASan/UBSan
         run: >
           cmake -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DROBONODE_BUILD_UR_ADAPTER=OFF
-          -DCMAKE_CXX_FLAGS="-stdlib=libc++ -fsanitize=address,undefined -fno-omit-frame-pointer"
+          -DROBONODE_BUILD_MUJOCO=OFF
+          -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer"
           -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer"
-          -DCMAKE_EXE_LINKER_FLAGS="-stdlib=libc++ -fsanitize=address,undefined"
+          -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined"
       - name: Build
         run: cmake --build build -j
       - name: Test
