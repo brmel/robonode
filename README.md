@@ -54,95 +54,30 @@ Building from source instead: `scripts/setup.sh --deps` (or
 
 ## Try it in five minutes
 
+```sh
+docker compose up --build      # → http://localhost:8080
+```
+
+No host toolchain needed. To build from source instead, see [CONTRIBUTING.md](CONTRIBUTING.md).
+
 | | |
 |---|---|
-| **Run an application** | Click **Bin picking** in the left rail. Vision locates the part, the arm picks it, the pallet receives it. |
-| **Break it on purpose** | Open the dock → **Cell**, switch Tracking to `snapshot`, run **Moving bin picking**. The arm now aims where the part *was*, and misses. The log says why. |
-| **Write your own algorithm** | Dock → **Editor**. `x`, `y`, `z + 0.05` is a valid grasp offset. It compiles into a sandbox and becomes a selectable version. |
+| **Run an application** | Click **Bin picking**. Vision locates the part, the arm picks it, the pallet receives it. |
+| **Break it on purpose** | Dock → **Cell**, switch Tracking to `snapshot`, run **Moving bin picking**. The arm aims where the part *was* and misses. The log says why. |
+| **Write your own algorithm** | Dock → **Editor**. `x`, `y`, `z + 0.05` is a valid grasp offset. It compiles into a sandbox and becomes a version you can select. |
 | **Change the world** | Dock → **Scenes**. Fork `cluttered-line`, move the crate, hit **Run scene**. The physics rebuilds around your JSON. |
-| **Drive it headless** | `robonode --server http://localhost:8080 contacts` — what is touching what, right now. Every UI action has a CLI verb. |
+| **Drive it from a terminal** | `robonode --server http://localhost:8080 contacts` — what is touching what, right now. Every button in the UI has a CLI verb, because both talk to the same HTTP API. |
 
 ## Why it exists
 
-Robotics algorithms are usually evaluated in a paper, a notebook, or a
-simulation that flatters them. This is a cell where an algorithm has to work:
-one clean interface per capability (in the spirit of the Matrox Imaging
-Library), mature engines underneath (MuJoCo, Ruckig, OpenCV, Pinocchio), and a
-scenario that is honestly hard — the target is moving, the sensor is late, the
-decoy is the same colour as the part.
+Robotics algorithms are usually judged in a paper, a notebook, or a simulation
+that flatters them. Here an algorithm has to work in a scenario that is honestly
+hard: the target is moving, the sensor is late, and there is a decoy in the bin
+the same colour as the part.
 
-Everything a user can change is **data**: the cell, the scene, the application,
-the tuning. Everything a user can replace is **behind a seam we own**, so
-swapping the planner does not touch the UI, the CLI, or the real-time loop.
-
-## Contributing
-
-Start with [CONTRIBUTING.md](CONTRIBUTING.md). The short version: `bash
-scripts/verify.sh` must exit 0, and that is the whole bar. Issues labelled
-**good first issue** are scoped to one file and one test. New algorithms and new
-scenarios are the most useful things you can send.
-
-- [SECURITY.md](SECURITY.md) — the platform runs code its users write; read this before hosting one publicly
-- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — self-host, Fly.io, Cloud Run, and why serverless is the wrong shape for this
-- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
-
-## Documents
-
-| Doc | What it is |
-|---|---|
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | **Architecture + stack in one file**: system map (components, nodes/versions, control flow), enforced principles, and every open-source building block we reuse (exact pins + the modularity seam each hides behind). The file to hand external reviewers. |
-| [docs/DECISIONS.md](docs/DECISIONS.md) | ADR-1…15: reference hardware, data plane, sandbox, safety posture, RT-correctness, the one capability pattern, command identity, the node model, tuning-as-data, and what the software stop is *not* |
-| [docs/CHALLENGES.md](docs/CHALLENGES.md) | **The scenarios the platform poses** — hard problems where the naive algorithm genuinely fails, and the one seam that fixes each |
-| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Running it: dev vs prod compose, the container topology, public instances, and the cloud options with their trade-offs |
-| [docs/REAL-ROBOTS.md](docs/REAL-ROBOTS.md) | Real-robot kinematics via Robotics Toolbox behind our seams |
-| [docs/TEST-STRATEGY.md](docs/TEST-STRATEGY.md) | Test layers (unit → integration → browser e2e) + the **scenario matrix** that flips → as the system grows — the visible progress metric |
-| [docs/MODULE-MAP.md](docs/MODULE-MAP.md) | **Where a change belongs**: what each area owns, what it may depend on, which tests cover it, and the shortest loop that proves your change |
-| [AGENTS.md](AGENTS.md) | **Autonomous operating manual** — the loop an unsupervised agent runs (pick → build → test → verify → record), the design-drift gates, and the tools (gh · ctest · Playwright · CLI · logging) |
-
-Read order: **ARCHITECTURE** (what it is) → **DECISIONS** (why) → **MODULE-MAP** (where your change goes). The backlog is tracker.
-
-## Real robots
-
-Real robot kinematics from a mature library, behind our seams — no hand-rolled math. [petercorke/robotics-toolbox-python](https://github.com/petercorke/robotics-toolbox-python) (real models: UR3/5/10, Panda, …; validated FK/IK/Jacobian) runs as a small Python service ([services/rtb-kinematics/](services/rtb-kinematics/)); the C++ [engines/rtb/](engines/rtb/) implements the motion `Kinematics`/`Planner` seams against it. celld, the executive, and the adapters are unchanged. `scripts/rtb-verify.sh` plans a real UR10 Cartesian moveL end-to-end. Details + the real-physics-model plan: [docs/REAL-ROBOTS.md](docs/REAL-ROBOTS.md).
-
-## Live web app (see it, drive it)
-
-```sh
-docker compose up --build          # → http://localhost:8080   (reproducible, no host toolchain)
-# or locally:
-cmake -B build && cmake --build build -j --target cell_server
-./build/apps/cell_server/cell_server   # → http://localhost:8080
-```
-
-A 3D UR10e-on-a-rail you watch move in real time. The **left rail is your workspace** — session, applications, scenes; the **dock is the cell** — capability modules (swap any algorithm live), the robot's joints and their drivers, the scene editor, logs, and A/B compare. The dashboard reads live physics: worst joint following error, what vision sees, how fast the tracker thinks the target is moving, and **what is touching what**. **Run** streams a coordinated blended move from MuJoCo; the **Physics / Sim** toggle rebuilds every node through the `DriverRegistry` under a different driver — both satisfy `AxisAdapter`, so a node's implementation swaps live while the UI and motion code stay untouched (the forced interface). Transport is a thin HTTP+SSE gateway ([gateway/](gateway/), [apps/cell_server/](apps/cell_server/)); the roadmap Zenoh/gRPC surface swaps in behind the same `CellGateway` seam.
-
-The physics is not decorative: the arm is stopped by fixtures and by the parts in its way, a grasp closes a weld on the part it actually caught, the belt carries the workpiece by friction, and letting go drops it ([ADR-16](docs/DECISIONS.md)).
-
-## CLI at the heart (agent-complete, same code as the UI)
-
-```sh
-robonode --server http://localhost:8080 telemetry   # the cell you are watching
-robonode --server http://localhost:8080 contacts    # what is touching what
-robonode --server http://localhost:8080 logs        # the log ring, no stream
-robonode --server http://localhost:8080 deliver conveyor-1 && robonode --server … pick
-robonode --server http://localhost:8080 watch --for 20   # one line per change
-```
-
-**`--server` points the CLI at a running cell** instead of booting one in-process. Without it an agent debugging the robot on screen would be answering questions about a different robot — so every verb (reads, task steps, capability swaps, scene swaps) goes over the same HTTP contract the web app uses.
-
-The `robonode` CLI (, [ADR-8](docs/DECISIONS.md)) is a **first-class surface, not an afterthought** — an agent drives the whole system headless: execute programs, swap modules, drive lifecycle, monitor state, tail logs/traces/telemetry, get feedback, all with `--json` machine output. The CLI and the web UI are **both thin clients of the one Platform facade** — the same contract, the same code path, no divergence; a capability in one surface but not the other is a bug. Built on [CLI11](https://github.com/CLIUtils/CLI11); logging is [spdlog](https://github.com/gabime/spdlog)/fmt structured + async (, [ADR-9](docs/DECISIONS.md)), with logs/traces/telemetry exposed as one followable stream both surfaces read.
-
-## Autonomous development (launch an agent, walk away)
-
-The repo is built to be worked by an agent unsupervised, start to finish ([AGENTS.md](AGENTS.md), [ADR-10](docs/DECISIONS.md)). Autonomy rests on **executable gates, not trust**:
-
-```sh
-scripts/verify.sh          # Definition of Done: design invariants + build + all C++ suites
-scripts/verify.sh --e2e    #   … plus the browser journeys (docker + Playwright)
-scripts/check-design.sh    # design-drift gate (CI): the ADRs as greppable rules — seams, RT purity, no hardcoding
-```
-
-An agent picks the next `agent-ready`, unblocked issue from the tracker, implements the thin slice, makes `verify.sh` pass, flips its row in the [scenario matrix](docs/TEST-STRATEGY.md), closes the issue with evidence, commits, and repeats — with `gh` (issues), `ctest` (unit/integration), Playwright (e2e + the MCP server for live checks), the `robonode` CLI (`--json`), and the observability stream as its hands. The gates catch drift so the human reviews closed issues instead of supervising steps.
+Everything you can change is data — the cell, the scene, the application, the
+tuning. Everything you can replace sits behind an interface we own, so swapping
+the planner touches neither the UI, nor the CLI, nor the real-time loop.
 
 ## How the repository is laid out
 
@@ -175,10 +110,41 @@ bash scripts/verify.sh --e2e      # …plus the browser journeys
 
 The boundaries are enforced, not just described: [scripts/check-boundaries.sh](scripts/check-boundaries.sh) fails CI on any cross-module include — `core` depends on nothing, `recorder` never sees `motion`, and `trajlib` never escapes `motion/`.
 
-## Status & next
+## Documents
 
-**Now:** a cell you can drive from a browser, a CLI or an agent — real physics, swappable algorithms at every capability, user code in a sandbox, applications you deploy, and a control plane that can stop the robot. Every claim here is covered by `scripts/verify.sh` and the browser suite.
+| | |
+|---|---|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | The system and the stack in one file. Start here. |
+| [docs/DECISIONS.md](docs/DECISIONS.md) | Why each choice was made, one record per decision. |
+| [docs/MODULE-MAP.md](docs/MODULE-MAP.md) | Where a change belongs, and which test proves it. |
+| [docs/CHALLENGES.md](docs/CHALLENGES.md) | The scenarios where a naive algorithm genuinely fails. |
+| [docs/TEST-STRATEGY.md](docs/TEST-STRATEGY.md) | The test layers and the scenario matrix. |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Self-hosting, and the cloud options with their trade-offs. |
+| [docs/REAL-ROBOTS.md](docs/REAL-ROBOTS.md) | Driving real robot kinematics through the same interfaces. |
+| [AGENTS.md](AGENTS.md) | How an unsupervised agent works this repository, and the gates it must pass. |
 
-**Next**, in order (tracker has the full list): 6-DoF orientation (`Goal::kCartesianPose` still has no planner, the largest robotics gap), Pinocchio behind `Kinematics`, a planner that *avoids* the contacts the cell now reports, scene overrides and per-session cells.
+## Contributing
 
-OQ-1/2/4/5 decided ([DECISIONS](docs/DECISIONS.md)); OQ-3 (license) open.
+Start with [CONTRIBUTING.md](CONTRIBUTING.md). The bar is one command:
+
+```sh
+bash scripts/verify.sh         # design gates + build + every C++ suite
+bash scripts/verify.sh --e2e   # … plus the browser journeys (needs docker)
+```
+
+If it exits 0, the change is reviewable. Issues labelled **good first issue** are
+scoped to one file and one test; new algorithms and new scenarios are the most
+useful things you can send. Read [SECURITY.md](SECURITY.md) before hosting an
+instance publicly — the platform runs code its users write. See also
+[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+
+## Status
+
+A cell you can drive from a browser, a CLI or a script: real physics, swappable
+algorithms at every capability, user code in a sandbox, and a control plane that
+can stop the robot. Everything claimed here is covered by `scripts/verify.sh` and
+the browser suite.
+
+Next, in order: 6-DoF orientation (`Goal::kCartesianPose` has no planner yet, the
+largest gap), Pinocchio behind the kinematics interface, a planner that avoids
+the contacts the cell already reports, and per-session cells.
