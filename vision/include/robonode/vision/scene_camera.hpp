@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <deque>
 #include <functional>
+#include <mutex>
 #include <random>
 #include <sstream>
 #include <string>
@@ -55,8 +56,14 @@ public:
 
     [[nodiscard]] const CameraModel& model() const override { return model_; }
 
+    // Every surface that shows the camera calls this, and they are answered on
+    // their own threads: the frame buffer and the noise generator are shared
+    // mutable state, so the shutter and the hand-back happen under one lock.
+    // Not an RT path — a capture allocates a whole frame — so a mutex is honest
+    // here where it would not be on the executive's step.
     Frame grab() override {
         const double now = clock_ ? clock_() : 0.0;
+        const std::lock_guard<std::mutex> guard{shutter_};
         capture(now);
         return deliver(now);
     }
@@ -119,6 +126,7 @@ private:
     Clock clock_;
     std::vector<Target> targets_;
     CameraOptions opt_;
+    mutable std::mutex shutter_;
     std::deque<Frame> pending_;
     std::mt19937 rng_{1234};
 };
