@@ -4,6 +4,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <shared_mutex>
 #include <string>
 #include <utility>
 #include <vector>
@@ -38,6 +39,7 @@ public:
     }
 
     void set_site_pose(std::function<Vec3(const std::string&)> site_pose) {
+        const std::unique_lock lk{swap_mtx_};
         site_pose_ = std::move(site_pose);
     }
 
@@ -52,17 +54,23 @@ public:
 
     Status select(const std::string& version) override {
         if (!registry_.has(version)) return Status::failure("unknown version '" + version + "'");
-        version_ = version;
-        rebuild();
+        {
+            const std::unique_lock lk{swap_mtx_};
+            version_ = version;
+            rebuild_locked();
+        }
         observe();
         return Status::success();
     }
 
     void install(const std::string& id, sandbox::Program program, Select select) override {
-        register_program_detector(registry_, id, std::move(program));
-        remember({id, "user", {}});
-        if (select == Select::kNow) version_ = id;
-        rebuild();
+        {
+            const std::unique_lock lk{swap_mtx_};
+            register_program_detector(registry_, id, std::move(program));
+            remember({id, "user", {}});
+            if (select == Select::kNow) version_ = id;
+            rebuild_locked();
+        }
         observe();
     }
 
@@ -74,7 +82,15 @@ public:
     // body the platform reports dynamically.
     [[nodiscard]] const std::string& target_site() const { return target_site_; }
 
+    // Swapping the detector destroys the one a reader may be inside. Every swap
+    // takes the write lock; every look takes the read lock and holds it for the
+    // whole detect, so the object cannot go away underneath it.
     void rebuild() {
+        const std::unique_lock lk{swap_mtx_};
+        rebuild_locked();
+    }
+
+    void rebuild_locked() {
         VisionContext ctx;
         ctx.site_pose = site_pose_;
         ctx.clock = clock_;
@@ -85,11 +101,15 @@ public:
         }
     }
 
-    void set_clock(std::function<double()> clock) { clock_ = std::move(clock); }
+    void set_clock(std::function<double()> clock) {
+        const std::unique_lock lk{swap_mtx_};
+        clock_ = std::move(clock);
+    }
 
     // Where the detector's frames come from. Supplied, never constructed: the
     // sensor is its own swappable node.
     void set_camera_source(std::function<std::unique_ptr<Camera>()> camera) {
+        const std::unique_lock lk{swap_mtx_};
         camera_ = std::move(camera);
     }
 
@@ -104,6 +124,7 @@ public:
     // moving line needs that: acting on a stale pose as if it were current is
     // the whole latency problem.
     std::optional<Detection> look() {
+        const std::shared_lock lk{swap_mtx_};
         const auto ds = detector_ ? detector_->detect() : std::vector<Detection>{};
         publish_detections(ds);
         if (ds.empty()) return std::nullopt;
@@ -119,7 +140,10 @@ public:
     }
 
     // Sites the cell declares as visible clutter — same colour, wrong size.
-    void set_clutter(std::string sites) { clutter_ = std::move(sites); }
+    void set_clutter(std::string sites) {
+        const std::unique_lock lk{swap_mtx_};
+        clutter_ = std::move(sites);
+    }
 
 private:
     void publish_detections(const std::vector<Detection>& ds) {
@@ -142,6 +166,8 @@ private:
                  {"confidence", ds.empty() ? 0.0 : ds.front().confidence}});
     }
 
+    // Ordering: swap_mtx_ is always taken before seen_mtx_, never the reverse.
+    mutable std::shared_mutex swap_mtx_;
     mutable std::mutex seen_mtx_;
     std::optional<Vec3> last_seen_;
     std::unique_ptr<Detector> detector_;
