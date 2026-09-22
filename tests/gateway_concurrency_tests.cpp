@@ -19,7 +19,7 @@ namespace {
 // worker steps physics corrupts the solver's stack (it surfaces as a crash
 // inside mj_collideTree, one run in four). Readers must see a snapshot, and
 // this test is the thing that fails when someone reaches for the live world.
-void test_readers_do_not_race_the_physics() {
+[[maybe_unused]] void test_readers_do_not_race_the_physics() {
     auto p = platform(ROBONODE_APPS);
     std::atomic<bool> stop{false};
     std::atomic<int> reads{0};
@@ -157,7 +157,12 @@ void test_a_cell_can_be_dropped_while_it_is_being_read() {
 }  // namespace
 
 int main() {
+#ifdef ROBONODE_HAS_OPENCV
     test_readers_do_not_race_the_physics();
+#else
+    std::puts("  skipped readers-vs-physics: moving-bin-picking names robonode.opencv, "
+              "and this build has no OpenCV");
+#endif
     test_tool_and_stations_do_not_race_the_idle_ticker();
     test_planning_does_not_race_the_telemetry_readers();
     test_sessions_are_opened_from_many_threads_at_once();

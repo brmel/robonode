@@ -90,6 +90,9 @@ if(ROBONODE_BUILD_MUJOCO)
       target_link_libraries(${suite} PRIVATE robonode::app_support robonode::gateway
                             robonode::warnings)
       target_compile_definitions(${suite} PRIVATE
+          # Suites whose applications name robonode.opencv skip without it, rather
+          # than failing at "unknown version" deep inside a run.
+          $<$<BOOL:${ROBONODE_BUILD_OPENCV}>:ROBONODE_HAS_OPENCV>
           ROBONODE_WORLDS="${ROBONODE_WORLDS}"
           ROBONODE_CELL="${CMAKE_SOURCE_DIR}/apps/cell_server/cells/ur10e.cell.json"
           ROBONODE_APPS="${CMAKE_SOURCE_DIR}/apps/cell_server/apps"

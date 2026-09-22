@@ -340,7 +340,7 @@ void test_vision_sees_the_part_move_on_the_belt() {
 
 // Sensing is not instantaneous and the workpiece is not alone in view. Both are
 // part of the problem the platform poses, so both are pinned here.
-void test_vision_reports_capture_time_and_ignores_clutter() {
+[[maybe_unused]] void test_vision_reports_capture_time_and_ignores_clutter() {
     auto p = platform();
     CHECK(p.set_version("vision", "robonode.opencv").ok());
     CHECK(p.await_settled().ok());
@@ -373,7 +373,12 @@ int main() {
     test_unknown_capability_is_refused();
     test_moving_target_needs_prediction_to_be_picked();
     test_vision_sees_the_part_move_on_the_belt();
+#ifdef ROBONODE_HAS_OPENCV
     test_vision_reports_capture_time_and_ignores_clutter();
+#else
+    std::puts("  skipped vision capture-time: needs robonode.opencv, "
+              "and this build has no OpenCV");
+#endif
     std::puts("gateway_capability_tests: OK");
     return 0;
 }

@@ -42,10 +42,11 @@ option(ROBONODE_BUILD_OPENCV "Build the OpenCV vision node (needs a local OpenCV
 if(ROBONODE_BUILD_OPENCV)
   find_package(OpenCV QUIET COMPONENTS core imgproc)
   if(NOT OpenCV_FOUND)
-    message(STATUS "OpenCV not found — building without the OpenCV vision node. "
-                   "Install it (brew install opencv / apt install libopencv-dev) "
-                   "to get robonode.opencv, or configure with -DROBONODE_BUILD_OPENCV=OFF "
-                   "to silence this.")
+    message(WARNING "OpenCV not found — building without the OpenCV vision node. "
+                    "Applications that name robonode.opencv will not run, and the "
+                    "test suites covering them will skip. Install it "
+                    "(brew install opencv / apt install libopencv-dev), or configure "
+                    "with -DROBONODE_BUILD_OPENCV=OFF to silence this.")
     set(ROBONODE_BUILD_OPENCV OFF)
   endif()
 endif()
