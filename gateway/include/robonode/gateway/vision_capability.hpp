@@ -92,13 +92,15 @@ public:
 
     void rebuild_locked() {
         VisionContext ctx;
+        std::unique_ptr<Detector> fresh;
         ctx.site_pose = site_pose_;
         ctx.clock = clock_;
         ctx.camera = camera_;
         ctx.config = {{"target", target_site_}, {"clutter", clutter_}};
-        if (!registry_.make(version_, ctx, detector_).ok()) {
+        if (!registry_.make(version_, ctx, fresh).ok()) {
             RN_LOG_WARN("vision version '{}' unavailable", version_);
         }
+        detector_ = std::move(fresh);
     }
 
     void set_clock(std::function<double()> clock) {
@@ -124,8 +126,16 @@ public:
     // moving line needs that: acting on a stale pose as if it were current is
     // the whole latency problem.
     std::optional<Detection> look() {
-        const std::shared_lock lk{swap_mtx_};
-        const auto ds = detector_ ? detector_->detect() : std::vector<Detection>{};
+        // Hold the lock only long enough to take a reference. Detecting under it
+        // would let a stream of readers starve the swap, which is a live swap
+        // that never completes. The shared_ptr keeps this detector alive even
+        // if a swap replaces it mid-detect.
+        std::shared_ptr<Detector> detector;
+        {
+            const std::shared_lock lk{swap_mtx_};
+            detector = detector_;
+        }
+        const auto ds = detector ? detector->detect() : std::vector<Detection>{};
         publish_detections(ds);
         if (ds.empty()) return std::nullopt;
         return ds.front();
@@ -170,7 +180,7 @@ private:
     mutable std::shared_mutex swap_mtx_;
     mutable std::mutex seen_mtx_;
     std::optional<Vec3> last_seen_;
-    std::unique_ptr<Detector> detector_;
+    std::shared_ptr<Detector> detector_;
     std::function<Vec3(const std::string&)> site_pose_;
     std::function<double()> clock_;
     std::function<std::unique_ptr<Camera>()> camera_;
