@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <map>
 #include <chrono>
 #include <memory>
@@ -143,6 +144,10 @@ public:
                 execute(c, id);
             },
             [this] { publish_telemetry(0.0); }, cfg_.gateway.queue_capacity);
+        // Readers on other threads test this, not the optional itself: emplace
+        // writes the optional's engaged flag with nothing ordering it against
+        // their read, which is the race ThreadSanitizer reports.
+        bus_ready_.store(true, std::memory_order_release);
         idle_ = std::thread{[this] {
             const Log::Scope mine{id_};
             keep_scene_alive();
@@ -466,7 +471,7 @@ private:
         // Verbs that are pure delegation live with the thing they command, not
         // in the class that happens to own it.
         robonode::register_supervisor_verbs(router_, supervisor_, [this] {
-            return bus_ ? bus_->discard_pending() : std::size_t{0};
+            return bus_ready_.load(std::memory_order_acquire) ? bus_->discard_pending() : std::size_t{0};
         });
         robonode::register_tool_verbs(router_, gripper_);
     }
@@ -795,8 +800,9 @@ private:
 
     TelemetryPublisher::Progress progress() const {
         std::lock_guard<std::mutex> lk{progress_mtx_};
-        return {bus_ ? bus_->applied() : 0,
-                bus_ ? bus_->accepted() : 0,
+        const bool ready = bus_ready_.load(std::memory_order_acquire);
+        return {ready ? bus_->applied() : 0,
+                ready ? bus_->accepted() : 0,
                 supervisor_.state_name(),
                 supervisor_.last_error(),
                 supervisor_.latched(),
@@ -883,6 +889,7 @@ private:
     std::thread idle_;
 
     CommandRouter router_;
+    std::atomic<bool> bus_ready_{false};
     std::optional<CommandBus<Command>> bus_;  // last: the worker joins before what it drives
 };
 
