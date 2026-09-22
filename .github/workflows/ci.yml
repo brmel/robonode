@@ -61,6 +61,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # The physics suites run applications that name robonode.opencv. Without
+      # OpenCV present, CMake quietly turns the engine off and those runs fail
+      # at "unknown version 'robonode.opencv'" instead of at configure time.
+      - name: Install OpenCV
+        run: sudo apt-get update && sudo apt-get install -y libopencv-dev
       - name: Configure with ThreadSanitizer (MuJoCo on — that is where the threads are)
         run: >
           cmake -B build-tsan -DCMAKE_BUILD_TYPE=RelWithDebInfo
@@ -83,6 +88,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # The physics suites run applications that name robonode.opencv. Without
+      # OpenCV present, CMake quietly turns the engine off and those runs fail
+      # at "unknown version 'robonode.opencv'" instead of at configure time.
+      - name: Install OpenCV
+        run: sudo apt-get update && sudo apt-get install -y libopencv-dev
       - name: Configure (MuJoCo on, UR off)
         run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DROBONODE_BUILD_UR_ADAPTER=OFF
       - name: Build
